@@ -1,0 +1,39 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run Servers",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/main.py",
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "name": "Run Agent",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/agent/main.py",
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env",
+            "preLaunchTask": "wait-for-web-server"
+        },
+        {
+            "name": "Run Cybersecurity Shell",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/cybersecurity_shell.py",
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Run Servers and Agent",
+            "configurations": [
+                "Run Servers",
+                "Run Agent"
+            ]
+        }
+    ]
+}
