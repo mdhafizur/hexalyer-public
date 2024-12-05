@@ -2,26 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 from bson.objectid import ObjectId
 from pydantic import ValidationInfo
-
-
-class PyObjectId(ObjectId):
-    """
-    Custom type for MongoDB ObjectId validation and serialization.
-    """
-
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, value, _: ValidationInfo):
-        if not ObjectId.is_valid(value):
-            raise ValueError(f"Invalid ObjectId: {value}")
-        return ObjectId(value)
-
-    @classmethod
-    def __get_pydantic_json_schema__(cls, schema):
-        schema.update(type="string")
+from models.base import PyObjectId
 
 
 class TaskModel(BaseModel):
@@ -54,6 +35,7 @@ class TaskModel(BaseModel):
         """
         Pydantic configuration for JSON encoding and schema generation.
         """
+
         populate_by_name = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}

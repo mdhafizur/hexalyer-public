@@ -1,15 +1,18 @@
 # web_server/app.py
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
-from logger.fastapi_logger import web_server_logger
 import os
 import subprocess
+from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException
 from routes.agent_routes import router as agent_router
 from routes.task_routes import router as task_router
+from routes.conversation_routes import router as conversation_router
+from routes.message_routes import router as message_router
 from routes.docs_routes import router as docs_router
 from routes.healthcheck_routes import router as healthcheck_router
 from routes.chatgpt_routes import router as chatgpt_router
+from logger.fastapi_logger import web_server_logger
+
 
 logger = web_server_logger
 
@@ -41,6 +44,8 @@ app = FastAPI(
 # Register routers
 app.include_router(agent_router, prefix="/agents", tags=["Agents"])
 app.include_router(task_router, prefix="/tasks", tags=["Tasks"])
+app.include_router(conversation_router, prefix="/conversations", tags=["Conversations"])
+app.include_router(message_router, prefix="/messages", tags=["Messages"])
 app.include_router(healthcheck_router, prefix="/healthcheck", tags=["Healthcheck"])
 app.include_router(docs_router, prefix="/docs", tags=["Docs"])
 app.include_router(chatgpt_router, prefix="/chatgpt", tags=["ChatGPT"])

@@ -4,22 +4,7 @@ from datetime import datetime
 from bson.objectid import ObjectId
 from pydantic import ValidationInfo
 from ipaddress import IPv4Address, IPv6Address
-
-
-class PyObjectId(ObjectId):
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, value, _: ValidationInfo):
-        if not ObjectId.is_valid(value):
-            raise ValueError(f"Invalid ObjectId: {value}")
-        return ObjectId(value)
-
-    @classmethod
-    def __get_pydantic_json_schema__(cls, schema):
-        schema.update(type="string")
+from models.base import PyObjectId
 
 
 # Nested Models
