@@ -6,8 +6,17 @@ import statsData from '../../assests/dummy-data/statsData.json';
 // Example task data
 const tasks = statsData;
 
+// Define the type for the chart data
+interface ChartData {
+  id: string;
+  label: string;
+  value: number;
+  percentage: string;
+}
+
 const TaskStatusPieChart: React.FC = () => {
-  const [chartData, setChartData] = useState([]);
+  // Explicitly define the state type as ChartData[]
+  const [chartData, setChartData] = useState<ChartData[]>([]);
 
   useEffect(() => {
     // Aggregate task statuses
@@ -34,7 +43,7 @@ const TaskStatusPieChart: React.FC = () => {
         bgcolor: "background.default",
         height: "350px",
         width: "100%",
-        minWidth:"350px"
+        minWidth: "350px"
       }}
     >
       <h2 style={{ textAlign: "center" }}>Task Status Overview</h2>

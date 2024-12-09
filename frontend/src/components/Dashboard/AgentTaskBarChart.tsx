@@ -4,7 +4,7 @@ import { Box } from "@mui/material";
 import statsData from "../../assests/dummy-data/statsData.json"; // Importing task data
 
 const AgentTaskBarChart: React.FC = () => {
-  const [chartData, setChartData] = useState([]);
+  const [chartData, setChartData] = useState<{ agent: string; tasks: number }[]>([]);
 
   useEffect(() => {
     // Aggregate task counts by agent
@@ -29,7 +29,7 @@ const AgentTaskBarChart: React.FC = () => {
         bgcolor: "background.default",
         height: "350px",
         width: "100%",
-        minWidth:"350px"
+        minWidth: "350px",
       }}
     >
       <h2 style={{ textAlign: "center" }}>Tasks Per Agent</h2>

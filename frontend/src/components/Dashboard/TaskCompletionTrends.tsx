@@ -1,16 +1,32 @@
 import React, { useEffect, useState } from "react";
 import { ResponsiveLine } from "@nivo/line";
-import { Box, useTheme } from "@mui/material";
+import { Box } from "@mui/material";
 import statsData from "../../assests/dummy-data/statsData.json";
 
+// Define the type for the task
+interface Task {
+  date: string;
+  // Add other properties that exist in each task object
+}
+
+interface ChartDataPoint {
+  x: string;
+  y: number;
+}
+
+interface LineChartData {
+  id: string;
+  color: string;
+  data: ChartDataPoint[];
+}
+
 const TaskCompletionTrends: React.FC = () => {
-  const [chartData, setChartData] = useState<any[]>([]);
-  const theme = useTheme();
+  const [chartData, setChartData] = useState<LineChartData[]>([]);
 
   useEffect(() => {
     // Aggregate tasks by date
     const taskCountsByDate: { [key: string]: number } = {};
-    statsData.forEach((task: any) => {
+    statsData.forEach((task: Task) => {
       const date = task.date;
       taskCountsByDate[date] = (taskCountsByDate[date] || 0) + 1;
     });
@@ -21,7 +37,7 @@ const TaskCompletionTrends: React.FC = () => {
     );
 
     // Transform data for Nivo Line Chart
-    const transformedData = [
+    const transformedData: LineChartData[] = [
       {
         id: "Tasks Completed",
         color: "hsl(220, 70%, 50%)",
@@ -58,26 +74,20 @@ const TaskCompletionTrends: React.FC = () => {
           reverse: false,
         }}
         axisBottom={{
-          orient: "bottom",
           tickSize: 5,
           tickPadding: 5,
           tickRotation: -45,
           legend: "Date",
           legendOffset: 40,
           legendPosition: "middle",
-          legendTextStyle: { fill: "#ffffff" }, // Change legend text color to white
-          tickTextStyle: { fill: "#ffffff" }, // Change tick text color to white
         }}
         axisLeft={{
-          orient: "left",
           tickSize: 5,
           tickPadding: 5,
           tickRotation: 0,
           legend: "Tasks Completed",
           legendOffset: -50,
           legendPosition: "middle",
-          legendTextStyle: { fill: "#ffffff" }, // Change legend text color to white
-          tickTextStyle: { fill: "#ffffff" }, // Change tick text color to white
         }}
         enableGridX={true}
         enableGridY={true}
@@ -88,8 +98,8 @@ const TaskCompletionTrends: React.FC = () => {
         pointBorderColor={{ from: "serieColor" }}
         pointLabelYOffset={-12}
         useMesh={true}
-        animate={true} // Enable animation
-        motionConfig="wobbly" // Choose a motion configuration
+        animate={true}
+        motionConfig="wobbly"
         tooltip={({ point }) => (
           <div
             style={{

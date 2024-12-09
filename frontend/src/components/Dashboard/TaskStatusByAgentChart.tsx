@@ -3,14 +3,29 @@ import { ResponsiveBar } from "@nivo/bar";
 import { Box } from "@mui/material";
 import statsData from "../../assests/dummy-data/statsData.json";
 
+// Define types
+interface Task {
+  agent: string;
+  status: string;
+}
+
+interface TaskStatusByAgent {
+  [agent: string]: { [status: string]: number }; // Use an index signature here
+}
+
+interface ChartData {
+  agent: string;
+  [key: string]: string | number; // Dynamic keys for the task statuses
+}
+
 const TaskStatusByAgentChart: React.FC = () => {
-  const [chartData, setChartData] = useState<any[]>([]);
+  const [chartData, setChartData] = useState<ChartData[]>([]);
 
   useEffect(() => {
     // Aggregate task statuses by agent
-    const taskStatusByAgent: { [agent: string]: { [status: string]: number } } = {};
+    const taskStatusByAgent: TaskStatusByAgent = {};
 
-    statsData.forEach((task: any) => {
+    statsData.forEach((task: Task) => {
       const { agent, status } = task;
 
       if (!taskStatusByAgent[agent]) {
@@ -21,10 +36,13 @@ const TaskStatusByAgentChart: React.FC = () => {
     });
 
     // Transform data for Nivo Bar Chart
-    const transformedData = Object.keys(taskStatusByAgent).map((agent) => ({
-      agent,
-      ...taskStatusByAgent[agent],
-    }));
+    const transformedData = Object.keys(taskStatusByAgent).map((agent) => {
+      const data: ChartData = { agent }; // Start with the agent name
+      Object.keys(taskStatusByAgent[agent]).forEach((status) => {
+        data[status] = taskStatusByAgent[agent][status]; // Dynamically add status counts
+      });
+      return data;
+    });
 
     setChartData(transformedData);
   }, []);
@@ -36,7 +54,7 @@ const TaskStatusByAgentChart: React.FC = () => {
         bgcolor: "background.default",
         height: "350px",
         width: "100%",
-        minWidth:"350px"
+        minWidth: "350px",
       }}
     >
       <h2 style={{ textAlign: "center" }}>Task Status by Agent</h2>

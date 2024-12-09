@@ -1,16 +1,31 @@
 import React, { useEffect, useState } from "react";
 import { ResponsiveRadar } from "@nivo/radar";
 import { Box } from "@mui/material";
-import statsData from "../../assests/dummy-data/statsData.json";
+import statsData from "../../assests/dummy-data/statsData.json"; // Importing task data
+
+
+interface AgentMetrics {
+  [agent: string]: {
+    tasksCompleted: number;
+    timeTaken: number;
+    vulnerabilitiesIdentified: number;
+  };
+}
+interface ChartData extends Record<string, unknown> {
+  agent: string;
+  tasksCompleted: number;
+  timeTaken: number;
+  vulnerabilitiesIdentified: number;
+}
+
 
 const AgentPerformanceRadarChart: React.FC = () => {
-  const [chartData, setChartData] = useState<any[]>([]);
+  const [chartData, setChartData] = useState<ChartData[]>([]);
 
   useEffect(() => {
-    // Aggregate metrics for each agent
-    const agentMetrics: { [agent: string]: { [metric: string]: number } } = {};
+    const agentMetrics: AgentMetrics = {};
 
-    statsData.forEach((task: any) => {
+    statsData.forEach((task) => {
       const { agent, timeTaken, vulnerable } = task;
 
       if (!agentMetrics[agent]) {
@@ -19,7 +34,7 @@ const AgentPerformanceRadarChart: React.FC = () => {
 
       agentMetrics[agent].tasksCompleted += 1;
 
-      // Parse timeTaken if available (e.g., "18mins" -> 18)
+      // Parse timeTaken, e.g., "18mins" -> 18
       const time = parseInt(timeTaken.replace("mins", ""), 10) || 0;
       agentMetrics[agent].timeTaken += time;
 
@@ -27,8 +42,7 @@ const AgentPerformanceRadarChart: React.FC = () => {
       agentMetrics[agent].vulnerabilitiesIdentified += vulnerable.length;
     });
 
-    // Transform data for Nivo Radar Chart
-    const transformedData = Object.keys(agentMetrics).map((agent) => ({
+    const transformedData: ChartData[] = Object.keys(agentMetrics).map((agent) => ({
       agent,
       tasksCompleted: agentMetrics[agent].tasksCompleted,
       timeTaken: agentMetrics[agent].timeTaken,
@@ -71,31 +85,10 @@ const AgentPerformanceRadarChart: React.FC = () => {
         blendMode="multiply"
         animate={true}
         isInteractive={true}
-        tooltip={({ indexValue, data }) => (
-          <div
-            style={{
-              backgroundColor: "#333",
-              color: "#fff",
-              padding: "10px",
-              borderRadius: "5px",
-            }}
-          >
-            <strong>{indexValue}</strong>
-            <ul>
-              {Object.keys(data[indexValue]).map((key) =>
-                key !== "agent" ? (
-                  <li key={key}>
-                    {key}: {data[indexValue][key]}
-                  </li>
-                ) : null
-              )}
-            </ul>
-          </div>
-        )}
         theme={{
           dots: {
             text: {
-              fill: "#fff", // Text inside dots
+              fill: "#fff",
             },
           },
           tooltip: {

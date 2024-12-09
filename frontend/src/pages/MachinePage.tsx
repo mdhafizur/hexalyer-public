@@ -12,27 +12,31 @@ import {
   TableSortLabel,
   TablePagination,
   Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Chip
 } from "@mui/material";
-import { useParams } from "react-router-dom";
 import TasksData from "../assests/dummy-data/taskData.json";
+import { CopyBlock, dracula } from "react-code-blocks";
 
 type Order = "asc" | "desc";
 
 const MachinePage: React.FC = () => {
-  const params = useParams<{ machineId: string }>();
-
   const [order, setOrder] = useState<Order>("asc");
   const [orderBy, setOrderBy] = useState<keyof typeof TasksData[0]>("name");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(15);
+  const [open, setOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<typeof TasksData[0] | null>(null);
 
   const handleRequestSort = (property: keyof typeof TasksData[0]) => {
     const isAscending = orderBy === property && order === "asc";
     setOrder(isAscending ? "desc" : "asc");
     setOrderBy(property);
   };
-
-  const handleChangePage = (event: React.MouseEvent<HTMLButtonElement> | null, newPage: number) => {
+  const handleChangePage = (_: React.MouseEvent<HTMLButtonElement> | null, newPage: number) => {
     setPage(newPage);
   };
 
@@ -49,7 +53,17 @@ const MachinePage: React.FC = () => {
         return 0;
       })
       .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-  }, [TasksData, order, orderBy, page, rowsPerPage]);
+  }, [order, orderBy, page, rowsPerPage]);
+
+  const handleOpenModal = (task: typeof TasksData[0]) => {
+    setSelectedTask(task);
+    setOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setOpen(false);
+    setSelectedTask(null);
+  };
 
   return (
     <Box
@@ -61,7 +75,7 @@ const MachinePage: React.FC = () => {
       }}
     >
       <Typography variant="h5" gutterBottom align="center">
-       TASK HISTORY
+        TASK HISTORY
       </Typography>
 
       <TableContainer component={Paper} sx={{ mt: 3, boxShadow: 4, borderRadius: 3 }}>
@@ -143,7 +157,7 @@ const MachinePage: React.FC = () => {
                       bgcolor: "primary.main",
                       "&:hover": { bgcolor: "primary.dark" },
                     }}
-                    onClick={() => alert(`Viewing details for task: ${task.name}`)}
+                    onClick={() => handleOpenModal(task)}
                   >
                     View Details
                   </Button>
@@ -169,6 +183,93 @@ const MachinePage: React.FC = () => {
           },
         }}
       />
+      {/* Modal */}
+<Dialog open={open} onClose={handleCloseModal} fullWidth maxWidth="md">
+  <DialogTitle>Task Details</DialogTitle>
+  <DialogContent dividers>
+    {selectedTask ? (
+      <>
+        <Box display="flex" flexDirection="column" alignItems="center" textAlign="center" mb={2}>
+          <Typography variant="body1" gutterBottom>
+            <strong>{selectedTask.name}</strong> 
+          </Typography>
+        </Box>
+        
+        <Box display="flex" justifyContent="center" alignItems="center" gap={2} mb={2}>
+          <Typography variant="body1">
+            <strong>Started:</strong> {selectedTask.started}
+          </Typography>
+          <Typography variant="body1">
+            <strong>Ended:</strong> {selectedTask.ended}
+          </Typography>
+        </Box>
+        <Box display="flex" justifyContent="center" alignItems="center" gap={2} mb={2}>
+          <Typography variant="body1" gutterBottom>
+            <strong>Execution Time:</strong> {selectedTask.executedtime}
+          </Typography>
+        </Box>
+        <Box display="flex" justifyContent="center" alignItems="center" gap={2} mb={2}>
+          <Typography variant="body1" component="span">
+            <strong>Status:</strong>
+          </Typography>
+          <Chip
+            label={selectedTask.status.toUpperCase()}
+            color={selectedTask.status === "passed" ? "success" : "error"}
+            variant="outlined"
+            sx={{
+              fontWeight: "bold",
+              fontSize: "0.875rem",
+            }}
+          />
+        </Box>
+
+
+        {/* Commands Section */}
+        <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+          All Commands
+        </Typography>
+        {selectedTask.commands.length > 0 ? (
+          <Box sx={{ mt: 1 }}>
+            <CopyBlock
+              text={selectedTask.commands.map((cmd) => cmd.command).join("\n")}
+              language="bash"
+              showLineNumbers={true}
+              theme={dracula}
+              codeBlock
+            />
+          </Box>
+        ) : (
+          <Typography>No commands available for this task.</Typography>
+        )}
+
+        {/* Outputs Section */}
+        <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+          All Outputs
+        </Typography>
+        {selectedTask.commands.length > 0 ? (
+          <Box sx={{ mt: 1 }}>
+            <CopyBlock
+              text={selectedTask.commands.map((cmd) => cmd.output).join("\n")}
+              language="text"
+              showLineNumbers={true}
+              theme={dracula}
+              codeBlock
+            />
+          </Box>
+        ) : (
+          <Typography>No outputs available for this task.</Typography>
+        )}
+      </>
+    ) : (
+      <Typography>No task details available</Typography>
+    )}
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={handleCloseModal} color="primary">
+      Close
+    </Button>
+  </DialogActions>
+</Dialog>
     </Box>
   );
 };
