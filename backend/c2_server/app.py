@@ -16,7 +16,7 @@ from c2_server.socket_listener import sio, connected_agents
 from logger.fastapi_logger import c2_server_logger
 from models.agent import AgentModel
 from db.agent_repository import AgentRepository
-
+from fastapi.middleware.cors import CORSMiddleware
 
 # Setup the logger
 logger = c2_server_logger
@@ -45,6 +45,14 @@ app = FastAPI(
     redoc_url="/redoc",  # ReDoc UI
 )
 
+# Add CORS middleware to allow all origins
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],       # Allow all origins
+    allow_credentials=True,    # Allow cookies and authentication headers
+    allow_methods=["*"],       # Allow all HTTP methods (GET, POST, PUT, DELETE, etc.)
+    allow_headers=["*"],       # Allow all headers
+)
 
 class RegistrationRequest(BaseModel):
     """

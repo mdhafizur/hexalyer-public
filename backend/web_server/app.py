@@ -12,7 +12,7 @@ from routes.docs_routes import router as docs_router
 from routes.healthcheck_routes import router as healthcheck_router
 from routes.chatgpt_routes import router as chatgpt_router
 from logger.fastapi_logger import web_server_logger
-
+from fastapi.middleware.cors import CORSMiddleware
 
 logger = web_server_logger
 
@@ -38,6 +38,15 @@ app = FastAPI(
     },
     docs_url="/docs",  # Swagger UI
     redoc_url="/redoc",  # ReDoc UI
+)
+
+# Add CORS middleware to allow all origins
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],       # Allow all origins
+    allow_credentials=True,    # Allow cookies and authentication headers
+    allow_methods=["*"],       # Allow all HTTP methods (GET, POST, PUT, DELETE, etc.)
+    allow_headers=["*"],       # Allow all headers
 )
 
 
