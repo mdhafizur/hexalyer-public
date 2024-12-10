@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import { Provider } from "react-redux";
-import { store } from "./state/store"; // Adjust the import path
+import { store } from "./app/store"; // Adjust the import path
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
 import App from "./App"; // Import your App component
@@ -10,7 +10,7 @@ import DashboardPage from "./pages/DashboardPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import ChatsPage from "./pages/ChatsPage";
 import ChatPage from "./pages/ChatPage";
-import MachinesPage from "./pages/MachinesPage";
+import AgentListing from "./pages/AgentListing";
 import MachinePage from "./pages/MachinePage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -38,11 +38,11 @@ const router = createBrowserRouter([
         ],
       },
       {
-        path: "/machines",
-        element: <MachinesPage />,
+        path: "/agents",
+        element: <AgentListing />,
         children: [
           {
-            path: "/machines/:machineId",
+            path: "/agents/:agentId",
             element: <MachinePage />,
           },
         ],

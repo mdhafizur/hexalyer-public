@@ -146,11 +146,11 @@ const LeftSidebar: React.FC<{
 
         <Tooltip title="Tasks">
           <ListItemButton
-            onClick={() => handleNavigation('/machines', 'Machines')}
-            sx={menuItemStyles('Machines')}
+            onClick={() => handleNavigation('/agents', 'Agents')}
+            sx={menuItemStyles('Agents')}
           >
             <DnsIcon sx={iconStyles} />
-            <ListItemText primary="Machines" sx={{ color: '#fff' }} />
+            <ListItemText primary="Agents" sx={{ color: '#fff' }} />
           </ListItemButton>
         </Tooltip>
 
