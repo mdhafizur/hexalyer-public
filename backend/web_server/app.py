@@ -11,6 +11,7 @@ from routes.message_routes import router as message_router
 from routes.docs_routes import router as docs_router
 from routes.healthcheck_routes import router as healthcheck_router
 from routes.chatgpt_routes import router as chatgpt_router
+from routes.auth_routes import router as auth_router
 from logger.fastapi_logger import web_server_logger
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -58,6 +59,7 @@ app.include_router(message_router, prefix="/messages", tags=["Messages"])
 app.include_router(healthcheck_router, prefix="/healthcheck", tags=["Healthcheck"])
 app.include_router(docs_router, prefix="/docs", tags=["Docs"])
 app.include_router(chatgpt_router, prefix="/chatgpt", tags=["ChatGPT"])
+app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 
 
 @app.get("/download-agent", response_class=FileResponse, tags=["Agents"])
