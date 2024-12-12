@@ -6,17 +6,17 @@ import { store } from "./app/store"; // Adjust the import path
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
 import App from "./App"; // Import your App component
-import DashboardPage from "./pages/DashboardPage";
-import NotFoundPage from "./pages/NotFoundPage";
-import ChatsPage from "./pages/ChatsPage";
-import ChatPage from "./pages/ChatPage";
-import AgentListing from "./pages/AgentListing";
-import MachinePage from "./pages/MachinePage";
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import RecoverPasswordPage from "./pages/RecoverPasswordPage";
-import ExtraPage from "./pages/ExtraPage";
-import UserProfilePage from "./pages/UserProfilePage";
+import DashboardPage from "@pages/DashboardPage";
+import NotFoundPage from "@pages/NotFoundPage";
+import ConversationListingPage from "@pages/ConversationListingPage";
+import AgentListing from "@pages/AgentListing";
+import MachinePage from "@pages/MachinePage";
+import LoginPage from "@pages/LoginPage";
+import RegisterPage from "@pages/RegisterPage";
+import RecoverPasswordPage from "@pages/RecoverPasswordPage";
+import ExtraPage from "@pages/ExtraPage";
+import UserProfilePage from "@pages/UserProfilePage";
+import { SocketProvider } from "context/SocketContext";
 
 const router = createBrowserRouter([
   {
@@ -28,12 +28,16 @@ const router = createBrowserRouter([
         element: <DashboardPage />,
       },
       {
-        path: "/chats",
-        element: <ChatsPage />,
+        path: "/conversations",
+        element: <ConversationListingPage />, // Main conversations page
         children: [
           {
-            path: "/chats/:chatId",
-            element: <ChatPage />,
+            path: "new", // Path for creating a new conversation
+            element: <ConversationListingPage />, // Reuse the listing page to show "new" state
+          },
+          {
+            path: "/conversations/:conversationId",
+            element: <ConversationListingPage />,
           },
         ],
       },
@@ -42,7 +46,7 @@ const router = createBrowserRouter([
         element: <AgentListing />,
         children: [
           {
-            path: "/agents/:agentId",
+            path: ":agentId",
             element: <MachinePage />,
           },
         ],
@@ -60,25 +64,27 @@ const router = createBrowserRouter([
   },
   {
     path: "/login",
-    element: <LoginPage />, // Use App as the wrapper component for your routes
+    element: <LoginPage />,
     errorElement: <NotFoundPage />,
   },
   {
     path: "/register",
-    element: <RegisterPage />, // Use App as the wrapper component for your routes
+    element: <RegisterPage />,
     errorElement: <NotFoundPage />,
   },
   {
     path: "/recover-password",
-    element: <RecoverPasswordPage />, // Use App as the wrapper component for your routes
+    element: <RecoverPasswordPage />,
     errorElement: <NotFoundPage />,
   },
 ]);
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <Provider store={store}>
-      <RouterProvider router={router} />
-    </Provider>
+    <SocketProvider>
+      <Provider store={store}>
+        <RouterProvider router={router} />
+      </Provider>
+    </SocketProvider>
   </StrictMode>
 );

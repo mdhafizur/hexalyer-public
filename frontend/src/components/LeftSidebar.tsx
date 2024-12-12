@@ -136,7 +136,7 @@ const LeftSidebar: React.FC<{
 
         <Tooltip title="Chats">
           <ListItemButton
-            onClick={() => handleNavigation('/chats', 'Chats')}
+            onClick={() => handleNavigation('/conversations', 'Chats')}
             sx={menuItemStyles('Chats')}
           >
             <Chat sx={iconStyles} />
@@ -154,13 +154,13 @@ const LeftSidebar: React.FC<{
           </ListItemButton>
         </Tooltip>
 
-        <Tooltip title="Extra">
+        <Tooltip title="Reports">
           <ListItemButton
-            onClick={() => handleNavigation('/extra', 'Extra')}
-            sx={menuItemStyles('Extra')}
+            onClick={() => handleNavigation('/reports', 'Reports')}
+            sx={menuItemStyles('Reports')}
           >
             <Apps sx={iconStyles} />
-            <ListItemText primary="Extra" sx={{ color: '#fff' }} />
+            <ListItemText primary="Reports" sx={{ color: '#fff' }} />
           </ListItemButton>
         </Tooltip>
       </List>
