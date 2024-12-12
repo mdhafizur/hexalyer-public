@@ -44,10 +44,10 @@ app = FastAPI(
 # Add CORS middleware to allow all origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],       # Allow all origins
-    allow_credentials=True,    # Allow cookies and authentication headers
-    allow_methods=["*"],       # Allow all HTTP methods (GET, POST, PUT, DELETE, etc.)
-    allow_headers=["*"],       # Allow all headers
+    allow_origins=["*"],  # Allow all origins
+    allow_credentials=True,  # Allow cookies and authentication headers
+    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, PUT, DELETE, etc.)
+    allow_headers=["*"],  # Allow all headers
 )
 
 
@@ -62,43 +62,63 @@ app.include_router(chatgpt_router, prefix="/chatgpt", tags=["ChatGPT"])
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 
 
-@app.get("/download-agent", response_class=FileResponse, tags=["Agents"])
-async def download_agent():
+@app.get("/download-agent/{agent_type}", response_class=FileResponse, tags=["Agents"])
+async def download_agent(agent_type: str):
     """
     **Download Agent**
 
-    Triggers the build process if the agent file is missing and then serves it.
+    Triggers the build process for the specified agent type if the file is missing and then serves it.
+
+    **Parameters**:
+    - `agent_type`: The type of agent to download. Options are `linux` or `windows`.
 
     **Returns**:
     - `FileResponse`: The built agent file from the `dist` folder.
 
     **Raises**:
+    - 400: If the agent type is invalid.
     - 500: If the build process fails or the file is still missing after building.
     """
+    if agent_type not in ["linux", "windows"]:
+        logger.error("Invalid agent type provided: %s", agent_type)
+        raise HTTPException(
+            status_code=400, detail="Invalid agent type. Choose 'linux' or 'windows'."
+        )
+
     dist_folder = os.path.join(os.getcwd(), "dist")
-    agent_file = "agent"  # Replace with your actual file name
+    agent_file = (
+        f"agent{'.exe' if agent_type == 'windows' else ''}"  # Append .exe for Windows
+    )
 
     file_path = os.path.join(dist_folder, agent_file)
 
     # Check if the file exists
     if not os.path.exists(file_path):
-        logger.info("Agent file not found, triggering build process...")
+        logger.info(
+            "Agent file not found for %s, triggering build process...", agent_type
+        )
         try:
             # Trigger the build process
-            subprocess.run(["make", "build_agent"], check=True, cwd=os.getcwd())
+            build_target = f"build_agent_{agent_type}"
+            subprocess.run(["make", build_target], check=True, cwd=os.getcwd())
         except subprocess.CalledProcessError as e:
-            logger.error("Build process failed: %s", e)
-            raise HTTPException(status_code=500, detail="Build process failed") from e
+            logger.error("Build process failed for %s: %s", agent_type, e)
+            raise HTTPException(
+                status_code=500, detail=f"Build process failed for {agent_type}"
+            ) from e
 
         # Check again if the file exists after the build
         if not os.path.exists(file_path):
-            logger.error("Build completed but agent file is still missing")
+            logger.error(
+                "Build completed but agent file is still missing for %s", agent_type
+            )
             raise HTTPException(
-                status_code=500, detail="Agent file not found after build"
+                status_code=500,
+                detail=f"Agent file not found after build for {agent_type}",
             )
 
     # Serve the file from the dist folder
-    logger.info("Serving agent file")
+    logger.info("Serving agent file for %s", agent_type)
     return FileResponse(
         file_path, filename=agent_file, media_type="application/octet-stream"
     )

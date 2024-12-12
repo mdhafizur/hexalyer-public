@@ -3,7 +3,7 @@
 from openai import OpenAI
 import os
 import json
-from utils.cybersecurity_expert_prompt import PROMPT, PROMPT1
+from utils.cybersecurity_expert_prompt import PROMPT1
 from dotenv import load_dotenv
 
 load_dotenv()

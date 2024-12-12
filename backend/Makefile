@@ -1,5 +1,5 @@
 # Define variables
-SCRIPT = agent/agent.py
+SCRIPT = agent/main.py
 OUTPUT_DIR = dist
 EXECUTABLE_NAME = agent
 VENV_DIR = .venv
@@ -23,9 +23,13 @@ gen_req: activate
 build_clean:
 	rm -rf build/ $(OUTPUT_DIR)/ $(EXECUTABLE_NAME).spec
 
-# Target to build_agent the Mach-O executable
-build_agent: build_clean setup
+# Target to build the Mach-O executable for Linux
+build_agent_linux: build_clean setup
 	. $(VENV_DIR)/bin/activate && pyinstaller --onefile --name $(EXECUTABLE_NAME) $(SCRIPT)
+
+# Target to build the Windows executable
+build_agent_windows: build_clean setup
+	. $(VENV_DIR)/bin/activate && pyinstaller --onefile --name $(EXECUTABLE_NAME).exe --windowed $(SCRIPT)
 
 # Target to run the executable
 run_agent: build

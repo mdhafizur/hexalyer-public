@@ -18,6 +18,10 @@ class PyObjectId(ObjectId):
     def __get_pydantic_json_schema__(cls, schema):
         schema.update(type="string")
 
+    @classmethod
+    def __modify_schema__(cls, field_schema):
+        field_schema.update(type="string")
+
 
 T = TypeVar("T")
 

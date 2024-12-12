@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Query
 from db.message_repository import MessageRepository
 from models.message import MessageModel
 from models.base import PaginatedResponseModel
+from bson.objectid import ObjectId
 
 # Create an instance of the MessageRepository
 message_repo = MessageRepository()
@@ -53,7 +54,9 @@ async def query_messages(
     """
     filter_criteria = {}
     if conversation_id:
-        filter_criteria["conversation_id"] = conversation_id
+        if not ObjectId.is_valid(conversation_id):
+            raise ValueError("Invalid conversation ID")
+        filter_criteria["conversation_id"] = ObjectId(conversation_id)
 
     skip = (page - 1) * page_size
     sort_criteria = [(sort_by, 1 if sort_order == "asc" else -1)]
@@ -104,7 +107,7 @@ async def get_message(message_id: str):
     summary="Create a new message",
     description="Endpoint to create a new message in the system.",
 )
-async def create_message(message: MessageModel) -> Any:
+async def create_message(message: MessageModel) -> MessageModel:
     """
     Create a new message in the system.
 

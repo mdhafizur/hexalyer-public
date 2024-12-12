@@ -48,11 +48,12 @@ app = FastAPI(
 # Add CORS middleware to allow all origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],       # Allow all origins
-    allow_credentials=True,    # Allow cookies and authentication headers
-    allow_methods=["*"],       # Allow all HTTP methods (GET, POST, PUT, DELETE, etc.)
-    allow_headers=["*"],       # Allow all headers
+    allow_origins=["*"],  # Allow all origins
+    allow_credentials=True,  # Allow cookies and authentication headers
+    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, PUT, DELETE, etc.)
+    allow_headers=["*"],  # Allow all headers
 )
+
 
 class RegistrationRequest(BaseModel):
     """
@@ -162,3 +163,75 @@ async def health_check():
     Returns a simple status message.
     """
     return {"status": "ok", "app": "c2"}
+
+
+@app.route("/security-assessment", methods=["POST"])
+async def security_assessment(data: TargetRequest):
+    target = data.target
+
+    if not target:
+        raise HTTPException(status_code=400, detail='Please provide an IP or domain URL in the "target" field.')
+
+    report = {}
+
+    try:
+        # Nmap Scan
+        nm = nmap.PortScanner()
+        nm.scan(target, arguments='-sV')
+        nmap_report = {}
+        for host in nm.all_hosts():
+            nmap_report[host] = []
+            for proto in nm[host].all_protocols():
+                ports = nm[host][proto].keys()
+                for port in ports:
+                    nmap_report[host].append({
+                        'protocol': proto,
+                        'port': port,
+                        'state': nm[host][proto][port]['state'],
+                        'service': nm[host][proto][port].get('name', 'unknown'),
+                    })
+        report['nmap'] = nmap_report
+    except Exception as e:
+        report['nmap_error'] = str(e)
+
+    try:
+        # Whois Lookup
+        domain_info = whois.whois(target)
+        report['whois'] = {
+            'domain_name': domain_info.domain_name,
+            'registrar': domain_info.registrar,
+            'creation_date': str(domain_info.creation_date),
+            'expiration_date': str(domain_info.expiration_date),
+            'name_servers': domain_info.name_servers,
+        }
+    except Exception as e:
+        report['whois_error'] = str(e)
+
+    try:
+        # OWASP ZAP Vulnerability Assessment (Basic Example)
+        zap_url = "http://localhost:8080/JSON/ascan/action/scan/"
+        zap_params = {
+            'url': target,
+            'recurse': True,
+            'scanPolicyName': 'Default Policy',
+            'method': 'GET',
+        }
+        zap_response = requests.get(zap_url, params=zap_params)
+        report['zap_scan'] = zap_response.json()
+    except Exception as e:
+        report['zap_error'] = str(e)
+
+    try:
+        # Additional GDPR Compliance Check Example (Mocked for simplicity)
+        gdpr_check = {
+            "data_processing": "Verified",
+            "consent_management": "Verified",
+            "data_retention": "Verified",
+            "third_party_risk": "Verified"
+        }
+        report['gdpr_compliance'] = gdpr_check
+    except Exception as e:
+        report['gdpr_error'] = str(e)
+
+    return report
+

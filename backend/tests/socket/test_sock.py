@@ -1,16 +1,9 @@
-"""
-This script simulates an agent connecting to a Command-and-Control (C2) server.
-It sends simulated agent data as JSON over a TCP socket.
-"""
+import socketio
 
-import socket
-import json
+# Define the C2 server address
+C2_HOST = "http://127.0.0.1:5003"  # Ensure this matches your server's host and port
 
-# Define the C2 socket server details
-C2_HOST = "127.0.0.1"
-C2_PORT = 6003
-
-# Simulate agent data
+# Simulated agent data
 agent_data = {
     "agent_id": "63A2CE8B-23F0-5179-B0B7-6AFA5D6B8541",
     "client_info": {
@@ -34,20 +27,31 @@ agent_data = {
     },
 }
 
-# Create a socket connection to the server
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-    try:
-        # Connect to the server
-        sock.connect((C2_HOST, C2_PORT))
-        print(f"Connected to C2 server at {C2_HOST}:{C2_PORT}")
+# Initialize a Socket.IO client
+sio = socketio.Client()
 
-        print(f"Sending data: {json.dumps(agent_data)}")
-        # Send the agent data as JSON
-        sock.sendall(json.dumps(agent_data).encode("utf-8"))
-        print("Data sent to server")
 
-        # Close the connection
-        print("Closing connection")
-    except (socket.error, json.JSONDecodeError) as e:
-        # Catch specific exceptions related to sockets and JSON
-        print(f"Error: {e}")
+@sio.event
+def connect():
+    print("Connected to the Socket server")
+    # Send the agent registration data
+    sio.emit("register_client", agent_data)
+    print(f"Agent data sent: {agent_data}")
+
+
+@sio.event
+def connect_error(data):
+    print(f"Connection failed: {data}")
+
+
+@sio.event
+def disconnect():
+    print("Disconnected from the Socket server")
+
+
+# Connect to the server
+try:
+    sio.connect(C2_HOST)
+    sio.wait()  # Wait for events to process
+except Exception as e:
+    print(f"Failed to connect to Socket server: {e}")

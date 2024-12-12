@@ -16,9 +16,14 @@ class MessageRepository:
         """Initialize the MessageRepository and ensure MongoDB connection."""
         if mongodb.db is None:
             mongodb.connect()
-        self.collection: Collection = mongodb.get_collection(
-            "messages"
-        )  # Collection name: "messages"
+        # self.collection: Collection = mongodb.get_collection(
+        #     "messages"
+        # )  # Collection name: "messages"
+        collection_name = "messages"
+        if collection_name not in mongodb.db.list_collection_names():
+            # Create the collection with custom options
+            mongodb.db.create_collection(collection_name, capped=True, size=5242880, autoIndexId=True)
+        self.collection: Collection = mongodb.db[collection_name]
 
     def create_message(self, message_data: Dict[str, Any]) -> str:
         """
