@@ -8,15 +8,18 @@ from db.task_repository import TaskRepository
 from models.task import TaskModel
 from logger.fastapi_logger import socket_listener_logger
 from utils.cybersecurity_client import CyberSecurityClient
+from utils.grok_client import XAIChatClient
 import socketio
 from gevent import pywsgi
 from geventwebsocket.handler import WebSocketHandler
 import os
+import re
 import json
 from zoneinfo import ZoneInfo  # Python 3.9+ for timezone handling
 
 # Initialize the CyberSecurityClient
 client = CyberSecurityClient()
+x_ai_client = XAIChatClient()
 
 # Initialize Socket.IO server
 sio = socketio.Server(
@@ -219,12 +222,23 @@ def send_message(sid, data):
         #     )
         #     return
 
+        # Generate AI response
+        ai_message_content = x_ai_client.ask(message_data.get("content"))
+        if not ai_message_content:
+            logger.warning(
+                "AI response is empty for content: %s", message_data.get("content")
+            )
+            return
+
+        # Clean the string
+        cleaned_json_string = re.sub(r'^```json|```$', '', ai_message_content['choices'][0]['message']['content'], flags=re.MULTILINE).strip()
+
         # Save the AI-generated message
         ai_message_data = {
             "conversation_id": message_data["conversation_id"],
             "sender": "ai",
             # "content": json.dumps(ai_message_content),
-            "content": "ok",
+            "content": cleaned_json_string,
             "created_at": current_utc_time().isoformat(),
             "updated_at": current_utc_time().isoformat(),
         }

@@ -1,21 +1,27 @@
 import requests
+from utils.cybersecurity_expert_prompt import PROMPT1
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 class XAIChatClient:
-    def __init__(self, api_key, base_url="https://api.x.ai/v1"):
+    def __init__(self, base_url="https://api.x.ai/v1"):
         """
         Initializes the X.AI Chat Client.
 
         :param api_key: API key for authentication.
         :param base_url: Base URL of the X.AI API.
         """
-        self.api_key = api_key
+        self.api_key = os.getenv("XAI_API_KEY")
         self.base_url = base_url.rstrip("/")
         self.headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.api_key}",
         }
 
-    def chat_completion(self, messages, model="grok-beta", stream=False, temperature=0):
+    def ask(self, message, model="grok-beta", stream=False, temperature=0):
         """
         Sends a chat completion request to the X.AI API.
 
@@ -27,7 +33,16 @@ class XAIChatClient:
         """
         url = f"{self.base_url}/chat/completions"
         payload = {
-            "messages": messages,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": PROMPT1,
+                },
+                {
+                    "role": "user",
+                    "content": message,
+                },
+            ],
             "model": model,
             "stream": stream,
             "temperature": temperature,
@@ -38,5 +53,3 @@ class XAIChatClient:
             return response.json()
         except requests.exceptions.RequestException as e:
             raise Exception(f"Error while making request to {url}: {e}")
-
-
