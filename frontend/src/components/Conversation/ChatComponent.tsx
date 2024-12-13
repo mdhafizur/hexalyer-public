@@ -20,6 +20,8 @@ import ObjectId from "bson-objectid";
 import { Message } from "@app/messages/types/message.types";
 import { AiMessage } from "@components/Conversation/AiMessage";
 import { UserMessage } from "@components/Conversation/UserMessage";
+import { ChoicesComponent } from "@components/Conversation/ChoicesComponent";
+import { useNavigate } from 'react-router-dom';
 
 interface ChatComponentProps {
     conversationId: string | "new";
@@ -28,12 +30,26 @@ interface ChatComponentProps {
 
 export default function ChatComponent({ conversationId, onConversationCreated }: ChatComponentProps) {
     const dispatch = useAppDispatch();
+    const navigate = useNavigate();
+
     const { loading } = useAppSelector((state: RootState) => state.conversations);
 
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState("");
     const [isFetching, setIsFetching] = useState(false); // To track fetching state
     const chatContainerRef = useRef<HTMLDivElement | null>(null); // Ref for the chat container
+
+    const [selectedMode, setSelectedMode] = useState<string>("");
+    const [webHexValue, setWebHexValue] = useState<string>("");
+
+    // Callback function to handle the emitted values from the child component
+    const handleModeAndInputChange = (mode: string, inputValue: string) => {
+        setSelectedMode(mode);
+        setWebHexValue(inputValue);
+        console.log("Selected Mode:", mode);
+        console.log("Web Hex Input Value:", inputValue);
+    };
+
 
     // Join the conversation room
     const joinRoom = useCallback(() => {
@@ -95,7 +111,7 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
         return () => {
             socket.off("ai_message", handleAiMessage);
         };
-    }, []);
+    }, [conversationId]);
 
     // Scroll to the bottom when messages change or component mounts
     useEffect(() => {
@@ -142,12 +158,18 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
                         onConversationCreated(newConversation._id);
                     }
 
-                    socket.emit("send_message", {
-                        _id: generatedId,
-                        conversation_id: newConversation._id,
-                        sender: "user",
-                        content: inputValue,
-                    });
+                    navigate(`/conversations/${newConversation._id}`);
+
+
+                    if (selectedMode == "MANUAL") {
+                        socket.emit("send_message", {
+                            _id: generatedId,
+                            conversation_id: newConversation._id,
+                            sender: "user",
+                            content: inputValue,
+                        });
+                    }
+
 
                     setMessages((prevMessages) => [
                         ...prevMessages,
@@ -160,14 +182,18 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
                             updated_at: new Date().toISOString(),
                         },
                     ]);
+
                 }
             } else {
-                socket.emit("send_message", {
-                    _id: generatedId,
-                    conversation_id: conversationId,
-                    sender: "user",
-                    content: inputValue,
-                });
+
+                if (selectedMode == "MANUAL") {
+                    socket.emit("send_message", {
+                        _id: generatedId,
+                        conversation_id: conversationId,
+                        sender: "user",
+                        content: inputValue,
+                    });
+                }
 
                 setMessages((prevMessages) => [
                     ...prevMessages,
@@ -243,6 +269,11 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
                             </ListItem>
                         </Grow>
                     ))}
+
+                {true && <ChoicesComponent
+                    onModeChange={handleModeAndInputChange} // Pass the callback to the child
+                />}
+
             </Box>
 
             <Paper
@@ -256,22 +287,31 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
                     borderColor: "divider",
                 }}
             >
-                <TextField
-                    variant="outlined"
-                    fullWidth
-                    size="small"
-                    placeholder="Type a message..."
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    disabled={loading}
-                />
-                <IconButton
-                    color="primary"
-                    onClick={handleSendMessage}
-                    disabled={loading || inputValue.trim() === ""}
-                >
-                    <SendIcon />
-                </IconButton>
+
+                {selectedMode == "MANUAL" &&
+
+                    <Box>
+                        <TextField
+                            variant="outlined"
+                            fullWidth
+                            size="small"
+                            placeholder="Type a message..."
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            disabled={loading}
+                        />
+                        <IconButton
+                            color="primary"
+                            onClick={handleSendMessage}
+                            disabled={loading || inputValue.trim() === "" || selectedMode !== "MANUAL"}
+                        >
+                            <SendIcon />
+                        </IconButton>
+                    </Box>
+
+
+                }
+
             </Paper>
         </Box>
     );
