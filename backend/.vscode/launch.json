@@ -16,17 +16,65 @@
             "program": "${workspaceFolder}/agent/main.py",
             "console": "integratedTerminal",
             "args": [
-                "http://127.0.0.1:5001",
+                "http://127.0.0.1:5001/c2/api/v1",
                 "http://127.0.0.1:5003"
             ],
             "envFile": "${workspaceFolder}/.env",
             "preLaunchTask": "wait-for-web-server"
         },
         {
-            "name": "Run Cybersecurity Shell",
+            "name": "Run ChatGPT Shell",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/cybersecurity_shell.py",
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "name": "Run Grok Shell",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/grok_shell.py",
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "name": "Run Web Server with Hot Reload",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "web_server.app:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "5000",
+                "--reload"
+            ],
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "name": "Run C2 Server with Hot Reload",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "c2_server.app:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "5001",
+                "--reload"
+            ],
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "name": "Run Socket.IO Server with Hot Reload",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/c2_server/c2_socket_server_debug.py",
             "console": "integratedTerminal",
             "envFile": "${workspaceFolder}/.env"
         }
@@ -37,6 +85,14 @@
             "configurations": [
                 "Run Servers",
                 "Run Agent"
+            ]
+        },
+        {
+            "name": "Hotreload Servers",
+            "configurations": [
+                "Run Web Server with Hot Reload",
+                "Run C2 Server with Hot Reload",
+                "Run Socket.IO Server with Hot Reload"
             ]
         }
     ]

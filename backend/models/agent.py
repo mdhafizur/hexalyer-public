@@ -5,6 +5,24 @@ from bson.objectid import ObjectId
 from pydantic import ValidationInfo
 from ipaddress import IPv4Address, IPv6Address
 from models.base import PyObjectId
+from zoneinfo import ZoneInfo  # Use `pytz` if Python < 3.9
+
+
+class AgentRegistrationRequest(BaseModel):
+    """
+    Model for validating agent registration requests.
+    """
+
+    agent_id: str = Field(..., example="agent-1234")
+    client_info: dict = Field(
+        ..., example={"os": "Windows", "ip": "192.168.1.10", "hostname": "agent01"}
+    )
+    last_seen: Optional[datetime] = Field(
+        default_factory=lambda: datetime.now(ZoneInfo("UTC")),  # Set UTC timezone
+        description="Timestamp when the message was created",
+        example="2024-12-01T12:00:00Z",
+    )
+    status: str = Field(..., description="Agent status")
 
 
 # Nested Models
@@ -46,11 +64,15 @@ class AgentModel(BaseModel):
     )
     agent_id: str = Field(..., description="Agent ID (UUID)")
     client_info: ClientInfo = Field(..., description="Client information")
+    last_seen: Optional[datetime] = Field(
+        default_factory=lambda: datetime.now(ZoneInfo("UTC")),  # Set UTC timezone
+        description="Timestamp when the message was created",
+        example="2024-12-01T12:00:00Z",
+    )
+    status: str = Field(..., description="Agent status")
     # sleeptime: int = Field(..., description="Sleep time in microseconds")
-    # lastseen: datetime = Field(..., description="Last seen timestamp")
     # needsupdate: bool = Field(..., description="Indicates if the agent needs an update")
     # otherclientinfo: Optional[dict] = Field(None, description="Other client info if available")
-    # status: str = Field(..., description="Agent status")
     # sleeptime_float: Optional[float] = Field(alias="SleepTime", description="Sleep time as a float")
 
     class Config:
@@ -82,7 +104,7 @@ class AgentModel(BaseModel):
                     "hostname": "hotzenplotz",
                     "username": "christophk",
                 },
-                "lastseen": "2023-12-06T14:34:45.417+0000",
+                "last_seen": "2023-12-06T14:34:45.417+0000",
                 "needsupdate": False,
                 "otherclientinfo": None,
                 "status": "stopped",

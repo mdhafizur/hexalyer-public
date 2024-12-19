@@ -1,0 +1,187 @@
+from bson.objectid import ObjectId
+from logger.fastapi_logger import socket_listener_logger
+from db.message_repository import MessageRepository
+from models.message import MessageModel
+from pydantic import ValidationError
+from c2_server.events.utils import current_utc_time
+from utils.cybersecurity_client import CyberSecurityClient
+from utils.grok_client import XAIChatClient
+
+logger = socket_listener_logger
+
+# Initialize MessageRepository
+message_repo = MessageRepository()
+
+# Initialize the CyberSecurityClient
+client = CyberSecurityClient()
+x_ai_client = XAIChatClient()
+
+def handle_send_message(sio, sid, data):
+    """
+    Handle a client sending a message to a conversation.
+
+    Args:
+        sid (str): Socket.IO session ID.
+        data (dict): Should include 'conversation_id', 'sender', and 'content'.
+    """
+    try:
+        logger.info("Message received from SID %s: %s", sid, data)
+
+        # Validate the message using Pydantic
+        message = MessageModel(**data)
+
+        # Convert message to dictionary with alias for fields
+        message_data = message.dict(by_alias=True)
+
+        # Convert `_id` and `conversation_id` to ObjectId if necessary
+        if "_id" in message_data and isinstance(message_data["_id"], str):
+            message_data["_id"] = ObjectId(message_data["_id"])
+        if "conversation_id" in message_data and isinstance(
+            message_data["conversation_id"], str
+        ):
+            message_data["conversation_id"] = ObjectId(message_data["conversation_id"])
+
+        # Save the message to the database
+        saved_message_id = message_repo.create_message(message_data)
+        saved_message = message_repo.get_message_by_id(saved_message_id)
+
+        if not saved_message:
+            logger.error(
+                "Failed to retrieve saved message with ID: %s", saved_message_id
+            )
+            return
+
+        new_message = MessageModel(**saved_message).dict(by_alias=True)
+
+        # Broadcast the new message to the conversation room
+        sio.emit("new_message", new_message, to=str(message.conversation_id))
+
+        # # Generate AI response
+        # ai_message_content = client.ask(message_data.get("content"))
+        # if not ai_message_content:
+        #     logger.warning(
+        #         "AI response is empty for content: %s", message_data.get("content")
+        #     )
+        #     return
+
+        # Generate AI response
+        # ai_message_content = x_ai_client.ask(message_data.get("content"))
+        # if not ai_message_content:
+        #     logger.warning(
+        #         "AI response is empty for content: %s", message_data.get("content")
+        #     )
+        #     return
+
+        # Clean the string
+        # cleaned_json_string = re.sub(r'^```json|```$', '', ai_message_content['choices'][0]['message']['content'], flags=re.MULTILINE).strip()
+
+        # Save the AI-generated message
+        ai_message_data = {
+            "conversation_id": message_data["conversation_id"],
+            "sender": "ai",
+            # "content": json.dumps(ai_message_content),
+            # "content": cleaned_json_string,
+            "content": "ok",
+            "created_at": current_utc_time().isoformat(),
+            "updated_at": current_utc_time().isoformat(),
+        }
+        ai_message_id = message_repo.create_message(ai_message_data)
+        ai_saved_message = message_repo.get_message_by_id(ai_message_id)
+
+        if not ai_saved_message:
+            logger.error(
+                "Failed to retrieve AI-generated message with ID: %s", ai_message_id
+            )
+            return
+
+        ai_message = MessageModel(**ai_saved_message).dict(by_alias=True)
+
+        # Broadcast the AI-generated message to the conversation room
+        sio.emit("ai_message", ai_message, to=str(message.conversation_id))
+
+    except ValidationError as e:
+        logger.error("Message validation error: %s", e)
+        sio.emit("error", {"error": "Invalid message format."}, to=sid)
+
+    except Exception as e:
+        logger.exception("An error occurred while processing the message: %s", e)
+        sio.emit("error", {"error": "An internal server error occurred."}, to=sid)
+
+
+def handle_stream_to_ai(sio, sid, data):
+    """
+    Handle the streaming of an AI response for a conversation.
+
+    Args:
+        sid (str): Socket.IO session ID.
+        data (dict): Contains 'conversation_id' and 'message'.
+    """
+    # Validate the message using Pydantic
+    message = MessageModel(**data)
+
+    # Convert message to dictionary with alias for fields
+    message_data = message.dict(by_alias=True)
+
+    # Convert `_id` and `conversation_id` to ObjectId if necessary
+    if "_id" in message_data and isinstance(message_data["_id"], str):
+        message_data["_id"] = ObjectId(message_data["_id"])
+    if "conversation_id" in message_data and isinstance(
+        message_data["conversation_id"], str
+    ):
+        message_data["conversation_id"] = ObjectId(message_data["conversation_id"])
+
+    # Save the initial message to the database
+    saved_message_id = message_repo.create_message(message_data)
+    saved_message = message_repo.get_message_by_id(saved_message_id)
+
+    # Create an AI message (empty content initially)
+    ai_message_data = {
+        "_id": ObjectId(),  # Create a new ObjectId for the message
+        "conversation_id": saved_message["conversation_id"],  # Conversation ID
+        "sender": "ai",  # The sender is "ai"
+        "content": "",  # Set the initial content as empty
+        "created_at": current_utc_time().isoformat(),  # Timestamp
+        "updated_at": current_utc_time().isoformat(),  # Timestamp
+    }
+
+    # Save the AI message to the database
+    ai_saved_message_id = message_repo.create_message(ai_message_data)
+
+    # Optionally, retrieve the saved message by ID
+    ai_saved_message = message_repo.get_message_by_id(ai_saved_message_id)
+
+    # Variable to hold the complete content as chunks come in
+    complete_content = ""
+    try:
+        # Start streaming the AI response from the external AI client
+        logger.info(
+            "Streaming AI response for SID %s and message %s", sid, ai_saved_message
+        )
+
+        ai_message = MessageModel(**ai_saved_message).dict(by_alias=True)
+
+        # Using the XAIChatClient to stream the response
+        for chunk in x_ai_client.ask(saved_message.get("content"), stream=True):
+            # Append the chunk to the existing content in memory
+            complete_content += chunk  # Accumulate the chunks
+            ai_message["content"] = chunk
+            # Emit the chunk of the response back to the client
+            sio.emit(
+                "ai_message_stream",
+                ai_message,
+                to=str(message.conversation_id),
+            )
+
+        # Once the streaming is complete, update the MongoDB message with the full content
+        ai_message["content"] = complete_content  # Set the complete content
+
+        # Before updating the message in MongoDB, remove the '_id' field from ai_message
+        if "_id" in ai_message:
+            del ai_message["_id"]  # Remove the _id field to avoid MongoDB update errors
+
+        # Update the message in MongoDB with the full content
+        message_repo.update_message(ai_saved_message_id, ai_message)
+
+    except Exception as e:
+        logger.error("Error while streaming AI response: %s", str(e))
+        sio.emit("error", {"error": "Error while streaming AI response"}, to=sid)

@@ -1,4 +1,4 @@
-# agent/agent.py
+# agent/main.py
 
 """
 Agent Main Module
@@ -13,22 +13,32 @@ The agent performs the following actions:
 import logging
 import os
 import sys
+import time
 from time import sleep
 
 import requests
 import socketio
+from typing import List, Dict
 
 # Add the parent directory of the `agent` package to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from agent.helper import get_agent_id, get_client_info, run_command
+from agent.helper import (
+    get_agent_id,
+    get_client_info,
+    run_command,
+    run_command_in_script_mode,
+)
+from c2_server.events.utils import current_utc_time
 
 # Configuration for logging
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 
 # Enhanced logging setup
 logging.basicConfig(
-    level=getattr(logging, LOG_LEVEL, logging.INFO),  # Fetch log level from environment or use INFO
+    level=getattr(
+        logging, LOG_LEVEL, logging.INFO
+    ),  # Fetch log level from environment or use INFO
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[logging.StreamHandler()],
 )
@@ -56,6 +66,7 @@ class Agent:
             socket_host (str): Hostname or IP address of the Socket.IO server.
             socket_port (int): Port number of the Socket.IO server.
         """
+
         self.c2_url = self.format_url(c2_host, c2_port)
         self.socket_url = self.format_url(socket_host, socket_port)
         self.sio = socketio.Client(reconnection=True, reconnection_attempts=5)
@@ -63,9 +74,9 @@ class Agent:
         self.agent_id = None
 
         # Register Socket.IO event handlers
-        self.sio.on("connect", self.on_connect)
-        self.sio.on("disconnect", self.on_disconnect)
-        self.sio.on("execute_command", self.on_execute_command)
+        self.sio.on("connect", self.connect)
+        self.sio.on("disconnect", self.disconnect)
+        self.sio.on("on_execute_command", self.execute_command)
 
         logging.info(
             "Agent initialized with C2 URL: %s and Socket URL: %s",
@@ -95,7 +106,7 @@ class Agent:
         logging.debug("Formatted URL: %s:%s", host, port)
         return f"{host}:{port}"
 
-    def on_connect(self):
+    def connect(self):
         """
         Handle successful connection to the Socket.IO server.
         """
@@ -106,34 +117,151 @@ class Agent:
             )
             self.register_socket_client()
 
-    def on_disconnect(self):
+    def disconnect(self):
         """
         Handle disconnection from the Socket.IO server.
         """
         logging.warning("Disconnected from the Socket.IO server")
 
-    def on_execute_command(self, data: dict):
+    def execute_command(self, data: dict):
         """
         Handle the execution of a command sent by the C2 server.
 
         Args:
-            data (dict): Contains `agent_id`, `task_id`, and `command`.
+            data (dict): Contains `agent_id`, `task_id`, `preconditions`, `commands`, and `cleanups`.
         """
         logging.info("Received 'execute_command' event with data: %s", data)
         logging.debug("Command event details: %s", data)
 
-        command = data.get("command")
-        if not command:
-            logging.error("No command received in the event data")
+        # Retrieve the agent_id and commands
+        agent_id = data.get("agent_id")
+        preconditions: List[Dict] = data.get("preconditions", [])
+        commands: List[str] = data.get("commands", [])
+        cleanups: List[str] = data.get("cleanups", [])
+
+        if not commands:
+            logging.error("No commands received in the event data")
+            self._send_response(
+                {"agent_id": agent_id, "status": "failure", "outputs": []}
+            )
             return
 
-        command_output = run_command(command)
-        logging.debug("Command executed. Output: %s", command_output)
+        all_outputs = []
+        overall_status = "success"  # Default status
 
+        # Track execution time
+        start_time = time.time()
+
+        # Step 1: Execute preconditions
+        if preconditions:
+            logging.info("Executing preconditions for agent %s", agent_id)
+            for precondition in preconditions:
+                test_cmd = precondition.get("test_cmd")
+                solve_cmd = precondition.get("solve_cmd")
+
+                if test_cmd:
+                    logging.debug("Executing precondition test_cmd: %s", test_cmd)
+                    test_output = run_command_in_script_mode(test_cmd)
+                    test_status = (
+                        "failure" if "failure" in test_output.lower() else "success"
+                    )
+                    all_outputs.append(
+                        {
+                            "type": "precondition_test",
+                            "command": test_cmd,
+                            "output": test_output,
+                            "status": test_status,
+                        }
+                    )
+
+                    # If test_cmd fails, attempt solve_cmd if available
+                    if test_status == "failure" and solve_cmd:
+                        logging.debug("Executing precondition solve_cmd: %s", solve_cmd)
+                        solve_output = run_command_in_script_mode(solve_cmd)
+                        solve_status = (
+                            "success"
+                            if "success" in solve_output.lower()
+                            else "failure"
+                        )
+                        all_outputs.append(
+                            {
+                                "type": "precondition_solve",
+                                "command": solve_cmd,
+                                "output": solve_output,
+                                "status": solve_status,
+                            }
+                        )
+                        # Update overall status if solve_cmd also fails
+                        if solve_status == "failure":
+                            overall_status = "failure"
+                            logging.error(
+                                "Precondition solve failed. Halting execution."
+                            )
+                            break  # Halt execution on critical precondition failure
+                else:
+                    logging.warning("Precondition missing test_cmd: %s", precondition)
+
+        # Step 2: Execute main commands
+        if overall_status == "success":  # Only proceed if preconditions passed
+            logging.info("Executing main commands for agent %s", agent_id)
+            for command in commands:
+                logging.debug("Executing command: %s", command)
+                command_output = run_command_in_script_mode(command)
+                command_status = (
+                    "failure"
+                    if "error" in command_output.lower()
+                    or "failure" in command_output.lower()
+                    or not command_output
+                    else "success"
+                )
+                all_outputs.append(
+                    {
+                        "type": "command",
+                        "command": command,
+                        "output": command_output,
+                        "status": command_status,
+                    }
+                )
+                if command_status == "failure":
+                    overall_status = "failure"
+                    logging.error("Command execution failed: %s", command)
+
+        # Step 3: Execute cleanups
+        if cleanups:
+            logging.info("Executing cleanup commands for agent %s", agent_id)
+            for cleanup_command in cleanups:
+                logging.debug("Executing cleanup command: %s", cleanup_command)
+                cleanup_output = run_command_in_script_mode(cleanup_command)
+                cleanup_status = (
+                    "failure"
+                    if "error" in cleanup_output.lower()
+                    or "failure" in cleanup_output.lower()
+                    or not cleanup_output
+                    else "success"
+                )
+                all_outputs.append(
+                    {
+                        "type": "cleanup",
+                        "command": cleanup_command,
+                        "output": cleanup_output,
+                        "status": cleanup_status,
+                    }
+                )
+                if cleanup_status == "failure":
+                    overall_status = "failure"
+                    logging.error("Cleanup command failed: %s", cleanup_command)
+
+        # Track execution time
+        execution_time = time.time() - start_time
+
+        # Step 4: Prepare and send response
         response = {
-            "agent_id": data.get("agent_id"),
-            "command": command,
-            "command_output": command_output,
+            "agent_id": agent_id,
+            "status": overall_status,
+            "outputs": all_outputs,
+            "metadata": {
+                "execution_time": f"{execution_time:.2f}s",
+            },
         }
         self._send_response(response)
 
@@ -145,7 +273,7 @@ class Agent:
             response (dict): The response data to send.
         """
         try:
-            self.sio.emit("command_response", response)
+            self.sio.emit("on_command_response", response)
             logging.info("Response sent for command: %s", response.get("command"))
             logging.debug("Response data: %s", response)
         except Exception as e:
@@ -169,7 +297,7 @@ class Agent:
             logging.critical("Failed to connect to Socket.IO server: %s", e)
             sys.exit(1)
 
-    def register_api_client(self):
+    def register_agent(self):
         """
         Registers the agent with the C2 API server.
         """
@@ -184,13 +312,18 @@ class Agent:
             logging.critical("Failed to fetch Agent ID: %s", error)
             sys.exit(1)
 
-        client_data = {"agent_id": self.agent_id, "client_info": client_info}
+        client_data = {
+            "agent_id": self.agent_id,
+            "client_info": client_info,
+            "status": "online",
+            "last_seen": current_utc_time().isoformat(),
+        }
         logging.info("Registering client with C2 API: %s", client_data)
         logging.debug("Client registration payload: %s", client_data)
 
         try:
             response = requests.post(
-                f"{self.c2_url}/register", json=client_data, timeout=5
+                f"{self.c2_url}/c2/api/v1/agents/register", json=client_data, timeout=5
             )
             response.raise_for_status()
             self.is_registered = True
@@ -211,7 +344,7 @@ class Agent:
 
         client_data = {"agent_id": self.agent_id}
         try:
-            self.sio.emit("register_client", client_data)
+            self.sio.emit("on_agent_registration", client_data)
             logging.info("Client registration request sent to Socket.IO server.")
             logging.debug("Client registration data: %s", client_data)
         except Exception as e:
@@ -238,7 +371,7 @@ if __name__ == "__main__":
             agent = Agent(
                 main_c2_host, main_c2_port, main_socket_host, main_socket_port
             )
-            agent.register_api_client()
+            agent.register_agent()
             agent.listen()
         except Exception as e:
             logging.error("An error occurred: %s", e)

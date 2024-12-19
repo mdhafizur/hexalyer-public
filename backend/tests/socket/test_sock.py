@@ -35,7 +35,7 @@ sio = socketio.Client()
 def connect():
     print("Connected to the Socket server")
     # Send the agent registration data
-    sio.emit("register_client", agent_data)
+    sio.emit("on_agent_registration", agent_data)
     print(f"Agent data sent: {agent_data}")
 
 

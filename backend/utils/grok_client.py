@@ -2,6 +2,7 @@ import requests
 from utils.cybersecurity_expert_prompt import PROMPT1
 import os
 from dotenv import load_dotenv
+import json
 
 load_dotenv()
 
@@ -36,7 +37,7 @@ class XAIChatClient:
             "messages": [
                 {
                     "role": "system",
-                    "content": PROMPT1,
+                    "content": "You are a cybersecurity expert.",
                 },
                 {
                     "role": "user",
@@ -47,9 +48,61 @@ class XAIChatClient:
             "stream": stream,
             "temperature": temperature,
         }
+
         try:
-            response = requests.post(url, headers=self.headers, json=payload)
+            response = requests.post(
+                url, headers=self.headers, json=payload, stream=stream
+            )
             response.raise_for_status()
-            return response.json()
+
+            if stream:
+                return self._handle_streaming_response(response)
+            else:
+                return response.json()
+
         except requests.exceptions.RequestException as e:
             raise Exception(f"Error while making request to {url}: {e}")
+
+    def _handle_streaming_response(self, response):
+        """
+        Handles the streaming response by processing chunks of data as they arrive.
+        
+        :param response: The response object from the requests library with stream enabled.
+        :return: A generator that yields parts of the response.
+        """
+        accumulated_data = ""  # Variable to accumulate chunked data
+        try:
+            # Iterating over each chunk in the stream
+            for chunk in response.iter_lines():
+                if chunk:
+                    # Decode the chunk and remove the 'data: ' prefix
+                    chunk = chunk.decode("utf-8").strip()
+                    
+                    # Ensure we remove the 'data: ' prefix before parsing the JSON
+                    if chunk.startswith("data:"):
+                        chunk = chunk[len("data:"):].strip()  # Remove 'data: ' from the start
+
+                    # Accumulate the chunked data
+                    accumulated_data += chunk
+
+                    try:
+                        # Attempt to parse the accumulated data as JSON
+                        data = json.loads(accumulated_data)
+
+                        # Check if the data has the expected structure
+                        if "choices" in data and len(data["choices"]) > 0:
+                            # Extract and yield the content from the chunk
+                            message_content = data["choices"][0].get("delta", {}).get("content", "")
+                            if message_content:
+                                yield message_content
+
+                            # If the message content was successfully extracted, reset accumulated data
+                            accumulated_data = ""
+                    except json.JSONDecodeError:
+                        # If we have a partial JSON, just continue accumulating data
+                        continue
+                    except Exception as e:
+                        print(f"Error processing chunk: {e}")
+                        continue
+        except Exception as e:
+            raise Exception(f"Error while streaming response: {e}")

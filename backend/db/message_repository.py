@@ -22,7 +22,9 @@ class MessageRepository:
         collection_name = "messages"
         if collection_name not in mongodb.db.list_collection_names():
             # Create the collection with custom options
-            mongodb.db.create_collection(collection_name, capped=True, size=5242880, autoIndexId=True)
+            mongodb.db.create_collection(
+                collection_name, capped=True, size=5242880, autoIndexId=True
+            )
         self.collection: Collection = mongodb.db[collection_name]
 
     def create_message(self, message_data: Dict[str, Any]) -> str:
@@ -66,6 +68,7 @@ class MessageRepository:
         try:
             if not ObjectId.is_valid(message_id):
                 raise ValueError(f"Invalid message ID: {message_id}")
+            update_data["conversation_id"] = ObjectId(update_data["conversation_id"])
             result = self.collection.update_one(
                 {"_id": ObjectId(message_id)},
                 {"$set": update_data},
@@ -107,11 +110,11 @@ class MessageRepository:
             raise ValueError(f"Failed to list messages: {e}")
 
     def list_messages_with_pagination(
-        self, 
-        filter_criteria: Optional[Dict[str, Any]], 
-        skip: int, 
-        limit: int, 
-        sort: Optional[List[Tuple[str, int]]] = None
+        self,
+        filter_criteria: Optional[Dict[str, Any]],
+        skip: int,
+        limit: int,
+        sort: Optional[List[Tuple[str, int]]] = None,
     ) -> List[Dict[str, Any]]:
         """
         List messages with pagination and sorting.
@@ -126,10 +129,10 @@ class MessageRepository:
         try:
             filter_criteria = filter_criteria or {}
             query = self.collection.find(filter_criteria).skip(skip).limit(limit)
-            
+
             if sort:
                 query = query.sort(sort)
-            
+
             return list(query)
         except PyMongoError as e:
             raise ValueError(f"Failed to list messages with pagination: {e}")

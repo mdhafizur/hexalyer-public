@@ -5,6 +5,8 @@ import platform
 import subprocess
 import socket
 import psutil
+import logging
+
 
 def get_agent_id():
     """
@@ -127,7 +129,6 @@ def get_os_info():
         }
 
 
-
 def get_network_interfaces():
     """
     Retrieve network interfaces and their IP addresses.
@@ -171,7 +172,7 @@ def get_client_info():
 def run_command(command):
     """
     Executes a shell command and captures its output.
-    
+
     Args:
         command (str): The shell command to execute.
 
@@ -179,7 +180,41 @@ def run_command(command):
         dict: A dictionary containing the output or error.
     """
     try:
-        result = subprocess.run(command, shell=True, text=True, capture_output=True, check=True)
+        result = subprocess.run(
+            command, shell=True, text=True, capture_output=True, check=True
+        )
         return {"status": "success", "output": result.stdout.strip()}
     except subprocess.CalledProcessError as e:
         return {"status": "error", "error": e.stderr.strip()}
+
+
+def run_command_in_script_mode(command: str) -> str:
+    """
+    Run a given command in script mode and return its output.
+
+    Args:
+        command (str): The command to execute.
+    Returns:
+        str: The command's output if successful; error details if it fails.
+    """
+    try:
+        # Run the command in script mode
+        result = subprocess.run(
+            command,
+            shell=True,
+            text=True,
+            capture_output=True,
+            check=True,  # Raise an error if the command fails
+        )
+        logging.info("Command executed successfully: %s", command)
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        # Handle command execution errors
+        logging.error(
+            "Command failed with return code %d: %s", e.returncode, e.stderr.strip()
+        )
+        return e.stderr.strip()
+    except Exception as e:
+        # Handle unexpected exceptions
+        logging.error("Unexpected error executing command: %s", e)
+        return str(e)
