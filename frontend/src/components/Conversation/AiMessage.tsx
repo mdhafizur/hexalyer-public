@@ -1,10 +1,23 @@
-// AiMessage Component
 import { Message } from '@app/messages/types/message.types';
 import { Paper, Typography, Avatar, Box } from "@mui/material";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import { formatDistanceToNow } from "date-fns";
+import ReactMarkdown from "react-markdown";
+
+// Function to check if a message content is markdown
+const isMarkdown = (content: string) => {
+    // Simple heuristic for detecting markdown based on the presence of common markdown syntax
+    const markdownPattern = /[*_`~#\-\+\[\]]/;
+    return markdownPattern.test(content);
+};
 
 export function AiMessage({ message }: { message: Message }) {
+    const renderContent = isMarkdown(message.content) ? (
+        <ReactMarkdown>{message.content}</ReactMarkdown>
+    ) : (
+        <Typography variant="body2">{message.content}</Typography>
+    );
+
     return (
         <Box
             sx={{
@@ -31,7 +44,7 @@ export function AiMessage({ message }: { message: Message }) {
                     color: "primary.contrastText",
                 }}
             >
-                <Typography variant="body2">{message.content}</Typography>
+                {renderContent}
                 <Typography
                     variant="caption"
                     sx={{ mt: 0.5, display: "block", textAlign: "right" }}

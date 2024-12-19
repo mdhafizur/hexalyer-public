@@ -70,7 +70,10 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
     }, [joinRoom, conversationId]);
 
     useEffect(() => {
-        const handleMessageHistory = (paginatedMessages: any) => {
+        const handleMessageHistory = (paginatedMessages: {
+            page: string,
+            messages: Message[]
+        }) => {
             const newMessages = paginatedMessages.messages || [];
             if (Array.isArray(newMessages) && newMessages.length > 0) {
                 setMessages((previousMessages) => [
@@ -97,7 +100,48 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
 
 
     useEffect(() => {
+        socket.on('ai_message_stream', function (aiMessage: Message) {
+            console.log("AI message chunk:", aiMessage);
+
+            if (aiMessage.conversation_id === conversationId) {
+                setMessages((prevMessages) => {
+                    // Check if the message already exists
+                    const existingMessageIndex = prevMessages.findIndex(
+                        (msg) => msg._id === aiMessage._id
+                    );
+
+                    if (existingMessageIndex !== -1) {
+                        // Update the content by appending the chunk
+                        const updatedMessages = [...prevMessages];
+                        updatedMessages[existingMessageIndex] = {
+                            ...updatedMessages[existingMessageIndex],
+                            content: updatedMessages[existingMessageIndex].content + aiMessage.content,
+                        };
+                        return updatedMessages;
+                    } else {
+                        // Add a new message with the initial chunk of content
+                        return [
+                            ...prevMessages,
+                            {
+                                ...aiMessage,
+                                content: aiMessage.content || "", // Ensure content exists even if it's empty initially
+                            },
+                        ];
+                    }
+                });
+            }
+        });
+
+        // Cleanup the socket listener
+        return () => {
+            socket.off('ai_message_stream');
+        };
+    }, [conversationId]);
+
+
+    useEffect(() => {
         const handleAiMessage = (message: Message) => {
+            console.log("handleAiMessage", message)
             if (message.conversation_id === conversationId) {
                 setMessages((prevMessages) => {
                     if (prevMessages.some((msg) => msg._id === message._id)) return prevMessages;
@@ -162,9 +206,15 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
 
 
                     if (selectedMode == "MANUAL") {
-                        socket.emit("send_message", {
+                        // socket.emit("send_message", {
+                        //     _id: generatedId,
+                        //     conversation_id: newConversation._id,
+                        //     sender: "user",
+                        //     content: inputValue,
+                        // });
+                        socket.emit("on_stream_message_to_ai", {
                             _id: generatedId,
-                            conversation_id: newConversation._id,
+                            conversation_id: conversationId,
                             sender: "user",
                             content: inputValue,
                         });
@@ -187,7 +237,14 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
             } else {
 
                 if (selectedMode == "MANUAL") {
-                    socket.emit("send_message", {
+                    // socket.emit("send_message", {
+                    //     _id: generatedId,
+                    //     conversation_id: conversationId,
+                    //     sender: "user",
+                    //     content: inputValue,
+                    // });
+
+                    socket.emit("on_stream_message_to_ai", {
                         _id: generatedId,
                         conversation_id: conversationId,
                         sender: "user",
@@ -270,9 +327,9 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
                         </Grow>
                     ))}
 
-                {true && <ChoicesComponent
+                <ChoicesComponent
                     onModeChange={handleModeAndInputChange} // Pass the callback to the child
-                />}
+                />
 
             </Box>
 
@@ -290,15 +347,30 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
 
                 {selectedMode == "MANUAL" &&
 
-                    <Box>
+                    <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
                         <TextField
                             variant="outlined"
-                            fullWidth
-                            size="small"
+                            fullWidth // Ensures the TextField takes the full width
+                            size="medium"
                             placeholder="Type a message..."
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
+                            onKeyDown={(e) => {
+                                // Check for Enter key press
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    // Prevent the default behavior (which would be to submit the form)
+                                    e.preventDefault();
+                                    handleSendMessage();  // Send the message
+                                } else if (e.key === 'Enter' && e.shiftKey) {
+                                    // Allow newline if Shift + Enter is pressed
+                                    return;
+                                }
+                            }}
                             disabled={loading}
+                            multiline // Allows for multiple lines of input
+                            minRows={1} // Minimum number of rows
+                            maxRows={50} // Maximum number of rows (you can adjust this)
+                            sx={{ mr: 1 }} // Optional: adds a margin between TextField and IconButton
                         />
                         <IconButton
                             color="primary"
