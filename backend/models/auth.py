@@ -21,7 +21,7 @@ class User(BaseModel):
     profile: Optional[bytes] = None  # Optional, defaults to None, can store user profile information
 
     class Config:
-        orm_mode = True  # Enables compatibility with ORM objects
+        from_attributes = True  # Enables compatibility with ORM objects
         
 class UserResponse(BaseModel):
     _id: str
@@ -31,7 +31,6 @@ class UserResponse(BaseModel):
     profile: Optional[bytes] = None
 
     class Config:
-        orm_mode = True
-        fields = {'password': {'exclude': True}} 
+        from_attributes = True
         # If you want to exclude password in response globally:
         # exclude = {"password"}

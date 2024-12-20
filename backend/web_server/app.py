@@ -11,6 +11,7 @@ from routes.message_routes import router as message_router
 from routes.healthcheck_routes import router as healthcheck_router
 from routes.chatgpt_routes import router as chatgpt_router
 from routes.auth_routes import router as auth_router
+from routes.webhex_routes import router as webhex_router
 from logger.fastapi_logger import web_server_logger
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -48,6 +49,18 @@ app.add_middleware(
     allow_methods=["*"],  # Allow all HTTP methods (GET, POST, PUT, DELETE, etc.)
     allow_headers=["*"],  # Allow all headers
 )
+
+
+# Register routers
+app.include_router(agent_router, prefix="/agents", tags=["Agents"])
+app.include_router(task_router, prefix="/tasks", tags=["Tasks"])
+app.include_router(conversation_router, prefix="/conversations", tags=["Conversations"])
+app.include_router(message_router, prefix="/messages", tags=["Messages"])
+app.include_router(healthcheck_router, prefix="/healthcheck", tags=["Healthcheck"])
+app.include_router(docs_router, prefix="/docs", tags=["Docs"])
+app.include_router(chatgpt_router, prefix="/chatgpt", tags=["ChatGPT"])
+app.include_router(auth_router, prefix="/auth", tags=["Auth"])
+app.include_router(webhex_router, prefix="/webhex", tags=["WebHex"])
 
 
 @app.get("/download-agent/{agent_type}", response_class=FileResponse, tags=["Agents"])
