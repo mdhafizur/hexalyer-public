@@ -1,5 +1,5 @@
-import { Message } from '@app/messages/types/message.types';
-import { Paper, Typography, Avatar, Box } from "@mui/material";
+import { Message } from "@app/messages/types/message.types";
+import { Paper, Typography, Avatar, Box, Link } from "@mui/material";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import { formatDistanceToNow } from "date-fns";
 import ReactMarkdown from "react-markdown";
@@ -12,6 +12,12 @@ const isMarkdown = (content: string) => {
 };
 
 export function AiMessage({ message }: { message: Message }) {
+    const { details } = message;
+    const reportId = details?.report_id;
+
+    // Create the report URL if report_id exists
+    const reportUrl = reportId ? `/reports/${reportId}` : null;
+
     const renderContent = isMarkdown(message.content) ? (
         <ReactMarkdown>{message.content}</ReactMarkdown>
     ) : (
@@ -45,6 +51,20 @@ export function AiMessage({ message }: { message: Message }) {
                 }}
             >
                 {renderContent}
+                {reportUrl && (
+                    <Typography
+                        variant="body2"
+                        sx={{
+                            mt: 1,
+                            display: "block",
+                            color: "primary.main",
+                        }}
+                    >
+                        <Link href={reportUrl} target="_blank" rel="noopener noreferrer">
+                            View Report
+                        </Link>
+                    </Typography>
+                )}
                 <Typography
                     variant="caption"
                     sx={{ mt: 0.5, display: "block", textAlign: "right" }}

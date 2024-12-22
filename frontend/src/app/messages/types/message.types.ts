@@ -3,6 +3,8 @@ export interface Message {
     conversation_id: string;  // ID of the conversation this message belongs to
     sender: string;   // Sender of the message
     content: string;          // Message content
+    type: string;          // Message content
+    details?: object,
     created_at: string;       // ISO8601 timestamp when the message was created
     updated_at: string;       // ISO8601 timestamp when the message was last updated
 }

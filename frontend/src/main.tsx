@@ -17,6 +17,8 @@ import RecoverPasswordPage from "@pages/RecoverPasswordPage";
 import ExtraPage from "@pages/ExtraPage";
 import UserProfilePage from "@pages/UserProfilePage";
 import { SocketProvider } from "context/SocketContext";
+import ReportListingPage from '@pages/ReportListingPage';
+import ReportDetailsComponent from '@components/Reports/ReportDetailsComponent';
 
 const router = createBrowserRouter([
   {
@@ -52,8 +54,8 @@ const router = createBrowserRouter([
         ],
       },
       {
-        path: "/extra",
-        element: <ExtraPage />,
+        path: "/reports",
+        element: <ReportListingPage />,
       },
       {
         path: "/user-profile",

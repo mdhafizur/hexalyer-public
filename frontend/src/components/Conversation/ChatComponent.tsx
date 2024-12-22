@@ -21,7 +21,7 @@ import { Message } from "@app/messages/types/message.types";
 import { AiMessage } from "@components/Conversation/AiMessage";
 import { UserMessage } from "@components/Conversation/UserMessage";
 import { ChoicesComponent } from "@components/Conversation/ChoicesComponent";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
 
 interface ChatComponentProps {
     conversationId: string | "new";
@@ -36,234 +36,194 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
 
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState("");
-    const [isFetching, setIsFetching] = useState(false); // To track fetching state
-    const chatContainerRef = useRef<HTMLDivElement | null>(null); // Ref for the chat container
+    const [webHexValue, setWebHexValue] = useState("");
+    const [isFetching, setIsFetching] = useState(false);
+    const [selectedMode, setSelectedMode] = useState<string>("manual");
+    const chatContainerRef = useRef<HTMLDivElement | null>(null);
 
-    const [selectedMode, setSelectedMode] = useState<string>("");
-    const [webHexValue, setWebHexValue] = useState<string>("");
 
-    // Callback function to handle the emitted values from the child component
-    const handleModeAndInputChange = (mode: string, inputValue: string) => {
-        setSelectedMode(mode);
-        setWebHexValue(inputValue);
-        console.log("Selected Mode:", mode);
-        console.log("Web Hex Input Value:", inputValue);
+    const addMessage = (message: Message) => {
+        setMessages((prevMessages) => {
+            const index = prevMessages.findIndex((msg) => msg._id === message._id);
+
+            if (index !== -1) {
+                const updatedMessages = [...prevMessages];
+                updatedMessages[index] = { ...updatedMessages[index], ...message };
+                return updatedMessages;
+            }
+
+            return [...prevMessages, message].sort(
+                (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            );
+        });
     };
 
+    const handleModeAndInputChange = (mode: string, inputValue: string) => {
+        setSelectedMode(mode);
+        setWebHexValue(inputValue); // Update state asynchronously
+
+        console.log("Mode:", mode);
+        console.log("Input Value Direct:", inputValue);
+
+        // Use inputValue directly, not webHexValue, as it is updated asynchronously
+        if (mode === "webhex") {
+            setWebHexValue(inputValue)
+            handleSendMessage(inputValue, mode);
+        }
+    };
 
     // Join the conversation room
     const joinRoom = useCallback(() => {
         if (conversationId !== "new") {
             socket.emit("join_room", { conversation_id: conversationId });
-            setMessages([]); // Clear messages when switching rooms
+            setMessages([]);
         }
     }, [conversationId]);
 
     useEffect(() => {
-        if (conversationId !== "new") {
-            joinRoom();
-        }
-
-        if (conversationId == "new") {
-            setMessages([]);
-        }
+        if (conversationId !== "new") joinRoom();
     }, [joinRoom, conversationId]);
 
-    useEffect(() => {
-        const handleMessageHistory = (paginatedMessages: {
-            page: string,
-            messages: Message[]
-        }) => {
-            const newMessages = paginatedMessages.messages || [];
-            if (Array.isArray(newMessages) && newMessages.length > 0) {
-                setMessages((previousMessages) => [
-                    ...newMessages.filter(
-                        (msg) => !previousMessages.some((prev) => prev._id === msg._id)
-                    ),
-                    ...previousMessages,
-                ]);
 
-                // Restore scroll position after prepending messages
-                if (chatContainerRef.current) {
-                    chatContainerRef.current.scrollTop += chatContainerRef.current.scrollHeight;
-                }
+
+
+    useEffect(() => {
+        const handleMessageHistory = ({ messages }: { messages: Message[] }) => {
+            if (messages.length) {
+                setMessages((prev) => {
+                    const combinedMessages = [
+                        ...prev.filter((prevMsg) => !messages.some((newMsg) => newMsg._id === prevMsg._id)),
+                        ...messages,
+                    ];
+                    return combinedMessages.sort(
+                        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                    );
+                });
             }
             setIsFetching(false);
         };
 
         socket.on("message_history", handleMessageHistory);
-
-        return () => {
-            socket.off("message_history", handleMessageHistory);
-        };
+        return () => socket.off("message_history", handleMessageHistory);
     }, []);
 
-
-    useEffect(() => {
-        socket.on('ai_message_stream', function (aiMessage: Message) {
-            console.log("AI message chunk:", aiMessage);
-
-            if (aiMessage.conversation_id === conversationId) {
-                setMessages((prevMessages) => {
-                    // Check if the message already exists
-                    const existingMessageIndex = prevMessages.findIndex(
-                        (msg) => msg._id === aiMessage._id
-                    );
-
-                    if (existingMessageIndex !== -1) {
-                        // Update the content by appending the chunk
-                        const updatedMessages = [...prevMessages];
-                        updatedMessages[existingMessageIndex] = {
-                            ...updatedMessages[existingMessageIndex],
-                            content: updatedMessages[existingMessageIndex].content + aiMessage.content,
-                        };
-                        return updatedMessages;
-                    } else {
-                        // Add a new message with the initial chunk of content
-                        return [
-                            ...prevMessages,
-                            {
-                                ...aiMessage,
-                                content: aiMessage.content || "", // Ensure content exists even if it's empty initially
-                            },
-                        ];
-                    }
-                });
-            }
-        });
-
-        // Cleanup the socket listener
-        return () => {
-            socket.off('ai_message_stream');
-        };
-    }, [conversationId]);
 
 
     useEffect(() => {
         const handleAiMessage = (message: Message) => {
-            console.log("handleAiMessage", message)
-            if (message.conversation_id === conversationId) {
-                setMessages((prevMessages) => {
-                    if (prevMessages.some((msg) => msg._id === message._id)) return prevMessages;
-                    return [...prevMessages, message];
+            if (message.conversation_id === conversationId) addMessage(message);
+        };
+
+        socket.off("ai_message").on("ai_message", handleAiMessage);
+        return () => socket.off("ai_message", handleAiMessage);
+    }, [conversationId]);
+
+
+
+
+    useEffect(() => {
+        const handleAiMessageStream = (aiMessage: Message) => {
+            if (aiMessage.conversation_id === conversationId) {
+                setMessages((prev) => {
+                    const index = prev.findIndex((msg) => msg._id === aiMessage._id);
+                    if (index !== -1) {
+                        const updatedMessages = [...prev];
+                        updatedMessages[index] = {
+                            ...updatedMessages[index],
+                            content: updatedMessages[index].content + aiMessage.content,
+                        };
+                        return updatedMessages;
+                    }
+                    return [...prev, aiMessage];
                 });
             }
         };
 
-        socket.on("ai_message", handleAiMessage);
-
-        return () => {
-            socket.off("ai_message", handleAiMessage);
-        };
+        socket.on("ai_message_stream", handleAiMessageStream);
+        return () => socket.off("ai_message_stream", handleAiMessageStream);
     }, [conversationId]);
 
-    // Scroll to the bottom when messages change or component mounts
+
+
     useEffect(() => {
         if (chatContainerRef.current) {
             chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
     }, [messages]);
 
-    // Handle scroll events for loading more messages
-    const handleScroll = () => {
-        const container = chatContainerRef.current;
-        if (!container || isFetching || loading) return;
+    // Mode-specific handlers
+    const handleManualMode = (generatedId: string) => {
 
-        if (container.scrollTop === 0) {
-            const oldestMessage = messages[0];
-            const oldestCreatedAt = oldestMessage?.created_at || new Date().toISOString();
+        socket.emit("on_stream_message_to_ai", {
+            _id: generatedId,
+            conversation_id: conversationId,
+            sender: "user",
+            content: inputValue,
+            type: "manual",
+        });
 
-            setIsFetching(true);
-
-            socket.emit("load_more_messages", {
-                conversation_id: conversationId,
-                sort_by: "desc",
-                created_at: oldestCreatedAt,
-            });
-        }
+        addMessage({
+            _id: generatedId,
+            conversation_id: conversationId,
+            sender: "user",
+            type: "manual",
+            content: inputValue,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        });
     };
 
-    // Handle sending messages
-    const handleSendMessage = async () => {
-        if (inputValue.trim() === "") return;
+    const handleWebHexMode = (generatedId: string, webUrl: string) => {
 
+        console.log("handleWebHexMode on_stream_message_to_ai", {
+            _id: generatedId,
+            conversation_id: conversationId,
+            sender: "user",
+            content: `WebHex request: ${webUrl}`,
+            type: "webhex",
+            details: { url: webUrl },
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        })
+
+        // return;
+        socket.emit("on_stream_message_to_ai", {
+            _id: generatedId,
+            conversation_id: conversationId,
+            sender: "user",
+            content: `WebHex request: ${webUrl}`,
+            type: "webhex",
+            details: { url: webUrl },
+        });
+
+
+        addMessage({
+            _id: generatedId,
+            conversation_id: conversationId,
+            sender: "user",
+            type: "manual",
+            content: `WebHex request: ${webUrl}`,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        });
+    };
+
+    const handleSendMessage = async (customInputValue = inputValue, mode = selectedMode) => {
+        if (customInputValue.trim() === "") return;
         const generatedId = ObjectId().toHexString();
 
         try {
             if (conversationId === "new") {
-                const resultAction = await dispatch(
-                    createConversationThunk({ title: inputValue, user_id: "674c442875a3b4802b6fbd32" })
-                );
-
+                const resultAction = await dispatch(createConversationThunk({ title: inputValue, user_id: "67667e7811799977286f3d6b" }));
                 if (createConversationThunk.fulfilled.match(resultAction)) {
                     const newConversation = resultAction.payload;
-
-                    if (onConversationCreated) {
-                        onConversationCreated(newConversation._id);
-                    }
-
+                    if (onConversationCreated) onConversationCreated(newConversation._id);
                     navigate(`/conversations/${newConversation._id}`);
-
-
-                    if (selectedMode == "MANUAL") {
-                        // socket.emit("send_message", {
-                        //     _id: generatedId,
-                        //     conversation_id: newConversation._id,
-                        //     sender: "user",
-                        //     content: inputValue,
-                        // });
-                        socket.emit("on_stream_message_to_ai", {
-                            _id: generatedId,
-                            conversation_id: conversationId,
-                            sender: "user",
-                            content: inputValue,
-                        });
-                    }
-
-
-                    setMessages((prevMessages) => [
-                        ...prevMessages,
-                        {
-                            _id: generatedId,
-                            conversation_id: newConversation._id,
-                            sender: "user",
-                            content: inputValue,
-                            created_at: new Date().toISOString(),
-                            updated_at: new Date().toISOString(),
-                        },
-                    ]);
-
                 }
-            } else {
-
-                if (selectedMode == "MANUAL") {
-                    // socket.emit("send_message", {
-                    //     _id: generatedId,
-                    //     conversation_id: conversationId,
-                    //     sender: "user",
-                    //     content: inputValue,
-                    // });
-
-                    socket.emit("on_stream_message_to_ai", {
-                        _id: generatedId,
-                        conversation_id: conversationId,
-                        sender: "user",
-                        content: inputValue,
-                    });
-                }
-
-                setMessages((prevMessages) => [
-                    ...prevMessages,
-                    {
-                        _id: generatedId,
-                        conversation_id: conversationId,
-                        sender: "user",
-                        content: inputValue,
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString(),
-                    },
-                ]);
             }
+
+            if (mode === "manual") handleManualMode(generatedId);
+            if (mode === "webhex") handleWebHexMode(generatedId, customInputValue);
 
             setInputValue("");
         } catch (error) {
@@ -271,120 +231,58 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
         }
     };
 
+    const handleScroll = () => {
+        const container = chatContainerRef.current;
+        if (container && container.scrollTop === 0 && !isFetching && !loading) {
+            setIsFetching(true);
+            socket.emit("load_more_messages", {
+                conversation_id: conversationId,
+                created_at: messages[0]?.created_at || new Date().toISOString(),
+            });
+        }
+    };
+
     return (
-        <Box
-            sx={{
-                display: "flex",
-                flexDirection: "column",
-                flexGrow: 1,
-                height: "100%",
-                bgcolor: "background.paper",
-            }}
-        >
-            <AppBar position="static" elevation={1}>
+        <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+            <AppBar position="static">
                 <Toolbar>
-                    <Typography variant="h6" sx={{ flexGrow: 1 }}>
-                        {conversationId === "new" ? "New Conversation" : `Conversation: ${conversationId}`}
-                    </Typography>
+                    <Typography variant="h6">{conversationId === "new" ? "New Conversation" : `Conversation: ${conversationId}`}</Typography>
                 </Toolbar>
             </AppBar>
-
-            <Box
-                ref={chatContainerRef}
-                sx={{
-                    flexGrow: 1,
-                    display: "flex",
-                    flexDirection: "column",
-                    p: 2,
-                    bgcolor: "background.paper",
-                    overflowY: "auto",
-                }}
-                onScroll={handleScroll}
-            >
-                {loading && (
-                    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
-                        <CircularProgress />
-                    </Box>
-                )}
+            <Box ref={chatContainerRef} sx={{ flexGrow: 1, overflowY: "auto" }} onScroll={handleScroll}>
+                {loading && <CircularProgress />}
                 {!loading && messages.length === 0 && (
-                    <Typography align="center" color="textSecondary">
-                        No messages yet. Start the conversation!
-                    </Typography>
+                    <Typography>No messages yet. Start the conversation!</Typography>
                 )}
-                {[...messages]
-                    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-                    .map((message: Message) => (
-                        <Grow in key={message._id} timeout={500}>
-                            <ListItem
-                                sx={{
-                                    justifyContent: message.sender === "user" ? "flex-end" : "flex-start",
-                                    mb: 1,
-                                }}
-                            >
-                                {message.sender === "ai" && <AiMessage message={message} />}
-                                {message.sender === "user" && <UserMessage message={message} />}
-                            </ListItem>
-                        </Grow>
-                    ))}
-
-                <ChoicesComponent
-                    onModeChange={handleModeAndInputChange} // Pass the callback to the child
-                />
-
-            </Box>
-
-            <Paper
-                elevation={2}
-                sx={{
-                    p: 2,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    borderTop: "1px solid",
-                    borderColor: "divider",
-                }}
-            >
-
-                {selectedMode == "MANUAL" &&
-
-                    <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
-                        <TextField
-                            variant="outlined"
-                            fullWidth // Ensures the TextField takes the full width
-                            size="medium"
-                            placeholder="Type a message..."
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            onKeyDown={(e) => {
-                                // Check for Enter key press
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                    // Prevent the default behavior (which would be to submit the form)
-                                    e.preventDefault();
-                                    handleSendMessage();  // Send the message
-                                } else if (e.key === 'Enter' && e.shiftKey) {
-                                    // Allow newline if Shift + Enter is pressed
-                                    return;
-                                }
+                {messages.map((message, index) => (
+                    <Grow in key={`${message._id}`} timeout={500}>
+                        <ListItem
+                            sx={{
+                                justifyContent: message.sender === "user" ? "flex-end" : "flex-start",
+                                mb: 1,
                             }}
-                            disabled={loading}
-                            multiline // Allows for multiple lines of input
-                            minRows={1} // Minimum number of rows
-                            maxRows={50} // Maximum number of rows (you can adjust this)
-                            sx={{ mr: 1 }} // Optional: adds a margin between TextField and IconButton
-                        />
-                        <IconButton
-                            color="primary"
-                            onClick={handleSendMessage}
-                            disabled={loading || inputValue.trim() === "" || selectedMode !== "MANUAL"}
                         >
-                            <SendIcon />
-                        </IconButton>
-                    </Box>
-
-
-                }
-
-            </Paper>
+                            {message.sender === "ai" && <AiMessage message={message} />}
+                            {message.sender === "user" && <UserMessage message={message} />}
+                        </ListItem>
+                    </Grow>
+                ))}
+            </Box>
+            <ChoicesComponent onModeChange={handleModeAndInputChange} />
+            {selectedMode === "manual" && (
+                <Paper sx={{ display: "flex", alignItems: "center", p: 2 }}>
+                    <TextField
+                        fullWidth
+                        placeholder="Type a message..."
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
+                    />
+                    <IconButton onClick={() => handleSendMessage()} disabled={loading || !inputValue.trim()}>
+                        <SendIcon />
+                    </IconButton>
+                </Paper>
+            )}
         </Box>
     );
 }

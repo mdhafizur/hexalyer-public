@@ -7,33 +7,81 @@ import {
     Paper,
     Avatar,
     Typography,
+    CircularProgress,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import { motion } from "framer-motion";
 
 interface ChoicesComponentProps {
-    onModeChange: (mode: string, inputValue: string) => void; // Callback prop
+    onModeChange: (mode: string, inputValue: string) => void;
 }
 
 export function ChoicesComponent({ onModeChange }: ChoicesComponentProps): JSX.Element {
     const [activeMode, setActiveMode] = useState<string>("");
     const [webHexInput, setWebHexInput] = useState<string>("");
+    const [isValid, setIsValid] = useState<boolean>(false);
+    const [isLoading, setIsLoading] = useState<boolean>(false);
+
+    // Regular expressions for validation
+    const isValidIP = (input: string): boolean => {
+        const ipRegex =
+            /^(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)$/;
+        return ipRegex.test(input);
+    };
+
+    const isValidURL = (input: string): boolean => {
+        const urlRegex =
+            /^(https?:\/\/)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/[^\s]*)?$/;
+        return urlRegex.test(input);
+    };
+
+    const validateReachability = async (input: string): Promise<void> => {
+        try {
+            setIsLoading(true);
+            let formattedInput = input;
+            if (!/^https?:\/\//i.test(input)) {
+                formattedInput = `http://${input}`;
+            }
+
+            const response = await fetch(formattedInput, {
+                method: "HEAD",
+                mode: "no-cors", // Bypass CORS restrictions
+            });
+
+            // Check the status indirectly (response is opaque due to "no-cors")
+            setIsValid(response.ok || response.type === "opaque");
+        } catch (error) {
+            console.error("Reachability check error:", error);
+            setIsValid(false);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleModeChange = (mode: string): void => {
         setActiveMode(mode);
-        if (mode !== "WEB_HEX") {
+        if (mode !== "webhex") {
             setWebHexInput("");
         }
+        onModeChange(mode, webHexInput); // Notify parent of mode change
+    };
 
-        // Emit the mode and webHexInput to parent
-        onModeChange(mode, webHexInput);
+    const handleInputChange = async (value: string): Promise<void> => {
+        setWebHexInput(value);
+        if (isValidIP(value) || isValidURL(value)) {
+            await validateReachability(value);
+        } else {
+            setIsValid(false);
+        }
     };
 
     const handleSend = (): void => {
-        console.log("Web Hex Input Submitted:", webHexInput);
-        setWebHexInput("");
-        onModeChange(activeMode, webHexInput); // Emit when input is submitted
+        if (!webHexInput.trim()) return;
+
+        console.log("Sending WebHex Input to Parent:", webHexInput);
+        onModeChange("webhex", webHexInput); // Pass mode and input value to parent
+        setWebHexInput(""); // Clear the input field after notifying parent
     };
 
     return (
@@ -42,18 +90,16 @@ export function ChoicesComponent({ onModeChange }: ChoicesComponentProps): JSX.E
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                justifyContent: "center", // Centers content vertically
+                justifyContent: "center",
                 p: 2,
                 gap: 3,
-                height: "100vh", // Full viewport height for centering
+                height: "150",
             }}
         >
-            {/* Greeting Message */}
             <Typography variant="h6" sx={{ mb: 2, textAlign: "center" }}>
                 Hi, how can I help you today?
             </Typography>
 
-            {/* AI Avatar */}
             <motion.div
                 animate={{ rotate: [0, 10, -10, 0], scale: [1, 1.1, 1.1, 1] }}
                 transition={{ duration: 1.5, repeat: Infinity }}
@@ -63,92 +109,66 @@ export function ChoicesComponent({ onModeChange }: ChoicesComponentProps): JSX.E
                 </Avatar>
             </motion.div>
 
-            {/* Buttons */}
             <Box sx={{ display: "flex", gap: 2 }}>
                 <Button
-                    variant={activeMode === "MANUAL" ? "contained" : "outlined"}
-                    onClick={() => handleModeChange("MANUAL")}
+                    variant={activeMode === "manual" ? "contained" : "outlined"}
+                    onClick={() => handleModeChange("manual")}
                 >
                     Manual
                 </Button>
                 <Button
-                    variant={activeMode === "AUTO" ? "contained" : "outlined"}
-                    onClick={() => handleModeChange("AUTO")}
+                    variant={activeMode === "auto" ? "contained" : "outlined"}
+                    onClick={() => handleModeChange("auto")}
                 >
                     Auto
                 </Button>
                 <Button
-                    variant={activeMode === "WEB_HEX" ? "contained" : "outlined"}
-                    onClick={() => handleModeChange("WEB_HEX")}
+                    variant={activeMode === "webhex" ? "contained" : "outlined"}
+                    onClick={() => handleModeChange("webhex")}
                 >
                     Web Hex
                 </Button>
             </Box>
 
-            {/* Mode Content */}
-            {activeMode === "AUTO" && (
-                <Box sx={{ textAlign: "center", mt: 3 }}>
-                    <Typography variant="body1" sx={{ mb: 2 }}>
-                        To download the linux agent, please follow the commands below:
-                    </Typography>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                        1. curl -X GET http://ec2-3-72-61-250.eu-central-1.compute.amazonaws.com:5000/web/api/v1/download-agent/linux/download-agent/linux -o agent
-                    </Typography>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                        2. chmod +x agent
-                    </Typography>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                        3. ./agent http://ec2-3-72-61-250.eu-central-1.compute.amazonaws.com:5001 http://ec2-3-72-61-250.eu-central-1.compute.amazonaws.com:5003
-                    </Typography>
-                </Box>
-            )}
-
-            {activeMode === "MANUAL" && (
-                <Box sx={{ textAlign: "center", mt: 3 }}>
-                    <Typography variant="body1" sx={{ mb: 2 }}>
-                        Ask your questions, and I'll help you out!
-                    </Typography>
-
-                </Box>
-            )}
-
-            {/* Web Hex Input */}
-            {activeMode === "WEB_HEX" && (
+            {activeMode === "webhex" && (
                 <Paper
                     elevation={3}
                     sx={{
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center", // Centers horizontally
+                        justifyContent: "center",
                         p: 1,
                         gap: 1,
                         mt: 2,
                         width: "100%",
                         maxWidth: 400,
-                        margin: "0 auto", // Centers the Paper container itself
+                        margin: "0 auto",
                     }}
                 >
                     <TextField
                         fullWidth
                         placeholder="Enter Website IP or Domain"
                         value={webHexInput}
-                        onChange={(e) => setWebHexInput(e.target.value)}
+                        onChange={(e) => handleInputChange(e.target.value)}
                         sx={{
                             paddingLeft: 6,
-                            flexGrow: 1, // Ensure the input field grows to fill the available space
+                            flexGrow: 1,
                         }}
                     />
-                    <IconButton
-                        color="primary"
-                        disabled={!webHexInput.trim()}
-                        onClick={handleSend}
-                    >
-                        <SendIcon />
-                    </IconButton>
+                    {isLoading ? (
+                        <CircularProgress size={24} />
+                    ) : (
+                        <IconButton
+                            color="primary"
+                            disabled={!isValid}
+                            onClick={handleSend}
+                        >
+                            <SendIcon />
+                        </IconButton>
+                    )}
                 </Paper>
             )}
 
-            {/* Information */}
             <Typography variant="caption" sx={{ mt: 2, color: "text.secondary" }}>
                 Current Mode: {activeMode || "None"}
             </Typography>
