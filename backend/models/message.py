@@ -1,15 +1,9 @@
 from typing import Optional, Dict, Union
 from datetime import datetime
-from pydantic import BaseModel, Field, validator
-from enum import Enum
-from models.base import PyObjectId  # Assuming this exists
+from pydantic import BaseModel, Field, ValidationError, model_validator
+from c2_server.events.utils import current_utc_time
+from models.base import PyObjectId
 from bson.objectid import ObjectId
-
-
-class MessageType(str, Enum):
-    MANUAL = "manual"
-    WEBHEX = "webhex"
-    AUTOMATIC = "automatic"
 
 
 class MessageModel(BaseModel):
@@ -36,51 +30,57 @@ class MessageModel(BaseModel):
         description="Text content of the message",
         example="Hello, how can I help you?",
     )
-    type: Optional[MessageType] = Field(
-        ..., description="Type of conversation", example="webhex"
+    type: Optional[str] = Field(
+        None, description="Type of the message", example="webhex"
     )
     details: Optional[Dict[str, Union[str, Dict]]] = Field(
-        ...,
-        description="Details field containing additional data",
+        None,
+        description="Additional details about the message",
         example={"scanId": 1, "url": "https://example.com", "report": {}},
     )
     created_at: Optional[datetime] = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: current_utc_time().isoformat(),
         description="Timestamp when the message was created",
         example="2024-12-01T12:00:00Z",
     )
     updated_at: Optional[datetime] = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: current_utc_time().isoformat(),
         description="Timestamp when the message was last updated",
         example="2024-12-01T12:10:00Z",
     )
 
-    @validator("id", "conversation_id", pre=True)
-    def validate_objectid(cls, value):
+    @model_validator(mode="before")
+    def convert_objectid(cls, values):
         """
         Convert string fields to PyObjectId during validation.
         """
-        if isinstance(value, str):
-            try:
-                return PyObjectId(value)
-            except ValueError:
-                raise ValueError(f"Invalid ObjectId: {value}")
-        return value
+        for field in ["id", "conversation_id"]:
+            if field in values and isinstance(values[field], str):
+                try:
+                    values[field] = PyObjectId(values[field])
+                except ValueError:
+                    raise ValidationError(
+                        f"Invalid ObjectId for field {field}: {values[field]}"
+                    )
+        return values
 
     def dict(self, **kwargs):
         """
-        Override `dict` to ensure `_id` and `conversation_id` are properly converted.
+        Override `dict` to ensure `created_at` and `updated_at` are serialized to strings,
+        and `_id` and `conversation_id` are properly converted to strings if they are ObjectId.
         """
         kwargs["by_alias"] = True
         data = super().dict(**kwargs)
 
-        # Serialize ObjectIds as strings
+        # Ensure `_id` is converted to a string if it exists and is an ObjectId
         if "_id" in data and isinstance(data["_id"], ObjectId):
             data["_id"] = str(data["_id"])
+
+        # Ensure `conversation_id` is converted to a string if it exists and is an ObjectId
         if "conversation_id" in data and isinstance(data["conversation_id"], ObjectId):
             data["conversation_id"] = str(data["conversation_id"])
 
-        # Serialize datetime fields to ISO 8601 format
+        # Serialize `created_at` and `updated_at` to ISO format strings
         if "created_at" in data and isinstance(data["created_at"], datetime):
             data["created_at"] = data["created_at"].isoformat()
         if "updated_at" in data and isinstance(data["updated_at"], datetime):
@@ -90,7 +90,7 @@ class MessageModel(BaseModel):
 
     def json(self, **kwargs):
         """
-        Override `json` to ensure `_id` and datetime fields are serialized correctly.
+        Override `json` to ensure `created_at` and `updated_at` are serialized to strings.
         """
         kwargs["by_alias"] = True
         return super().json(**kwargs)
@@ -99,6 +99,7 @@ class MessageModel(BaseModel):
         """
         Pydantic configuration for JSON encoding and schema generation.
         """
+
         populate_by_name = True
         json_encoders = {PyObjectId: str}
         json_schema_extra = {

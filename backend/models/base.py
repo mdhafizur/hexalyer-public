@@ -1,26 +1,44 @@
-from typing import List, Generic, TypeVar, Optional
-from bson.objectid import ObjectId
-from pydantic import BaseModel, ValidationInfo
+from typing import Generic, List, TypeVar
+from bson import ObjectId
+from pydantic_core import core_schema
+from pydantic import BaseModel, GetCoreSchemaHandler
+from pydantic.json_schema import JsonSchemaValue
 
 
 class PyObjectId(ObjectId):
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
+    """
+    A custom Pydantic-compatible ObjectId type for MongoDB.
+    """
 
     @classmethod
-    def validate(cls, value, _: ValidationInfo):
+    def __get_pydantic_core_schema__(
+        cls, source: core_schema.CoreSchema | None, handler: GetCoreSchemaHandler
+    ) -> core_schema.CoreSchema:
+        """
+        Generates the Pydantic core schema for this custom type.
+        Validates that the value is a valid ObjectId.
+        """
+        return core_schema.with_info_plain_validator_function(cls.validate)
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, core_schema: core_schema.CoreSchema, handler: GetCoreSchemaHandler
+    ) -> JsonSchemaValue:
+        """
+        Generates the JSON schema for this custom type.
+        Specifies that the ObjectId is represented as a string in JSON.
+        """
+        return {"type": "string", "format": "objectid"}
+
+    @classmethod
+    def validate(cls, value: str, info: core_schema.ValidationInfo) -> ObjectId:
+        """
+        Validates whether the provided value is a valid MongoDB ObjectId.
+        Raises a ValueError if the value is invalid.
+        """
         if not ObjectId.is_valid(value):
             raise ValueError(f"Invalid ObjectId: {value}")
         return ObjectId(value)
-
-    @classmethod
-    def __get_pydantic_json_schema__(cls, schema):
-        schema.update(type="string")
-
-    @classmethod
-    def __modify_schema__(cls, field_schema):
-        field_schema.update(type="string")
 
 
 T = TypeVar("T")

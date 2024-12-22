@@ -87,17 +87,18 @@ class XAIChatClient:
 
                     try:
                         # Attempt to parse the accumulated data as JSON
-                        data = json.loads(accumulated_data)
+                        if accumulated_data != '[DONE]':
+                            data = json.loads(accumulated_data)
 
-                        # Check if the data has the expected structure
-                        if "choices" in data and len(data["choices"]) > 0:
-                            # Extract and yield the content from the chunk
-                            message_content = data["choices"][0].get("delta", {}).get("content", "")
-                            if message_content:
-                                yield message_content
+                            # Check if the data has the expected structure
+                            if "choices" in data and len(data["choices"]) > 0:
+                                # Extract and yield the content from the chunk
+                                message_content = data["choices"][0].get("delta", {}).get("content", "")
+                                if message_content:
+                                    yield message_content
 
-                            # If the message content was successfully extracted, reset accumulated data
-                            accumulated_data = ""
+                                # If the message content was successfully extracted, reset accumulated data
+                                accumulated_data = ""
                     except json.JSONDecodeError:
                         # If we have a partial JSON, just continue accumulating data
                         continue

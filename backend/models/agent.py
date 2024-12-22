@@ -2,8 +2,7 @@ from pydantic import BaseModel, Field, IPvAnyAddress
 from typing import List, Optional
 from datetime import datetime
 from bson.objectid import ObjectId
-from pydantic import ValidationInfo
-from ipaddress import IPv4Address, IPv6Address
+from c2_server.events.utils import current_utc_time
 from models.base import PyObjectId
 from zoneinfo import ZoneInfo  # Use `pytz` if Python < 3.9
 
@@ -18,7 +17,7 @@ class AgentRegistrationRequest(BaseModel):
         ..., example={"os": "Windows", "ip": "192.168.1.10", "hostname": "agent01"}
     )
     last_seen: Optional[datetime] = Field(
-        default_factory=lambda: datetime.now(ZoneInfo("UTC")),  # Set UTC timezone
+        default_factory=lambda: current_utc_time().isoformat(),
         description="Timestamp when the message was created",
         example="2024-12-01T12:00:00Z",
     )

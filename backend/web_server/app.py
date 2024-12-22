@@ -7,8 +7,9 @@ from fastapi import FastAPI, HTTPException
 from routes.agent_routes import router as agent_router
 from routes.task_routes import router as task_router
 from routes.conversation_routes import router as conversation_router
-from routes.message_routes import router as message_router
+from routes.report_routes import router as report_router
 from routes.healthcheck_routes import router as healthcheck_router
+from routes.message_routes import router as message_router
 from routes.chatgpt_routes import router as chatgpt_router
 from routes.auth_routes import router as auth_router
 from routes.webhex_routes import router as webhex_router
@@ -20,36 +21,30 @@ logger = web_server_logger
 # FastAPI app with Swagger customization
 app = FastAPI(
     title="Web Server API",
-    description="""
-    Web server for managing agents, tasks, and integrations. Includes:
-    - Agent download and build triggers
-    - Task and healthcheck routes
-    - ChatGPT integration for enhanced capabilities
-    """,
+    description="Web server for managing agents, tasks, and integrations.",
     version="1.0.0",
     root_path="/web/api/v1",
     contact={
         "name": "Support Team",
-        "email": "support@example.com",
-        "url": "https://example.com",
+        "email": os.getenv("SUPPORT_EMAIL", "support@example.com"),
+        "url": os.getenv("SUPPORT_URL", "https://example.com"),
     },
     license_info={
         "name": "MIT",
         "url": "https://opensource.org/licenses/MIT",
     },
-    docs_url="/docs",  # Swagger UI
-    redoc_url="/redoc",  # ReDoc UI
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 # Add CORS middleware to allow all origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins
-    allow_credentials=True,  # Allow cookies and authentication headers
-    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, PUT, DELETE, etc.)
-    allow_headers=["*"],  # Allow all headers
+    allow_origins=["*"],  # Restrict in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
-
 
 # Register routers
 app.include_router(agent_router, prefix="/agents", tags=["Agents"])
@@ -60,6 +55,7 @@ app.include_router(healthcheck_router, prefix="/healthcheck", tags=["Healthcheck
 app.include_router(chatgpt_router, prefix="/chatgpt", tags=["ChatGPT"])
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(webhex_router, prefix="/webhex", tags=["WebHex"])
+app.include_router(report_router, prefix="/reports", tags=["Reports"])
 
 
 @app.get("/download-agent/{agent_type}", response_class=FileResponse, tags=["Agents"])
@@ -122,13 +118,3 @@ async def download_agent(agent_type: str):
     return FileResponse(
         file_path, filename=agent_file, media_type="application/octet-stream"
     )
-
-
-# Register routers
-app.include_router(agent_router, prefix="/agents", tags=["Agents"])
-app.include_router(task_router, prefix="/tasks", tags=["Tasks"])
-app.include_router(conversation_router, prefix="/conversations", tags=["Conversations"])
-app.include_router(message_router, prefix="/messages", tags=["Messages"])
-app.include_router(healthcheck_router, prefix="/healthcheck", tags=["Healthcheck"])
-app.include_router(chatgpt_router, prefix="/chatgpt", tags=["ChatGPT"])
-app.include_router(auth_router, prefix="/auth", tags=["Auth"])

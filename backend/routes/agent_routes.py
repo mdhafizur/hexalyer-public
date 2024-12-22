@@ -1,19 +1,26 @@
-from fastapi import APIRouter, HTTPException, Query, Request
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from db.agent_repository import AgentRepository
 from models.agent import AgentModel
-from bson import ObjectId
-from bson.json_util import dumps
 
-
+# Initialize the router and repository
 router = APIRouter()
 agent_repo = AgentRepository()
+
+
+class ErrorResponse(BaseModel):
+    """Model for error responses."""
+    detail: str = Field(..., description="Error message.")
 
 
 @router.post(
     "/",
     response_model=AgentModel,
+    responses={
+        201: {"description": "Agent successfully created.", "model": AgentModel},
+        400: {"description": "Validation error.", "model": ErrorResponse},
+    },
     status_code=201,
     summary="Create a new agent",
     description=(
@@ -21,12 +28,11 @@ agent_repo = AgentRepository()
         "This endpoint expects a valid agent payload and stores it in the database."
     ),
 )
-async def create_agent(agent: AgentModel) -> Any:
+async def create_agent(agent: AgentModel) -> AgentModel:
     """
     **Create Agent**
 
-    - Inserts a new agent into the database.
-    - Returns the full agent object upon successful creation.
+    Inserts a new agent into the database and returns the full agent object upon successful creation.
 
     **Parameters**:
     - `agent`: The details of the agent to be created.
@@ -35,12 +41,12 @@ async def create_agent(agent: AgentModel) -> Any:
     - `AgentModel`: The created agent object.
     """
     try:
-        agent_data = agent.dict(by_alias=True)  # Ensure `_id` is properly handled
+        agent_data = agent.dict(by_alias=True)  # Handle MongoDB `_id` field
         agent_id = agent_repo.create_agent(agent_data)
         created_agent = agent_repo.get_agent_by_id(agent_id)
         if not created_agent:
             raise HTTPException(
-                status_code=500, detail="Failed to retrieve the created agent"
+                status_code=500, detail="Failed to retrieve the created agent."
             )
         return created_agent
     except ValueError as e:
@@ -50,14 +56,19 @@ async def create_agent(agent: AgentModel) -> Any:
 @router.get(
     "/{agent_id}",
     response_model=AgentModel,
+    responses={
+        200: {"description": "Agent found.", "model": AgentModel},
+        404: {"description": "Agent not found.", "model": ErrorResponse},
+        400: {"description": "Invalid request.", "model": ErrorResponse},
+    },
     summary="Retrieve an agent by ID",
     description="Fetches the details of an agent using its unique identifier.",
 )
-async def get_agent(agent_id: str):
+async def get_agent(agent_id: str) -> AgentModel:
     """
     **Get Agent by ID**
 
-    - Retrieves the agent with the specified ID from the database.
+    Retrieves the agent with the specified ID from the database.
 
     **Parameters**:
     - `agent_id` (str): The unique identifier of the agent.
@@ -81,17 +92,19 @@ async def get_agent(agent_id: str):
 @router.put(
     "/{agent_id}",
     response_model=Dict[str, str],
+    responses={
+        200: {"description": "Agent successfully updated.", "model": Dict[str, str]},
+        404: {"description": "Agent not found.", "model": ErrorResponse},
+        400: {"description": "Invalid request.", "model": ErrorResponse},
+    },
     summary="Update an existing agent",
-    description=(
-        "Updates the information of an agent identified by its ID. "
-        "Only fields provided in the request will be updated."
-    ),
+    description="Updates the information of an agent identified by its ID.",
 )
-async def update_agent(agent_id: str, update_data: AgentModel):
+async def update_agent(agent_id: str, update_data: AgentModel) -> Dict[str, str]:
     """
     **Update Agent**
 
-    - Updates the details of an agent with the specified ID.
+    Updates the details of an agent with the specified ID. Only fields provided in the request will be updated.
 
     **Parameters**:
     - `agent_id` (str): The unique identifier of the agent.
@@ -118,14 +131,19 @@ async def update_agent(agent_id: str, update_data: AgentModel):
 @router.delete(
     "/{agent_id}",
     response_model=Dict[str, str],
+    responses={
+        200: {"description": "Agent successfully deleted.", "model": Dict[str, str]},
+        404: {"description": "Agent not found.", "model": ErrorResponse},
+        400: {"description": "Invalid request.", "model": ErrorResponse},
+    },
     summary="Delete an agent",
     description="Deletes an agent identified by its ID from the database.",
 )
-async def delete_agent(agent_id: str):
+async def delete_agent(agent_id: str) -> Dict[str, str]:
     """
     **Delete Agent**
 
-    - Removes the agent with the specified ID from the database.
+    Removes the agent with the specified ID from the database.
 
     **Parameters**:
     - `agent_id` (str): The unique identifier of the agent.
@@ -149,21 +167,25 @@ async def delete_agent(agent_id: str):
 @router.get(
     "/",
     response_model=List[AgentModel],
+    responses={
+        200: {"description": "List of agents retrieved.", "model": List[AgentModel]},
+        400: {"description": "Invalid request.", "model": ErrorResponse},
+    },
     summary="List all agents with optional filters",
-    description=(
-        "Retrieves a list of agents from the database. "
-        "Optional filters can be applied to narrow down the results."
-    ),
+    description="Retrieves a list of agents from the database. Optional filters can be applied.",
 )
 async def list_agents(
-    filter_codename: Optional[str] = Query(None, description="Filter agents by codename"),
-    filter_hostname: Optional[str] = Query(None, description="Filter agents by hostname"),
-):
+    filter_codename: Optional[str] = Query(
+        None, description="Filter agents by codename."
+    ),
+    filter_hostname: Optional[str] = Query(
+        None, description="Filter agents by hostname."
+    ),
+) -> List[AgentModel]:
     """
     **List Agents**
 
-    - Fetches all agents from the database.
-    - Supports optional filters for codename and hostname.
+    Fetches all agents from the database with optional filters for codename and hostname.
 
     **Parameters**:
     - `filter_codename` (str, optional): Filter by the agent's codename.

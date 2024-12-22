@@ -6,7 +6,6 @@ This script initializes and runs multiple services:
 - C2 Server (FastAPI)
 - Socket Listener
 """
-
 import os
 import threading
 import signal
@@ -28,7 +27,6 @@ mongodb.connect()
 # Event to signal threads to stop
 shutdown_event = threading.Event()
 
-
 def run_web_server():
     """
     Runs the web server on the configured port with Uvicorn.
@@ -42,7 +40,6 @@ def run_web_server():
         port=web_server_port,
         log_level="info",
     )
-
 
 def run_c2_server():
     """
@@ -58,14 +55,12 @@ def run_c2_server():
         log_level="info",
     )
 
-
 def graceful_exit(signal_received, frame):
     """
     Signal handler for graceful shutdown.
     """
     print("\nShutdown signal received. Stopping threads...")
     shutdown_event.set()
-
 
 if __name__ == "__main__":
     # Register the signal handler for graceful shutdown
@@ -93,11 +88,12 @@ if __name__ == "__main__":
             shutdown_event.wait(1)
     except Exception as e:
         logger.error(f"Error during shutdown: {e}")
+    finally:
+        print("Cleaning up resources...")
 
-    print("Cleaning up resources...")
-    # Ensure threads are terminated
-    web_server_thread.join(timeout=2)
-    c2_server_thread.join(timeout=2)
-    socket_thread.join(timeout=2)
+        # Ensure threads are terminated gracefully
+        web_server_thread.join(timeout=5)
+        c2_server_thread.join(timeout=5)
+        socket_thread.join(timeout=5)
 
     print("Application exited cleanly.")

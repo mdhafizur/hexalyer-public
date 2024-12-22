@@ -1,3 +1,6 @@
+# c2_server/app.py
+
+import os
 from typing import List, Optional
 from fastapi import FastAPI, HTTPException, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,8 +29,8 @@ app = FastAPI(
     root_path="/c2/api/v1",
     contact={
         "name": "Support Team",
-        "email": "support@example.com",
-        "url": "https://example.com",
+        "email": os.getenv("SUPPORT_EMAIL", "support@example.com"),
+        "url": os.getenv("SUPPORT_URL", "https://example.com"),
     },
     license_info={
         "name": "MIT",
@@ -50,7 +53,6 @@ app.add_middleware(
 # Routers
 agents_router = APIRouter(prefix="/agents", tags=["Agents"])
 health_router = APIRouter(tags=["Health Check"])
-
 
 
 class InputField(BaseModel):

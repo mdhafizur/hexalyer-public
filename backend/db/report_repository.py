@@ -16,6 +16,7 @@ class ReportRepository:
     """
     Repository class for performing database operations on reports.
     """
+
     def __init__(self):
         collection_name = "reports"
         self.collection: Collection = mongodb.db[collection_name]
@@ -40,13 +41,11 @@ class ReportRepository:
         """
         if not ObjectId.is_valid(report_id):
             raise ValueError("Invalid report ID format")
-        
+
         try:
-            report = reports_collection.find_one({"_id": ObjectId(report_id)})
-            if report:
-                # Serialize ObjectId to string for JSON compatibility
-                report["_id"] = str(report["_id"])
-            return report
+            if not ObjectId.is_valid(report_id):
+                raise ValueError(f"Invalid report ID: {report_id}")
+            return self.collection.find_one({"_id": ObjectId(report_id)})
         except PyMongoError as e:
             raise ValueError(f"Failed to fetch the report: {e}")
 
@@ -81,20 +80,19 @@ class ReportRepository:
         """
         if not ObjectId.is_valid(report_id):
             raise ValueError("Invalid report ID format")
-        
+
         try:
             result = reports_collection.delete_one({"_id": ObjectId(report_id)})
             return result.deleted_count
         except PyMongoError as e:
             raise ValueError(f"Failed to delete report: {str(e)}")
-        
-        
+
     def list_reports_with_pagination(
-        self, 
-        filter_criteria: Optional[Dict[str, Any]] = None, 
-        skip: int = 0, 
-        limit: int = 10, 
-        sort: Optional[List[Tuple[str, int]]] = None
+        self,
+        filter_criteria: Optional[Dict[str, Any]] = None,
+        skip: int = 0,
+        limit: int = 10,
+        sort: Optional[List[Tuple[str, int]]] = None,
     ) -> List[Dict[str, Any]]:
         """
         List reports with pagination and sorting, ensuring ObjectId is serialized as a string.
@@ -110,12 +108,9 @@ class ReportRepository:
             filter_criteria = filter_criteria or {}
             query = self.collection.find(filter_criteria).skip(skip).limit(limit)
 
-            # Validate and apply sorting if provided
-            if sort and all(isinstance(s, tuple) and len(s) == 2 for s in sort):
+            if sort:
                 query = query.sort(sort)
-            
-            # Execute the query and serialize ObjectId to string
-            results = [{**report, "_id": str(report["_id"])} for report in query]
-            return results
+
+            return list(query)
         except PyMongoError as e:
-            raise ValueError(f"Failed to list reports with pagination. Filter: {filter_criteria}, Skip: {skip}, Limit: {limit}, Sort: {sort}, Error: {e}")
+            raise ValueError(f"Failed to list reports with pagination: {e}")

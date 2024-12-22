@@ -46,7 +46,7 @@
             "args": [
                 "web_server.app:app",
                 "--host",
-                "0.0.0.0",
+                "127.0.0.1",
                 "--port",
                 "5000",
                 "--reload"

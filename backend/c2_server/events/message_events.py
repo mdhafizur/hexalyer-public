@@ -1,20 +1,34 @@
+import os
 from bson.objectid import ObjectId
 from logger.fastapi_logger import socket_listener_logger
 from db.message_repository import MessageRepository
+from db.report_repository import ReportRepository
 from models.message import MessageModel
 from pydantic import ValidationError
 from c2_server.events.utils import current_utc_time
 from utils.cybersecurity_client import CyberSecurityClient
 from utils.grok_client import XAIChatClient
+from services.webhex_services import ZAPService, ScanService
+import asyncio
+
+BASE_API_URL = os.getenv("WEBHEX_URL", "http://134.209.237.212:8090/JSON")
+API_KEY = os.getenv("WEBHEX_API_KEY", "hexashield")
 
 logger = socket_listener_logger
 
-# Initialize MessageRepository
+# Initialize MessageRepository, CyberSecurityClient
 message_repo = MessageRepository()
-
-# Initialize the CyberSecurityClient
+report_repository = ReportRepository()
 client = CyberSecurityClient()
 x_ai_client = XAIChatClient()
+
+zap_service = ZAPService(base_api_url=BASE_API_URL, api_key=API_KEY)
+scan_service = ScanService(
+    zap_service=zap_service,
+    message_repository=message_repo,
+    report_repository=report_repository,
+)
+
 
 def handle_send_message(sio, sid, data):
     """
@@ -122,6 +136,19 @@ def handle_stream_to_ai(sio, sid, data):
     # Convert message to dictionary with alias for fields
     message_data = message.dict(by_alias=True)
 
+    if message_data["type"] == "manual":
+        handle_stream_to_ai_manual(sio, sid, data)
+    if message_data["type"] == "webhex":
+        handle_stream_to_ai_webhex(sio, sid, data)
+
+
+def handle_stream_to_ai_manual(sio, sid, data):
+    """
+    Handle streaming of an AI response for a manual message type.
+    """
+    message = MessageModel(**data)
+    message_data = message.dict(by_alias=True)
+
     # Convert `_id` and `conversation_id` to ObjectId if necessary
     if "_id" in message_data and isinstance(message_data["_id"], str):
         message_data["_id"] = ObjectId(message_data["_id"])
@@ -140,6 +167,7 @@ def handle_stream_to_ai(sio, sid, data):
         "conversation_id": saved_message["conversation_id"],  # Conversation ID
         "sender": "ai",  # The sender is "ai"
         "content": "",  # Set the initial content as empty
+        "type": "manual",
         "created_at": current_utc_time().isoformat(),  # Timestamp
         "updated_at": current_utc_time().isoformat(),  # Timestamp
     }
@@ -185,3 +213,49 @@ def handle_stream_to_ai(sio, sid, data):
     except Exception as e:
         logger.error("Error while streaming AI response: %s", str(e))
         sio.emit("error", {"error": "Error while streaming AI response"}, to=sid)
+
+
+def handle_stream_to_ai_webhex(sio, sid, data):
+    """
+    Handle streaming of an AI response for a webhex message type.
+    """
+    message = MessageModel(**data)
+    message_data = message.dict(by_alias=True)
+
+    if message_data["details"]["url"]:
+        try:
+            user_webhex_message = {
+                "_id": ObjectId(message_data["_id"]),
+                "conversation_id": ObjectId(message_data["conversation_id"]),
+                "sender": message_data["sender"],
+                "content": message_data["content"],
+                "type": message_data["type"],
+                "details": message_data["details"],
+                "created_at": current_utc_time().isoformat(),
+                "updated_at": current_utc_time().isoformat(),
+            }
+            message_repo.create_message(user_webhex_message)
+            initiated_data = asyncio.run(
+                scan_service.initiate_scan(
+                    message_data["details"]["url"], message_data["conversation_id"]
+                )
+            )
+            ai_message = MessageModel(**initiated_data).dict(by_alias=True)
+            sio.emit(
+                "ai_message_stream",
+                ai_message,
+                to=str(initiated_data["conversation_id"]),
+            )
+        except Exception as e:
+            sio.emit("error", {"error": f"Failed to initiate scan: {str(e)}"}, to=sid)
+
+
+# def handle_stream_to_ai_auto(sio, sid, data):
+#     """
+#     Handle streaming of an AI response for an auto message type.
+#     """
+#     # message = MessageModel(**data)
+#     # message_data = message.dict(by_alias=True)
+#     # if message_data["type"] != "auto":
+#     #     raise ValueError("Invalid message type for this handler.")
+#     # _stream_ai_response(sio, sid, message_data, x_ai_client.ask)

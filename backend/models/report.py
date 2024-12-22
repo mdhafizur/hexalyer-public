@@ -1,18 +1,8 @@
-from typing import Optional, Dict, Union
+from typing import Optional, Any
 from datetime import datetime
-from pydantic import BaseModel, Field, ValidationError, validator
-from enum import Enum
-from models.base import PyObjectId  # Assuming this exists
 from bson.objectid import ObjectId
-
-
-class ReportType(str, Enum):
-    """
-    Enum for defining the type of report.
-    """
-    MANUAL = "manual"
-    WEBHEX = "webhex"
-    AUTOMATIC = "automatic"
+from models.base import PyObjectId, PaginatedResponseModel
+from pydantic import BaseModel, Field, model_validator
 
 
 class ReportModel(BaseModel):
@@ -21,96 +11,104 @@ class ReportModel(BaseModel):
     """
 
     id: PyObjectId = Field(
-        ...,
-        description="MongoDB ObjectId",
-        alias="_id",
-        example="64309628d1cd938d5163ad52",
+        default_factory=PyObjectId, alias="_id", description="MongoDB ObjectId"
     )
-    type: ReportType = Field(
+    conversation_id: PyObjectId = Field(
         ...,
-        description="Type of report",
-        example="webhex"
+        description="ID of the conversation associated with the report",
+        example="67667d95fabae8d63065e788",  # Example ObjectId as a string
+    )
+    message_id: PyObjectId = Field(
+        ...,
+        description="ID of the message associated with the report",
+        example="676714d997ed07aa9af95abb",  # Example ObjectId as a string
     )
     user_id: PyObjectId = Field(
         ...,
         description="ID of the user associated with the report",
-        example="64309628d1cd938d5163ad50",  # Example ObjectId as a string
+        example="676327ef659f05603dd71caf",  # Example ObjectId as a string
     )
-    url: str = Field(
-        ...,
-        description="URL of the website associated with the report",
-        example="https://hexalayer.github.io",  # Example ObjectId as a string
+    type: str = Field(
+        ..., description="Type of the report (simple string)", example="webhex"
     )
-    details: Optional[Dict[str, Union[str, Dict]]] = Field(
+    details: Optional[Any] = Field(
         default_factory=dict,
-        description="Additional details about the report",
-        example={"key": "value"},
+        description="Optional additional details about the report",
+        example={"scan_id": "0", "url": "https://jinx-team.vercel.app/", "report": {}},
     )
-    created_at: datetime = Field(
+    created_at: Optional[datetime] = Field(
         default_factory=datetime.utcnow,
         description="Timestamp when the report was created",
-        example="2024-12-01T12:00:00Z",
+        example="2024-12-21T19:19:57.788091+00:00",
     )
-    updated_at: datetime = Field(
+    updated_at: Optional[datetime] = Field(
         default_factory=datetime.utcnow,
         description="Timestamp when the report was last updated",
-        example="2024-12-01T12:10:00Z",
+        example="2024-12-21T19:19:57.788114+00:00",
     )
 
-    @validator("id", pre=True, always=True)
-    def validate_objectid(cls, value):
+    @model_validator(mode="before")
+    def convert_objectid(cls, values):
         """
-        Validate or convert a string to PyObjectId.
+        Convert string fields to PyObjectId during validation.
         """
-        if isinstance(value, str):
-            try:
-                return PyObjectId(value)
-            except ValueError:
-                raise ValueError(f"Invalid ObjectId: {value}")
-        if not isinstance(value, PyObjectId):
-            raise ValueError("Invalid ObjectId format.")
-        return value
+        for field in ["id", "conversation_id", "message_id", "user_id"]:
+            if field in values and isinstance(values[field], str):
+                try:
+                    values[field] = PyObjectId(values[field])
+                except ValueError:
+                    raise ValueError(
+                        f"Invalid ObjectId for field {field}: {values[field]}"
+                    )
+        return values
 
     def dict(self, **kwargs):
         """
-        Override `dict` to properly serialize `_id` and datetime fields.
+        Override `dict` to ensure `created_at` and `updated_at` are serialized to strings.
         """
         kwargs["by_alias"] = True
         data = super().dict(**kwargs)
-
-        # Serialize ObjectIds as strings
-        if "_id" in data and isinstance(data["_id"], ObjectId):
-            data["_id"] = str(data["_id"])
-
-        # Serialize datetime fields to ISO 8601 format
-        for field in ["created_at", "updated_at"]:
-            if field in data and isinstance(data[field], datetime):
-                data[field] = data[field].isoformat()
-
+        if data.get("created_at"):
+            data["created_at"] = data["created_at"].isoformat()
+        if data.get("updated_at"):
+            data["updated_at"] = data["updated_at"].isoformat()
         return data
 
     def json(self, **kwargs):
         """
-        Override `json` to ensure proper serialization of `_id` and datetime fields.
+        Override `json` to ensure `created_at` and `updated_at` are serialized to strings.
         """
         kwargs["by_alias"] = True
         return super().json(**kwargs)
 
     class Config:
         """
-        Configuration for the Pydantic model.
+        Pydantic configuration for JSON encoding and schema generation.
         """
-        from_attributes = True
+
         populate_by_name = True
-        json_encoders = {PyObjectId: str}
+        json_encoders = {ObjectId: str}
         json_schema_extra = {
             "example": {
-                "id": "64309628d1cd938d5163ad52",
+                "_id": "676714dc97ed07aa9af95abc",
+                "conversation_id": "67667d95fabae8d63065e788",
+                "message_id": "676714d997ed07aa9af95abb",
+                "user_id": "676327ef659f05603dd71caf",
                 "type": "webhex",
-                "user_id": "64309628d1cd938d51sa221d",
-                "url": "https://hexalayer.github.io",
-                "details": {"key": "value"},
-                "created_at": "2024-12-01T12:00:00Z",
-                "updated_at": "2024-12-01T12:10:00Z",
+                "details": {
+                    "scan_id": "0",
+                    "url": "https://jinx-team.vercel.app/",
+                    "report": {},
+                },
+                "created_at": "2024-12-21T19:19:57.788091+00:00",
+                "updated_at": "2024-12-21T19:19:57.788114+00:00",
             }
         }
+
+
+class ReportPaginatedResponseModel(PaginatedResponseModel[ReportModel]):
+    """
+    Paginated response model for reports.
+    """
+
+    pass
