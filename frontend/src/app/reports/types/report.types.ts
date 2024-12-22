@@ -1,14 +1,12 @@
 export interface Report {
-    _id: string; // MongoDB ObjectId in string format
-    conversation_id: string; // MongoDB ObjectId in string format
-    message_id: string; // MongoDB ObjectId in string format
-    user_id: string; // MongoDB ObjectId in string format
-    type: string; // Type of the report, e.g., "webhex"
-    details?: { // Optional details object
-        scan_id: string; // ID of the scan
-        url: string; // URL that was scanned
-        report: Record<string, unknown>; // Report details, initially an empty object
-    };
-    created_at: string; // ISO 8601 formatted timestamp
-    updated_at: string; // ISO 8601 formatted timestamp
+    _id: string; // MongoDB ObjectId as a string
+    message_id: string; // MongoDB ObjectId as a string, associated with the message
+    type: string; // Type of the report (e.g., "webhex")
+    details?: {
+        scan_id?: string;
+        url?: string;
+        alerts?: Record<string, unknown>;
+    }; // Additional optional details about the report
+    created_at?: string; // ISO string for the creation timestamp
+    updated_at?: string; // ISO string for the last updated timestamp
 }

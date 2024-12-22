@@ -12,8 +12,8 @@ const isMarkdown = (content: string) => {
 };
 
 export function AiMessage({ message }: { message: Message }) {
-    const { details } = message;
-    const reportId = details?.report_id;
+    const { report } = message;
+    const reportId = report?.report_id;
 
     // Create the report URL if report_id exists
     const reportUrl = reportId ? `/reports/${reportId}` : null;

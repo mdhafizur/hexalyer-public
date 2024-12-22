@@ -1,12 +1,19 @@
+import { Report } from '@app/reports/types/report.types';
+
 export interface Message {
-    _id: string;              // Unique identifier for the message
-    conversation_id: string;  // ID of the conversation this message belongs to
-    sender: string;   // Sender of the message
-    content: string;          // Message content
-    type: string;          // Message content
-    details?: object,
-    created_at: string;       // ISO8601 timestamp when the message was created
-    updated_at: string;       // ISO8601 timestamp when the message was last updated
+    _id: string; // MongoDB ObjectId as a string
+    conversation_id: string; // MongoDB ObjectId as a string, representing the conversation
+    sender: string; // "user" or "ai"
+    content: string; // Text content of the message
+    type?: string; // Type of the message (e.g., "webhex")
+    details?: {
+        scanId?: string;
+        url?: string;
+        report?: Record<string, unknown>;
+    }; // Additional optional details about the message
+    report?: Report; // Associated report object
+    created_at?: string; // ISO string for the creation timestamp
+    updated_at?: string; // ISO string for the last updated timestamp
 }
 
 export interface MessageRequest {

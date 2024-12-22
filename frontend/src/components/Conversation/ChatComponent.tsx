@@ -10,6 +10,7 @@ import {
     AppBar,
     Toolbar,
     Grow,
+    Fab,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import { useAppDispatch, useAppSelector } from "@app/hook";
@@ -22,6 +23,8 @@ import { AiMessage } from "@components/Conversation/AiMessage";
 import { UserMessage } from "@components/Conversation/UserMessage";
 import { ChoicesComponent } from "@components/Conversation/ChoicesComponent";
 import { useNavigate } from "react-router-dom";
+import CloseIcon from "@mui/icons-material/Close";
+import AddIcon from "@mui/icons-material/Add";
 
 interface ChatComponentProps {
     conversationId: string | "new";
@@ -39,8 +42,10 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
     const [webHexValue, setWebHexValue] = useState("");
     const [isFetching, setIsFetching] = useState(false);
     const [selectedMode, setSelectedMode] = useState<string>("manual");
+    const [widgetOpen, setWidgetOpen] = useState(false);
     const chatContainerRef = useRef<HTMLDivElement | null>(null);
 
+    const toggleWidget = () => setWidgetOpen((prev) => !prev);
 
     const addMessage = (message: Message) => {
         setMessages((prevMessages) => {
@@ -80,8 +85,15 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
         }
     }, [conversationId]);
 
+
     useEffect(() => {
+        console.log("conversationId", conversationId)
+
         if (conversationId !== "new") joinRoom();
+
+        if (conversationId == "new") {
+            setMessages([]);
+        }
     }, [joinRoom, conversationId]);
 
 
@@ -219,6 +231,7 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
                     const newConversation = resultAction.payload;
                     if (onConversationCreated) onConversationCreated(newConversation._id);
                     navigate(`/conversations/${newConversation._id}`);
+                    conversationId = newConversation._id
                 }
             }
 
@@ -268,7 +281,7 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
                     </Grow>
                 ))}
             </Box>
-            <ChoicesComponent onModeChange={handleModeAndInputChange} />
+            {!widgetOpen && <ChoicesComponent onModeChange={handleModeAndInputChange} />}
             {selectedMode === "manual" && (
                 <Paper sx={{ display: "flex", alignItems: "center", p: 2 }}>
                     <TextField
@@ -278,11 +291,18 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
                         onChange={(e) => setInputValue(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
                     />
-                    <IconButton onClick={() => handleSendMessage()} disabled={loading || !inputValue.trim()}>
+                    <IconButton color="primary" onClick={() => handleSendMessage()} disabled={loading || !inputValue.trim()}>
                         <SendIcon />
                     </IconButton>
                 </Paper>
             )}
+            <Fab
+                color="primary"
+                sx={{ position: "fixed", bottom: 100, right: 16 }}
+                onClick={toggleWidget}
+            >
+                {widgetOpen ? <AddIcon /> : <CloseIcon />}
+            </Fab>
         </Box>
     );
 }
