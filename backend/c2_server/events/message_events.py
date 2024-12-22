@@ -243,7 +243,7 @@ def handle_stream_to_ai_webhex(sio, sid, data):
             )
             ai_message = MessageModel(**initiated_data).dict(by_alias=True)
 
-            initiated_data["report"] = ReportModel(**initiated_data["report"]).dict(
+            ai_message["report"] = ReportModel(**ai_message["report"]).dict(
                 by_alias=True
             )
             sio.emit(
