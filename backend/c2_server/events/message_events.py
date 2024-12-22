@@ -6,6 +6,7 @@ from db.report_repository import ReportRepository
 from models.message import MessageModel
 from pydantic import ValidationError
 from c2_server.events.utils import current_utc_time
+from models.report import ReportModel
 from utils.cybersecurity_client import CyberSecurityClient
 from utils.grok_client import XAIChatClient
 from services.webhex_services import ZAPService, ScanService
@@ -241,6 +242,10 @@ def handle_stream_to_ai_webhex(sio, sid, data):
                 )
             )
             ai_message = MessageModel(**initiated_data).dict(by_alias=True)
+
+            initiated_data["report"] = ReportModel(**initiated_data["report"]).dict(
+                by_alias=True
+            )
             sio.emit(
                 "ai_message_stream",
                 ai_message,

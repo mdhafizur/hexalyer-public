@@ -94,6 +94,17 @@ class ScanService:
 
             msg_id = ObjectId()
             report_id = ObjectId()
+
+            report_data = {
+                "_id": report_id,
+                "message_id": msg_id,
+                "type": "webhex",
+                "details": {"scan_id": active_scan_id, "url": url},
+                "created_at": current_utc_time().isoformat(),
+                "updated_at": current_utc_time().isoformat(),
+            }
+            self.report_repository.create_report(report_data)
+
             # Step 4: Save scan initiation details as a message
             ai_message_data = {
                 "_id": msg_id,
@@ -101,27 +112,11 @@ class ScanService:
                 "sender": "ai",
                 "content": f"Scan started successfully for {url}",
                 "type": "webhex",
-                "details": {
-                    "scan_id": active_scan_id,
-                    "url": url,
-                    "report_id": str(report_id),
-                },
+                "report": report_data,
                 "created_at": current_utc_time().isoformat(),
                 "updated_at": current_utc_time().isoformat(),
             }
             self.message_repository.create_message(ai_message_data)
-
-            report_data = {
-                "_id": report_id,
-                "conversation_id": ObjectId(conversation_id),
-                "message_id": ai_message_data["_id"],
-                "user_id": ObjectId("676327ef659f05603dd71caf"),
-                "type": "webhex",
-                "details": {"scan_id": active_scan_id, "url": url, "report": {}},
-                "created_at": current_utc_time().isoformat(),
-                "updated_at": current_utc_time().isoformat(),
-            }
-            self.report_repository.create_report(report_data)
 
             return ai_message_data
 
@@ -143,15 +138,18 @@ class ScanService:
             if not report:
                 raise HTTPException(status_code=404, detail="Report not found.")
 
-            scan_id = report["details"].get("scan_id")
-            url = report["details"].get("url")
+            # Extract scan_id and url
+            details = report.get("details", {})
+            scan_id = details.get("scan_id")
+            url = details.get("url")
 
             if not scan_id or not url:
                 raise HTTPException(
-                    status_code=400, detail="Scan ID or URL not found in the report."
+                    status_code=400,
+                    detail="Scan ID or URL not found in the report details.",
                 )
 
-            # Log the scan_id and url
+            # Log the scan_id and URL
             logger.info(f"Scan ID: {scan_id}, URL: {url}")
 
             # Fetch scan progress data
@@ -164,15 +162,16 @@ class ScanService:
             if progress_percentage is None:
                 raise HTTPException(status_code=400, detail="Progress data not found.")
 
+            # Fetch detailed scan progress
             scan_progress_response = await self.zap_service.make_request(
                 "ascan/view/scanProgress/", {"scanId": scan_id}
             )
             scan_progress_data = scan_progress_response.get("scanProgress", [])
             logger.info(f"Scan progress data: {scan_progress_data}")
 
-            # If progress is 100%, check alerts
+            # If progress is 100%, fetch and update alerts
             if progress_percentage == "100":
-                alerts = report["details"].get("alerts", [])
+                alerts = details.get("alerts", [])
                 if not alerts:  # If alerts are empty or not present
                     logger.info("No alerts found in the report. Fetching from ZAP.")
 
@@ -181,28 +180,57 @@ class ScanService:
                     )
                     logger.info(f"Received alerts data: {alerts_data}")
 
+                    # Update the report with fetched alerts
                     report["details"]["alerts"] = alerts_data.get("alerts", [])
 
-                    if "_id" in report:
-                        del report["_id"]
+                    # Remove `_id` field for MongoDB updates
+                    report.pop("_id", None)
 
                     self.report_repository.update_report(
                         report_id=report_id, update_data=report
                     )
                     logger.info(f"Report updated with alerts.")
 
+                    # Update the related message with the updated report
+                    message = self.message_repository.get_message_by_report_id(
+                        report_id
+                    )
+                    if message:
+                        message["report"] = report
+                        msg_id = str(message["_id"])
+                        message.pop("_id", None)
+                        self.message_repository.update_message(
+                            message_id=msg_id, update_data=message
+                        )
+                        logger.info(f"Message updated with the latest report.")
+
             # Return raw JSON object
             return {
                 "progress": int(progress_percentage),
-                "scan_progress": scan_progress_data[1],
+                "scan_progress": (
+                    scan_progress_data[1] if len(scan_progress_data) > 1 else None
+                ),
             }
 
         except HTTPException as http_exc:
-            logger.error(f"HTTP exception occurred: {str(http_exc)}")
-            raise http_exc
+            logger.error(f"HTTPException: {http_exc.detail}")
+            raise
         except Exception as e:
-            logger.error(f"An error occurred: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"An error occurred while fetching scan progress: {str(e)}",
-            )
+            logger.error(f"Unexpected error in fetch_scan_progress: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal Server Error")
+
+
+# {
+#     "_id" : ObjectId("6767eef1b221d7140113c2b8"),
+#     "conversation_id" : ObjectId("67667d95fabae8d63065e788"),
+#     "message_id" : ObjectId("6767eef1b221d7140113c2b7"),
+#     "user_id" : ObjectId("676327ef659f05603dd71caf"),
+#     "type" : "webhex",
+#     "details" : {
+#         "scan_id" : "0",
+#         "url" : "https://jinx-team.vercel.app",
+#         "alerts" : []
+#     },
+#     "created_at" : "2024-12-22T10:50:25.943126+00:00",
+#     "updated_at" : "2024-12-22T10:50:25.943137+00:00"
+# }

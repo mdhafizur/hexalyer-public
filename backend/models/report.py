@@ -13,20 +13,10 @@ class ReportModel(BaseModel):
     id: PyObjectId = Field(
         default_factory=PyObjectId, alias="_id", description="MongoDB ObjectId"
     )
-    conversation_id: PyObjectId = Field(
-        ...,
-        description="ID of the conversation associated with the report",
-        example="67667d95fabae8d63065e788",  # Example ObjectId as a string
-    )
     message_id: PyObjectId = Field(
         ...,
         description="ID of the message associated with the report",
         example="676714d997ed07aa9af95abb",  # Example ObjectId as a string
-    )
-    user_id: PyObjectId = Field(
-        ...,
-        description="ID of the user associated with the report",
-        example="676327ef659f05603dd71caf",  # Example ObjectId as a string
     )
     type: str = Field(
         ..., description="Type of the report (simple string)", example="webhex"
@@ -52,7 +42,7 @@ class ReportModel(BaseModel):
         """
         Convert string fields to PyObjectId during validation.
         """
-        for field in ["id", "conversation_id", "message_id", "user_id"]:
+        for field in ["id", "message_id"]:
             if field in values and isinstance(values[field], str):
                 try:
                     values[field] = PyObjectId(values[field])
@@ -68,6 +58,15 @@ class ReportModel(BaseModel):
         """
         kwargs["by_alias"] = True
         data = super().dict(**kwargs)
+
+        # Ensure `_id` is converted to a string if it exists and is an ObjectId
+        if "_id" in data and isinstance(data["_id"], ObjectId):
+            data["_id"] = str(data["_id"])
+
+        # Ensure `message_id` is converted to a string if it exists and is an ObjectId
+        if "message_id" in data and isinstance(data["message_id"], ObjectId):
+            data["message_id"] = str(data["message_id"])
+
         if data.get("created_at"):
             data["created_at"] = data["created_at"].isoformat()
         if data.get("updated_at"):
@@ -91,9 +90,7 @@ class ReportModel(BaseModel):
         json_schema_extra = {
             "example": {
                 "_id": "676714dc97ed07aa9af95abc",
-                "conversation_id": "67667d95fabae8d63065e788",
                 "message_id": "676714d997ed07aa9af95abb",
-                "user_id": "676327ef659f05603dd71caf",
                 "type": "webhex",
                 "details": {
                     "scan_id": "0",

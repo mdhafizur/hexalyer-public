@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field, ValidationError, model_validator
 from c2_server.events.utils import current_utc_time
 from models.base import PyObjectId
 from bson.objectid import ObjectId
+from models.report import ReportModel
 
 
 class MessageModel(BaseModel):
@@ -38,6 +39,10 @@ class MessageModel(BaseModel):
         description="Additional details about the message",
         example={"scanId": 1, "url": "https://example.com", "report": {}},
     )
+    report: Optional[ReportModel] = Field(
+        None,
+        description="Optional report data associated with the message",
+    )
     created_at: Optional[datetime] = Field(
         default_factory=lambda: current_utc_time().isoformat(),
         description="Timestamp when the message was created",
@@ -62,6 +67,18 @@ class MessageModel(BaseModel):
                     raise ValidationError(
                         f"Invalid ObjectId for field {field}: {values[field]}"
                     )
+        return values
+
+    @model_validator(mode="after")
+    def validate_report(cls, values):
+        """
+        Ensure `report` field is parsed correctly.
+        """
+        if "report" in values and isinstance(values["report"], dict):
+            try:
+                values["report"] = ReportModel(**values["report"])
+            except ValidationError as e:
+                raise ValidationError(f"Invalid report data: {e}")
         return values
 
     def dict(self, **kwargs):
@@ -110,6 +127,11 @@ class MessageModel(BaseModel):
                 "content": "Hello, how can I help you?",
                 "type": "webhex",
                 "details": {"scanId": 1, "url": "https://example.com", "report": {}},
+                "report": {
+                    "id": "64309628d1cd938d5163ad51",
+                    "title": "Security Scan Report",
+                    "summary": "All checks passed",
+                },
                 "created_at": "2024-12-01T12:00:00+00:00",
                 "updated_at": "2024-12-01T12:10:00+00:00",
             }

@@ -4,6 +4,7 @@ from db.message_repository import MessageRepository
 from models.message import MessageModel
 from pydantic import ValidationError
 from datetime import datetime
+from models.report import ReportModel
 
 # Initialize MessageRepository
 message_repo = MessageRepository()
@@ -49,7 +50,19 @@ def handle_join_room(sio, sid, data):
         )
 
         # Validate and serialize messages using MessageModel
-        messages = [MessageModel(**msg).dict(by_alias=True) for msg in raw_messages]
+        messages = []
+        for msg in raw_messages:
+            message_dict = MessageModel(**msg).dict(by_alias=True)
+
+            # Handle nested 'report' object if present
+            if "report" in message_dict and message_dict["report"]:
+                # Ensure nested ObjectId fields in 'report' are converted to strings
+                message_dict["report"] = ReportModel(**message_dict["report"]).dict(
+                    by_alias=True
+                )
+
+            messages.append(message_dict)
+
     except ValidationError as ve:
         logger.error("Validation error in messages: %s", str(ve))
         sio.emit("error", {"error": "Message validation failed"}, to=sid)
@@ -73,9 +86,7 @@ def handle_leave_room(sio, sid, data):
     """
     conversation_id = data.get("conversation_id")
     if not conversation_id:
-        logger.error(
-            "leave_room failed: Missing conversation_id from SID %s", sid
-        )
+        logger.error("leave_room failed: Missing conversation_id from SID %s", sid)
         return
 
     # Leave the Socket.IO room

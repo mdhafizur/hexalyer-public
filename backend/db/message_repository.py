@@ -136,3 +136,18 @@ class MessageRepository:
             return list(query)
         except PyMongoError as e:
             raise ValueError(f"Failed to list messages with pagination: {e}")
+
+    def get_message_by_report_id(self, report_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve a message by its associated report ID.
+
+        :param report_id: The ID of the associated report as a string.
+        :return: The message document or None if not found.
+        :raises ValueError: If the report ID is invalid or retrieval fails.
+        """
+        try:
+            if not ObjectId.is_valid(report_id):
+                raise ValueError(f"Invalid report ID: {report_id}")
+            return self.collection.find_one({"report._id": ObjectId(report_id)})
+        except PyMongoError as e:
+            raise ValueError(f"Failed to retrieve message by report ID: {e}")
