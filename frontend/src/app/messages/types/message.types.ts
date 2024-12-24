@@ -3,7 +3,7 @@ import { Report } from '@app/reports/types/report.types';
 export interface Message {
     _id: string; // MongoDB ObjectId as a string
     conversation_id: string; // MongoDB ObjectId as a string, representing the conversation
-    sender: string; // "user" or "ai"
+    role: string; // "user" or "assistant"
     content: string; // Text content of the message
     type?: string; // Type of the message (e.g., "webhex")
     details?: {
@@ -18,6 +18,6 @@ export interface Message {
 
 export interface MessageRequest {
     conversation_id: string;  // ID of the conversation this message belongs to
-    sender: string;   // Sender of the message
+    role: string;   // Sender of the message
     content: string;          // Message content
 }

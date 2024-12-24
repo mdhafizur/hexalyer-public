@@ -169,7 +169,7 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
         socket.emit("on_stream_message_to_ai", {
             _id: generatedId,
             conversation_id: conversationId,
-            sender: "user",
+            role: "user",
             content: inputValue,
             type: "manual",
         });
@@ -177,7 +177,7 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
         addMessage({
             _id: generatedId,
             conversation_id: conversationId,
-            sender: "user",
+            role: "user",
             type: "manual",
             content: inputValue,
             created_at: new Date().toISOString(),
@@ -190,7 +190,7 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
         console.log("handleWebHexMode on_stream_message_to_ai", {
             _id: generatedId,
             conversation_id: conversationId,
-            sender: "user",
+            role: "user",
             content: `WebHex request: ${webUrl}`,
             type: "webhex",
             details: { url: webUrl },
@@ -202,7 +202,7 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
         socket.emit("on_stream_message_to_ai", {
             _id: generatedId,
             conversation_id: conversationId,
-            sender: "user",
+            role: "user",
             content: `WebHex request: ${webUrl}`,
             type: "webhex",
             details: { url: webUrl },
@@ -212,7 +212,7 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
         addMessage({
             _id: generatedId,
             conversation_id: conversationId,
-            sender: "user",
+            role: "user",
             type: "manual",
             content: `WebHex request: ${webUrl}`,
             created_at: new Date().toISOString(),
@@ -271,12 +271,12 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
                     <Grow in key={`${message._id}`} timeout={500}>
                         <ListItem
                             sx={{
-                                justifyContent: message.sender === "user" ? "flex-end" : "flex-start",
+                                justifyContent: message.role === "user" ? "flex-end" : "flex-start",
                                 mb: 1,
                             }}
                         >
-                            {message.sender === "ai" && <AiMessage message={message} />}
-                            {message.sender === "user" && <UserMessage message={message} />}
+                            {message.role === "assistant" && <AiMessage message={message} />}
+                            {message.role === "user" && <UserMessage message={message} />}
                         </ListItem>
                     </Grow>
                 ))}
