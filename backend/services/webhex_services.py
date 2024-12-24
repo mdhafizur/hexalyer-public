@@ -109,7 +109,7 @@ class ScanService:
             ai_message_data = {
                 "_id": msg_id,
                 "conversation_id": ObjectId(conversation_id),
-                "sender": "ai",
+                "role": "assistant",
                 "content": f"Scan started successfully for {url}",
                 "type": "webhex",
                 "report": report_data,

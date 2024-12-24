@@ -23,8 +23,8 @@ class MessageModel(BaseModel):
         description="ID of the conversation this message belongs to",
         example="64309628d1cd938d5163ad49",
     )
-    sender: str = Field(
-        ..., description="Sender of the message, either 'user' or 'ai'", example="user"
+    role: str = Field(
+        ..., description="Sender of the message, either 'user' or 'assistant'", example="user"
     )
     content: str = Field(
         ...,
@@ -123,7 +123,7 @@ class MessageModel(BaseModel):
             "example": {
                 "id": "64309628d1cd938d5163ad52",
                 "conversation_id": "64309628d1cd938d5163ad49",
-                "sender": "user",
+                "role": "user",
                 "content": "Hello, how can I help you?",
                 "type": "webhex",
                 "details": {"scanId": 1, "url": "https://example.com", "report": {}},

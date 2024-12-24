@@ -37,7 +37,7 @@ def handle_send_message(sio, sid, data):
 
     Args:
         sid (str): Socket.IO session ID.
-        data (dict): Should include 'conversation_id', 'sender', and 'content'.
+        data (dict): Should include 'conversation_id', 'role', and 'content'.
     """
     try:
         logger.info("Message received from SID %s: %s", sid, data)
@@ -93,7 +93,7 @@ def handle_send_message(sio, sid, data):
         # Save the AI-generated message
         ai_message_data = {
             "conversation_id": message_data["conversation_id"],
-            "sender": "ai",
+            "role": "assistant",
             # "content": json.dumps(ai_message_content),
             # "content": cleaned_json_string,
             "content": "ok",
@@ -147,8 +147,7 @@ def handle_stream_to_ai_manual(sio, sid, data):
     """
     Handle streaming of an AI response for a manual message type.
     """
-    message = MessageModel(**data)
-    message_data = message.dict(by_alias=True)
+    message_data = MessageModel(**data).dict(by_alias=True)
 
     # Convert `_id` and `conversation_id` to ObjectId if necessary
     if "_id" in message_data and isinstance(message_data["_id"], str):
@@ -166,7 +165,7 @@ def handle_stream_to_ai_manual(sio, sid, data):
     ai_message_data = {
         "_id": ObjectId(),  # Create a new ObjectId for the message
         "conversation_id": saved_message["conversation_id"],  # Conversation ID
-        "sender": "ai",  # The sender is "ai"
+        "role": "assistant",  # The role is "assistant"
         "content": "",  # Set the initial content as empty
         "type": "manual",
         "created_at": current_utc_time().isoformat(),  # Timestamp
@@ -189,8 +188,29 @@ def handle_stream_to_ai_manual(sio, sid, data):
 
         ai_message = MessageModel(**ai_saved_message).dict(by_alias=True)
 
+        messages = message_repo.list_messages_with_pagination(
+            filter_criteria={
+                "conversation_id": ObjectId(message_data["conversation_id"])
+            },
+            skip=0,
+            limit=500,
+            sort=[("created_at", 1)],
+        )
+
+        message_history = [
+            {"role": message["role"], "content": message["content"]}
+            for message in messages
+            if message[
+                "content"
+            ].strip()  # Ignore messages with empty or whitespace-only content
+        ]
+
         # Using the XAIChatClient to stream the response
-        for chunk in x_ai_client.ask(saved_message.get("content"), stream=True):
+        for chunk in x_ai_client.ask(
+            saved_message.get("content"),
+            stream=True,
+            message_history=message_history
+        ):
             # Append the chunk to the existing content in memory
             complete_content += chunk  # Accumulate the chunks
             ai_message["content"] = chunk
@@ -198,7 +218,7 @@ def handle_stream_to_ai_manual(sio, sid, data):
             sio.emit(
                 "ai_message_stream",
                 ai_message,
-                to=str(message.conversation_id),
+                to=str(message_data["conversation_id"]),
             )
 
         # Once the streaming is complete, update the MongoDB message with the full content
@@ -228,7 +248,7 @@ def handle_stream_to_ai_webhex(sio, sid, data):
             user_webhex_message = {
                 "_id": ObjectId(message_data["_id"]),
                 "conversation_id": ObjectId(message_data["conversation_id"]),
-                "sender": message_data["sender"],
+                "role": message_data["role"],
                 "content": message_data["content"],
                 "type": message_data["type"],
                 "details": message_data["details"],
