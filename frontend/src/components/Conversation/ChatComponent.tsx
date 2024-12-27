@@ -39,7 +39,6 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
 
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState("");
-    const [webHexValue, setWebHexValue] = useState("");
     const [isFetching, setIsFetching] = useState(false);
     const [selectedMode, setSelectedMode] = useState<string>("manual");
     const [widgetOpen, setWidgetOpen] = useState(false);
@@ -65,14 +64,12 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
 
     const handleModeAndInputChange = (mode: string, inputValue: string) => {
         setSelectedMode(mode);
-        setWebHexValue(inputValue); // Update state asynchronously
 
         console.log("Mode:", mode);
         console.log("Input Value Direct:", inputValue);
 
         // Use inputValue directly, not webHexValue, as it is updated asynchronously
         if (mode === "webhex") {
-            setWebHexValue(inputValue)
             handleSendMessage(inputValue, mode);
         }
     };
@@ -116,7 +113,7 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
         };
 
         socket.on("message_history", handleMessageHistory);
-        return () => socket.off("message_history", handleMessageHistory);
+        return () => { socket.off("message_history", handleMessageHistory); };
     }, []);
 
 
@@ -127,7 +124,7 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
         };
 
         socket.off("ai_message").on("ai_message", handleAiMessage);
-        return () => socket.off("ai_message", handleAiMessage);
+        return () => { socket.off("ai_message", handleAiMessage); };
     }, [conversationId]);
 
 
@@ -152,7 +149,10 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
         };
 
         socket.on("ai_message_stream", handleAiMessageStream);
-        return () => socket.off("ai_message_stream", handleAiMessageStream);
+
+        return () => {
+            socket.off("ai_message_stream", handleAiMessageStream);
+        };
     }, [conversationId]);
 
 
@@ -267,7 +267,7 @@ export default function ChatComponent({ conversationId, onConversationCreated }:
                 {!loading && messages.length === 0 && (
                     <Typography>No messages yet. Start the conversation!</Typography>
                 )}
-                {messages.map((message, index) => (
+                {messages.map((message) => (
                     <Grow in key={`${message._id}`} timeout={500}>
                         <ListItem
                             sx={{
