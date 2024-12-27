@@ -23,8 +23,8 @@ from c2_server.events.agent_events import (
 sio = socketio.Server(
     cors_allowed_origins="*",
     async_mode="gevent",
-    ping_interval=2,  # Ping every 2 seconds
-    ping_timeout=10,  # Timeout if no pong within 10 seconds
+    ping_interval=5,  # Increase to 5 seconds for a balanced interval
+    ping_timeout=20,  # Increase to 20 seconds to match client timeout settings
     logger=True,
     engineio_logger=True,
 )
