@@ -27,7 +27,6 @@ import HexaLayerImage from '../assests/images/HexaLayer.png';
 import MenuOpenIcon from '@mui/icons-material/MenuOpen';
 import DnsIcon from '@mui/icons-material/Dns';
 
-// Custom search bar container styling
 const SearchContainer = styled('div')(() => ({
   display: 'flex',
   alignItems: 'center',
@@ -37,62 +36,38 @@ const SearchContainer = styled('div')(() => ({
   backgroundColor: '#131D3B',
 }));
 
-const iconStyles = {
-  color: '#fff',
-  marginRight: '16px',
-};
-
 const LeftSidebar: React.FC<{
   open: boolean;
   setSidebarOpen: (open: boolean) => void;
 }> = ({ open, setSidebarOpen }) => {
   const navigate = useNavigate();
-  const isMobile = useMediaQuery((theme) => theme.breakpoints.down('sm')); // Detect mobile view
-  const theme = useTheme(); // Access theme for background color
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const [selectedItem, setSelectedItem] = useState<string>('Dashboard'); // Track selected item
+  const [selectedItem, setSelectedItem] = useState<string>('Dashboard');
 
   const handleNavigation = (path: string, label: string) => {
-    setSelectedItem(label); // Set selected item
+    setSelectedItem(label);
     navigate(path);
+    if (isMobile) setSidebarOpen(false); // Close sidebar on mobile after navigation
   };
-
-  const toggleSidebar = () => {
-    setSidebarOpen(!open);
-  };
-
-  const menuItemStyles = (label: string) => ({
-    backgroundColor:
-      selectedItem === label ? theme.palette.background.default : 'transparent', // Highlight selected with background color
-    paddingLeft: selectedItem === label ? '20px' : '10px', // Add extra padding for selected item
-    borderRadius: selectedItem === label ? '12px 0px 0px 12px' : '0px', // Only left top and left bottom radius
-    padding: '10px', // Add padding for better spacing
-    marginLeft: selectedItem === label ? '15px' : '0px',
-    boxShadow: selectedItem === label ? '0px 4px 6px rgba(0, 0, 0, 0.2)' : 'none', // Subtle shadow effect
-    transition: 'all 0.3s ease', // Smooth transition for all properties
-    '&:hover': {
-      backgroundColor: theme.palette.action.hover, // Change background on hover
-      boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)', // Increase shadow on hover
-    },
-  });
 
   return (
     <Drawer
       sx={{
-        flexShrink: 0,
         '& .MuiDrawer-paper': {
-          width: isMobile ? '100%' : 260, // Full width on mobile
-          height: isMobile ? '50%' : '100%', // Half height on mobile
+          width: isMobile ? '100%' : 260,
+          height: isMobile ? '50%' : '100%',
           boxSizing: 'border-box',
           backgroundColor: '#202940',
           color: 'white',
         },
       }}
-      variant="persistent"
-      anchor={isMobile ? 'top' : 'left'} // Change anchor dynamically
+      variant={isMobile ? 'temporary' : 'persistent'}
+      anchor={isMobile ? 'top' : 'left'}
       open={open}
+      onClose={() => setSidebarOpen(false)} // Close sidebar on mobile when clicked outside
     >
-      {/* Logo and Title */}
       <Box
         sx={{
           display: 'flex',
@@ -105,13 +80,13 @@ const LeftSidebar: React.FC<{
         <Typography variant="h6" sx={{ color: 'white', flexGrow: 1, fontFamily: 'roboto' }}>
           HexaShield
         </Typography>
-        {/* Toggle Sidebar Button */}
-        <Button variant="contained" onClick={toggleSidebar}>
-          <MenuOpenIcon />
-        </Button>
+        {isMobile && (
+          <Button variant="contained" onClick={() => setSidebarOpen(false)}>
+            <MenuOpenIcon />
+          </Button>
+        )}
       </Box>
 
-      {/* Search Bar */}
       <SearchContainer>
         <Search sx={{ color: '#fff' }} />
         <InputBase
@@ -122,72 +97,56 @@ const LeftSidebar: React.FC<{
 
       <Divider />
 
-      {/* Menu Items */}
       <List>
-        <Tooltip title="Dashboard">
-          <ListItemButton
-            onClick={() => handleNavigation('/', 'Dashboard')}
-            sx={menuItemStyles('Dashboard')}
-          >
-            <Dashboard sx={iconStyles} />
-            <ListItemText primary="Dashboard" sx={{ color: '#fff' }} />
-          </ListItemButton>
-        </Tooltip>
-
-        <Tooltip title="Chats">
-          <ListItemButton
-            onClick={() => handleNavigation('/conversations', 'Chats')}
-            sx={menuItemStyles('Chats')}
-          >
-            <Chat sx={iconStyles} />
-            <ListItemText primary="Chats" sx={{ color: '#fff' }} />
-          </ListItemButton>
-        </Tooltip>
-
-        <Tooltip title="Tasks">
-          <ListItemButton
-            onClick={() => handleNavigation('/agents', 'Agents')}
-            sx={menuItemStyles('Agents')}
-          >
-            <DnsIcon sx={iconStyles} />
-            <ListItemText primary="Agents" sx={{ color: '#fff' }} />
-          </ListItemButton>
-        </Tooltip>
-
-        <Tooltip title="Reports">
-          <ListItemButton
-            onClick={() => handleNavigation('/reports', 'Reports')}
-            sx={menuItemStyles('Reports')}
-          >
-            <Apps sx={iconStyles} />
-            <ListItemText primary="Reports" sx={{ color: '#fff' }} />
-          </ListItemButton>
-        </Tooltip>
+        {[
+          { label: 'Dashboard', icon: <Dashboard />, path: '/' },
+          { label: 'Chats', icon: <Chat />, path: '/conversations' },
+          { label: 'Agents', icon: <DnsIcon />, path: '/agents' },
+          { label: 'Reports', icon: <Apps />, path: '/reports' },
+        ].map((item) => (
+          <Tooltip key={item.label} title={item.label}>
+            <ListItemButton
+              onClick={() => handleNavigation(item.path, item.label)}
+              sx={{
+                padding: '10px 20px', // Add more padding to left and right
+                backgroundColor:
+                  selectedItem === item.label ? theme.palette.background.default : 'transparent',
+                borderRadius: '12px 0px 0px 12px',
+                marginLeft: selectedItem === item.label ? '15px' : '0px',
+                '&:hover': { backgroundColor: theme.palette.action.hover },
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                {item.icon}
+                <ListItemText primary={item.label} sx={{ color: '#fff' }} />
+              </Box>
+            </ListItemButton>
+          </Tooltip>
+        ))}
       </List>
 
       <Divider />
 
-      {/* Bottom Menu Items */}
       <List sx={{ marginTop: 'auto' }}>
-        <Tooltip title="User Settings">
-          <ListItemButton
-            onClick={() => handleNavigation('/user-profile', 'User Settings')}
-            sx={menuItemStyles('User Settings')}
-          >
-            <Settings sx={iconStyles} />
-            <ListItemText primary="User Settings" sx={{ color: '#fff' }} />
-          </ListItemButton>
-        </Tooltip>
-
-        <Tooltip title="Logout">
-          <ListItemButton
-            onClick={() => handleNavigation('/login', 'Logout')}
-            sx={menuItemStyles('Logout')}
-          >
-            <Logout sx={iconStyles} />
-            <ListItemText primary="Logout" sx={{ color: '#fff' }} />
-          </ListItemButton>
-        </Tooltip>
+        {[
+          { label: 'User Settings', icon: <Settings />, path: '/user-profile' },
+          { label: 'Logout', icon: <Logout />, path: '/login' },
+        ].map((item) => (
+          <Tooltip key={item.label} title={item.label}>
+            <ListItemButton
+              onClick={() => handleNavigation(item.path, item.label)}
+              sx={{
+                padding: '10px 20px', // Add more padding to left and right
+                '&:hover': { backgroundColor: theme.palette.action.hover },
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                {item.icon}
+                <ListItemText primary={item.label} sx={{ color: '#fff' }} />
+              </Box>
+            </ListItemButton>
+          </Tooltip>
+        ))}
       </List>
     </Drawer>
   );
