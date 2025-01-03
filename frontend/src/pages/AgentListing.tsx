@@ -1,13 +1,16 @@
 import { Box, Stack, Typography, Button } from "@mui/material";
 import { NavLink, Outlet } from "react-router-dom";
+import { useState } from "react";
 import { useAgents } from "@app/agents/hooks"; // Hook to fetch agents
 
 const AgentListing: React.FC = () => {
   const { agents, loading, error } = useAgents();
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
 
   // Handle button click to select an agent
   const handleButtonClick = (agentId: string) => {
     console.log(`Agent selected: ${agentId}`);
+    setSelectedAgentId(agentId);
     // You can add dispatch logic or additional functionality here
   };
 
@@ -27,13 +30,13 @@ const AgentListing: React.FC = () => {
           bgcolor: "#131D3B",
           width: "300px",
           height: "100vh",
-          padding: 7,
+          padding: 5,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
         }}
       >
-        <Typography variant="h6" sx={{ color: "white", marginBottom: 10 }}>
+        <Typography variant="h6" sx={{ color: "white", marginBottom: 5 }}>
           Available Agents
         </Typography>
 
@@ -54,22 +57,26 @@ const AgentListing: React.FC = () => {
               key={agent._id}
               to={`/agents/${agent._id}`}
               style={{ textDecoration: "none" }}
+              activeStyle={{ color: "white" }} // Add this line
             >
-              <Button
-                sx={{
-                  width: "100%",
-                  borderRadius: "5px",
-                  justifyContent: "center",
-                  backgroundColor: "#1e293b",
-                  color: "white",
-                  "&:hover": {
-                    backgroundColor: "#3b82f6",
-                  },
-                }}
-                onClick={() => handleButtonClick(agent._id)}
-              >
-                Agent: {agent.client_info.hostname}
-              </Button>
+              {({ isActive }: { isActive: boolean }) => (
+                <Button
+                  sx={{
+                    width: "250px",
+                    height: "30px",
+                    borderRadius: "8px",
+                    justifyContent: "center",
+                    backgroundColor: isActive ? "white" : "#1e293b",
+                    color: isActive ? "black" : "white",
+                    "&:hover": {
+                      backgroundColor: "#3b82f6",
+                    },
+                  }}
+                  onClick={() => handleButtonClick(agent._id)}
+                >
+                  Agent: {agent.client_info.hostname}
+                </Button>
+              )}
             </NavLink>
           ))}
         </Stack>
@@ -83,7 +90,7 @@ const AgentListing: React.FC = () => {
           overflowY: "auto",
         }}
       >
-        <Outlet />
+        <Outlet context={{ selectedAgentId }} />
       </Box>
     </Box>
   );

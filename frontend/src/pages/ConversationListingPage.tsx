@@ -81,7 +81,7 @@ export default function ConversationListingPage() {
             zIndex: 1,
           }}
         >
-          <Typography variant="h6">Conversations</Typography>
+          <Typography variant="h6" sx={{ m: 2 }}>Conversations</Typography>
           <Tooltip title="Create Conversation">
             <IconButton color="primary" onClick={handleCreateConversation}>
               <AddIcon />
@@ -110,7 +110,7 @@ export default function ConversationListingPage() {
             </Box>
           )}
           {error && (
-            <Typography color="error" sx={{ mt: 2 }}>
+            <Typography color="error" sx={{ m: 2 }}>
               Failed to load conversations
             </Typography>
           )}
@@ -159,6 +159,7 @@ export default function ConversationListingPage() {
           display: "flex",
           flexDirection: "column",
           p: isSmallScreen ? 1 : 3, // Reduce padding on smaller screens
+          overflowY: "auto", // Ensure chat area is scrollable if content overflows
         }}
       >
         {selectedConversation ? (

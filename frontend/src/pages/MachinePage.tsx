@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useParams } from "react-router-dom";
 import {
   Box,
   Table,
@@ -20,16 +21,20 @@ import {
 } from "@mui/material";
 import TasksData from "../assests/dummy-data/taskData.json";
 import { CopyBlock, dracula } from "react-code-blocks";
+import { useTasks } from "@app/tasks/hooks"; 
 
 type Order = "asc" | "desc";
 
 const MachinePage: React.FC = () => {
+  const { agentId } = useParams<{ agentId: string }>();
+  const { tasks, loading, error } = useTasks(agentId!); 
   const [order, setOrder] = useState<Order>("asc");
   const [orderBy, setOrderBy] = useState<keyof typeof TasksData[0]>("name");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(15);
   const [open, setOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<typeof TasksData[0] | null>(null);
+  const [selectedTask, setSelectedTask] = useState<typeof TasksData[0] | null>(null); 
+  console.log(tasks, loading, error);
 
   const handleRequestSort = (property: keyof typeof TasksData[0]) => {
     const isAscending = orderBy === property && order === "asc";
