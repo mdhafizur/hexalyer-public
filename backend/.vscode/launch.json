@@ -16,8 +16,8 @@
             "program": "${workspaceFolder}/agent/main.py",
             "console": "integratedTerminal",
             "args": [
-                "http://127.0.0.1:5001/c2/api/v1",
-                "http://127.0.0.1:5003"
+                "http://localhost:5001/c2/api/v1",
+                "http://localhost:5003"
             ],
             "envFile": "${workspaceFolder}/.env",
             "preLaunchTask": "wait-for-web-server"
@@ -46,7 +46,7 @@
             "args": [
                 "web_server.app:app",
                 "--host",
-                "127.0.0.1",
+                "localhost",
                 "--port",
                 "5000",
                 "--reload"

@@ -84,9 +84,9 @@ class AgentModel(BaseModel):
                 "agent_id": "c7cec2c7-55a8-4c47-bb92-a538b6a0726c",
                 "client_info": {
                     "processid": 41290,
-                    "ipaddress": "127.0.0.1:50358",
+                    "ipaddress": "localhost:50358",
                     "netinterfaces": [
-                        {"name": "lo", "ips": ["127.0.0.1", "::1"]},
+                        {"name": "lo", "ips": ["localhost", "::1"]},
                         {
                             "name": "wlan0",
                             "ips": ["192.168.178.106", "fe80::13ab:7545:45c8:a1a"],

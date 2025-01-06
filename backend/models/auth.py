@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 
 class Token(BaseModel):
@@ -22,11 +22,21 @@ class User(BaseModel):
 
     class Config:
         from_attributes = True  # Enables compatibility with ORM objects
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+class PasswordReset(BaseModel):
+    token: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=8, max_length=16)
+
+class GoogleSignInRequest(BaseModel):
+    idToken: str
         
 class UserResponse(BaseModel):
     _id: str
-    first_name: str
-    last_name: str
+    first_name: str  # The user's first name
+    last_name: str  # The user's last name
     email: EmailStr
     profile: Optional[bytes] = None
 
@@ -34,3 +44,13 @@ class UserResponse(BaseModel):
         from_attributes = True
         # If you want to exclude password in response globally:
         # exclude = {"password"}
+
+class UserRegister(BaseModel):
+    first_name: str = Field(..., min_length=1, max_length=20)
+    last_name: str = Field(..., min_length=1, max_length=20)
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=16)
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=16)

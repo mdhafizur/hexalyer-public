@@ -1,5 +1,5 @@
 import { Conversation } from '@app/conversations/types/conversation.types';
-import { publicClient } from '@app/axios.client';
+import { privateClient } from '@app/axios.client';
 import { BaseQueryParams } from '@app/base.types';
 
 export interface ConversationQueryParams extends BaseQueryParams {
@@ -9,14 +9,14 @@ export interface ConversationQueryParams extends BaseQueryParams {
 
 // Fetch all conversations
 export const fetchConversations = async (): Promise<Conversation[]> => {
-  const response = await publicClient.get("/conversations");
+  const response = await privateClient.get("/conversations");
   return response.data;
 };
 
 // Create a new conversation
 export const createConversation = async (title: string, user_id: string): Promise<Conversation> => {
   const created_by = user_id
-  const response = await publicClient.post("/conversations", { title, user_id, created_by });
+  const response = await privateClient.post("/conversations", { title, user_id, created_by });
   return response.data;
 };
 
@@ -25,12 +25,12 @@ export const updateConversation = async (
   conversationId: string,
   updatedFields: Partial<Conversation>
 ): Promise<Conversation> => {
-  const response = await publicClient.put(`/conversations/${conversationId}`, updatedFields);
+  const response = await privateClient.put(`/conversations/${conversationId}`, updatedFields);
   return response.data;
 };
 
 // Query conversations with filters and pagination
 export const queryConversations = async (params: ConversationQueryParams): Promise<Conversation[]> => {
-  const response = await publicClient.get("/conversations/query", { params });
+  const response = await privateClient.get("/conversations/query", { params });
   return response.data;
 };

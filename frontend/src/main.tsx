@@ -11,59 +11,94 @@ import NotFoundPage from "@pages/NotFoundPage";
 import ConversationListingPage from "@pages/ConversationListingPage";
 import AgentListing from "@pages/AgentListing";
 import MachinePage from "@pages/MachinePage";
-import LoginPage from "@pages/LoginPage";
 import RegisterPage from "@pages/RegisterPage";
 import RecoverPasswordPage from "@pages/RecoverPasswordPage";
-import ExtraPage from "@pages/ExtraPage";
 import UserProfilePage from "@pages/UserProfilePage";
 import { SocketProvider } from "context/SocketContext";
 import ReportListingPage from '@pages/ReportListingPage';
-import ReportDetailsComponent from '@components/Reports/ReportDetailsComponent';
+import LoginPage from "@pages/LoginPage";
+import { AuthContextProvider } from "context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+import ResetPassword from "@pages/ResetPassword";
+
 
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <App />, // Use App as the wrapper component for your routes
+    element: <App />,
     children: [
       {
         path: "/",
-        element: <DashboardPage />,
+        element: (
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "/conversations",
-        element: <ConversationListingPage />, // Main conversations page
+        element: (
+          <ProtectedRoute>
+            <ConversationListingPage />
+          </ProtectedRoute>
+        ),
         children: [
           {
-            path: "new", // Path for creating a new conversation
-            element: <ConversationListingPage />, // Reuse the listing page to show "new" state
+            path: "new",
+            element: (
+              <ProtectedRoute>
+                <ConversationListingPage />
+              </ProtectedRoute>
+            ),
           },
           {
-            path: "/conversations/:conversationId",
-            element: <ConversationListingPage />,
+            path: ":conversationId",
+            element: (
+              <ProtectedRoute>
+                <ConversationListingPage />
+              </ProtectedRoute>
+            ),
           },
         ],
       },
       {
         path: "/agents",
-        element: <AgentListing />,
+        element: (
+          <ProtectedRoute>
+            <AgentListing />
+          </ProtectedRoute>
+        ),
         children: [
           {
             path: ":agentId",
-            element: <MachinePage />,
+            element: (
+              <ProtectedRoute>
+                <MachinePage />
+              </ProtectedRoute>
+            ),
           },
         ],
       },
       {
         path: "/reports",
-        element: <ReportListingPage />,
+        element: (
+          <ProtectedRoute>
+            <ReportListingPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "/user-profile",
-        element: <UserProfilePage />,
+        element: (
+          <ProtectedRoute>
+            <UserProfilePage />
+          </ProtectedRoute>
+        ),
       },
     ],
     errorElement: <NotFoundPage />,
   },
+  // Public routes - no ProtectedRoute wrapper
   {
     path: "/login",
     element: <LoginPage />,
@@ -79,14 +114,21 @@ const router = createBrowserRouter([
     element: <RecoverPasswordPage />,
     errorElement: <NotFoundPage />,
   },
+  {
+    path: "/reset-password",
+    element: <ResetPassword />,
+    errorElement: <NotFoundPage />,
+  },
 ]);
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <SocketProvider>
-      <Provider store={store}>
-        <RouterProvider router={router} />
-      </Provider>
+      <AuthContextProvider>
+        <Provider store={store}>
+          <RouterProvider router={router} />
+        </Provider>
+      </AuthContextProvider>
     </SocketProvider>
   </StrictMode>
 );

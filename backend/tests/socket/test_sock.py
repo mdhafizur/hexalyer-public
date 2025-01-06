@@ -1,16 +1,16 @@
 import socketio
 
 # Define the C2 server address
-C2_HOST = "http://127.0.0.1:5003"  # Ensure this matches your server's host and port
+C2_HOST = "http://localhost:5003"  # Ensure this matches your server's host and port
 
 # Simulated agent data
 agent_data = {
     "agent_id": "63A2CE8B-23F0-5179-B0B7-6AFA5D6B8541",
     "client_info": {
         "processid": 27446,
-        "ipaddress": "127.0.0.1:27446",
+        "ipaddress": "localhost:27446",
         "netinterfaces": [
-            {"name": "lo0", "ips": ["127.0.0.1", "::1", "fe80::1%lo0"]},
+            {"name": "lo0", "ips": ["localhost", "::1", "fe80::1%lo0"]},
             {"name": "en0", "ips": ["192.168.0.100", "fe80::1813:eaba:6de7:fef0%en0"]},
             {"name": "utun4", "ips": ["10.2.1.11"]},
         ],

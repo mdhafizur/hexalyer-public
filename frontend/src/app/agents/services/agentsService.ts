@@ -1,9 +1,8 @@
-import axios from 'axios';
 import { Agent } from '../types/agent.types';
+import { privateClient } from '@app/axios.client';
 
-const BASE_URL = import.meta.env.VITE_WEB_API_URL as string;
 
 export const fetchAgents = async (): Promise<Agent[]> => {
-  const response = await axios.get(`${BASE_URL}/agents`);
+  const response = await privateClient.get("/agents");
   return response.data;
 };

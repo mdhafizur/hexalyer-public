@@ -1,30 +1,27 @@
-from fastapi import Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import Request, HTTPException
 from jose import JWTError, jwt
-from typing import Optional
-from db.user_repository import UserRepository
+import os
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-SECRET_KEY = "mysecretkey"
-ALGORITHM = "HS256"
 
-user_repo = UserRepository()
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM")
 
-def get_current_user(token: str = Depends(oauth2_scheme)) -> Optional[dict]:
-    credentials_exception = HTTPException(
-        status_code=401,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
-    user = user_repo.get_user_by_username(username)
-    if user is None:
-        raise credentials_exception
-    return user
+# Function to get the current user
+def get_current_user(request: Request):
+    if os.getenv("AUTH_ENABLED", "true").lower() == "true":
+        auth_header = request.headers.get("Authorization")
+        if auth_header is None or not auth_header.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        token = auth_header.split(" ")[1]
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            request.state.user = payload.get("sub")
+            # Ensure the payload contains 'first_name' and 'email'
+            if "first_name" not in payload or "last_name" not in payload or "email" not in payload:
+                raise HTTPException(status_code=401, detail="Invalid token payload")
+            return {"_id": payload.get("sub"), "first_name": payload.get("first_name"), "last_name": payload.get("last_name"), "email": payload.get("email")}
+        except JWTError:
+            raise HTTPException(status_code=401, detail="Invalid token")
+    else:
+        return {"_id": "anonymous", "username": "anonymous", "email": "anonymous@example.com"}

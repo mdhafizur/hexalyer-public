@@ -15,6 +15,8 @@ from routes.auth_routes import router as auth_router
 from routes.webhex_routes import router as webhex_router
 from logger.fastapi_logger import web_server_logger
 from fastapi.middleware.cors import CORSMiddleware
+from middleware.auth_middleware import AuthMiddleware
+
 
 logger = web_server_logger
 
@@ -37,10 +39,13 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+# Add the authentication middleware
+app.add_middleware(AuthMiddleware)
+
 # Add CORS middleware to allow all origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Restrict in production
+    allow_origins=["http://localhost:5173"],  # Restrict in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

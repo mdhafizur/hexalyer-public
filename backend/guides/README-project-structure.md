@@ -101,7 +101,7 @@ project-root/
 ### 2. Run the Application
 #### Start the Web Server:
 ```bash
-uvicorn web_server.app:app --host 127.0.0.1 --port 8000 --reload
+uvicorn web_server.app:app --host localhost --port 8000 --reload
 ```
 
 #### Start the C2 Server:

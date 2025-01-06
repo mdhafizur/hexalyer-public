@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Dict, Optional
 from bson import ObjectId
 from pymongo import MongoClient
 from pydantic import ValidationError
@@ -32,9 +32,10 @@ class UserRepository:
         """
         return users_collection.find_one({"_id": ObjectId(user_id)})
 
+
     def get_user_by_email(self, email: str) -> Optional[dict]:
         """
-        Fetch user by username.
+        Fetch user by email.
         """
         return users_collection.find_one({"email": email})
 
@@ -63,3 +64,14 @@ class UserRepository:
         """
         result = users_collection.delete_one({"_id": ObjectId(user_id)})
         return result.deleted_count
+
+    # def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+    #     """Retrieve a user by their email address."""
+    #     user = users_collection.find_one({"email": email})
+    #     return user
+    
+    def update_user_password(self, user_id: str, hashed_password: str) -> int:
+        result = users_collection.update_one(
+            {"_id": ObjectId(user_id)}, {"$set": {"password": hashed_password}}
+        )
+        return result.modified_count

@@ -10,7 +10,6 @@ export const useTasks = (agentId: string) => {
 
   // Memoized fetch function to avoid unnecessary re-creations
   const fetchTasks = useCallback(() => {
-    console.log('Fetching tasks for agent 2:', agentId);
     dispatch(fetchTasksThunk(agentId));
   }, [dispatch, agentId]);
 

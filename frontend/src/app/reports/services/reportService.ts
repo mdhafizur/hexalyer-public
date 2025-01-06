@@ -1,5 +1,5 @@
 import { Report } from '@app/reports/types/report.types';
-import { publicClient } from '@app/axios.client';
+import { privateClient, publicClient } from '@app/axios.client';
 import { BaseQueryParams } from '@app/base.types';
 
 export interface ReportQueryParams extends BaseQueryParams {
@@ -12,6 +12,6 @@ export interface ReportQueryParams extends BaseQueryParams {
 
 // Query messages with filters and pagination
 export const queryReports = async (params: ReportQueryParams): Promise<Report[]> => {
-    const response = await publicClient.get("/reports/query", { params });
+    const response = await privateClient.get("/reports/query", { params });
     return response.data;
 };

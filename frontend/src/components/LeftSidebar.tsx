@@ -26,6 +26,7 @@ import { useNavigate } from 'react-router-dom';
 import HexaLayerImage from '../assests/images/HexaLayer.png';
 import MenuOpenIcon from '@mui/icons-material/MenuOpen';
 import DnsIcon from '@mui/icons-material/Dns';
+import useLogout from 'hooks/useLogout';
 
 const SearchContainer = styled('div')(() => ({
   display: 'flex',
@@ -44,10 +45,15 @@ const LeftSidebar: React.FC<{
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const [selectedItem, setSelectedItem] = useState<string>('Dashboard');
+  const [selectedItem, setSelectedItem] = useState<string>('Dashboard'); // Track selected item
+  const { logout } = useLogout(); // Use the useLogout hook
+
 
   const handleNavigation = (path: string, label: string) => {
     setSelectedItem(label);
+    if (label === 'Logout') {
+      logout(); // Call the logout function
+    }
     navigate(path);
     if (isMobile) setSidebarOpen(false); // Close sidebar on mobile after navigation
   };

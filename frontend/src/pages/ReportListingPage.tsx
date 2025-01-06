@@ -59,8 +59,6 @@ export default function ReportListingPage() {
         });
     }, [reportData, order, orderBy]);
 
-    console.log("reports", reportData); // For debugging
-
     return (
         <Box
             component="main"

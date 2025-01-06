@@ -34,7 +34,6 @@ const MachinePage: React.FC = () => {
   const [rowsPerPage, setRowsPerPage] = useState(15);
   const [open, setOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<typeof TasksData[0] | null>(null); 
-  console.log(tasks, loading, error);
 
   const handleRequestSort = (property: keyof typeof TasksData[0]) => {
     const isAscending = orderBy === property && order === "asc";
