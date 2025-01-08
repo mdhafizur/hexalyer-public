@@ -22,11 +22,10 @@ import { Message } from "@app/messages/types/message.types";
 import { AiMessage } from "@components/Conversation/AiMessage";
 import { UserMessage } from "@components/Conversation/UserMessage";
 import { useNavigate } from "react-router-dom";
-import { privateClient } from '@app/axios.client';
 
 interface ChatComponentProps {
     conversationId: string | "new";
-    conversationType?: "manual" | "webhex" | "auto";
+    conversationType: "manual" | "webhex" | "auto";
     onConversationCreated?: (conversationId: string) => void;
 }
 
@@ -216,35 +215,6 @@ export default function ChatComponent({ conversationId, conversationType, onConv
         }
     };
 
-    const handleDownloadAgent = async (conversationId: string) => {
-        try {
-            // Construct the download URL
-            const downloadUrl = `/download/agent_ui_app/${conversationId}`;
-
-            // Fetch the file using Axios
-            const response = await privateClient.get(downloadUrl, {
-                responseType: "blob", // Ensures the response is treated as a file (binary data)
-            });
-
-            // Create a Blob URL and trigger the download
-            const blob = new Blob([response.data]);
-            const downloadLink = document.createElement("a");
-            downloadLink.href = URL.createObjectURL(blob);
-            downloadLink.download = `agent_${conversationId}.exe`; // Set the filename dynamically
-            downloadLink.style.display = "none";
-
-            // Append the link to the document, trigger the download, and remove the link
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-            document.body.removeChild(downloadLink);
-
-            // Revoke the Blob URL to free memory
-            URL.revokeObjectURL(downloadLink.href);
-        } catch (error) {
-            console.error("Failed to download agent:", error);
-        }
-    };
-
     // Render
     return (
         <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -269,11 +239,6 @@ export default function ChatComponent({ conversationId, conversationType, onConv
                     </Grow>
                 ))}
             </Box>
-
-
-
-
-
 
 
 

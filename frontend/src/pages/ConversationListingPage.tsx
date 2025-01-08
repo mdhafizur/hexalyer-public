@@ -30,7 +30,7 @@ export default function ConversationListingPage() {
   const isSmallScreen = useMediaQuery((theme: Theme) => theme.breakpoints.down("md"));
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false); // State for the modal
-  const [conversationType, setConversationType] = useState<"auto" | "manual" | "webhex" | null>(null);
+  const [conversationType, setConversationType] = useState<"auto" | "manual" | "webhex">("manual");
 
   const conversationTypes = [
     { label: "Manual Chat", value: "manual", description: "A chat to provide customer support or handle queries." },
@@ -52,7 +52,7 @@ export default function ConversationListingPage() {
   const handleSelectConversationType = (conversationType: string) => {
     setSelectedConversation("new");
     navigate(`/conversations/new?type=${conversationType}`); // Update URL with conversation type
-    setConversationType(conversationType)
+    setConversationType(conversationType as "auto" | "manual" | "webhex");
     setModalOpen(false); // Close the modal
   };
 
@@ -60,7 +60,7 @@ export default function ConversationListingPage() {
     console.log("conversationId", conversationId)
     console.log("conversationType", conversationType)
     setSelectedConversation(conversationId);
-    setConversationType(conversationType);
+    setConversationType(conversationType as "auto" | "manual" | "webhex");
     navigate(`/conversations/${conversationId}`);
   };
 
