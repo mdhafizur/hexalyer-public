@@ -63,6 +63,7 @@ class AgentModel(BaseModel):
         default_factory=PyObjectId, alias="_id", description="MongoDB ObjectId"
     )
     agent_id: str = Field(..., description="Agent ID (UUID)")
+    created_by: str = Field(..., description="User ID")
     conversation_id: str = Field(..., description="Conversation ID (ObjectId)")
     client_info: ClientInfo = Field(..., description="Client information")
     last_seen: Optional[datetime] = Field(

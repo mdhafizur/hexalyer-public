@@ -30,7 +30,7 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()],
 )
 
-# Initialize Socket.IO client
+# Initialize Hexashield client
 sio = Client(reconnection=True, reconnection_attempts=5)
 
 
@@ -59,8 +59,8 @@ class AgentApp(QMainWindow):
 
         # Buttons
         self.button_layout = QHBoxLayout()
-        self.connect_button = QPushButton("Connect to Socket.IO")
-        self.disconnect_button = QPushButton("Disconnect from Socket.IO")
+        self.connect_button = QPushButton("Connect to Hexashield")
+        self.disconnect_button = QPushButton("Disconnect from Hexashield")
         # self.register_button = QPushButton("Register with C2 Server")
         self.button_layout.addWidget(self.connect_button)
         self.button_layout.addWidget(self.disconnect_button)
@@ -85,7 +85,7 @@ class AgentApp(QMainWindow):
         self.main_widget.setLayout(self.main_layout)
         self.setCentralWidget(self.main_widget)
 
-        # Register Socket.IO event handlers
+        # Register Hexashield event handlers
         self.register_socket_events()
 
     def update_agent_details(self):
@@ -108,38 +108,40 @@ class AgentApp(QMainWindow):
 
     def connect_to_socket(self):
         """
-        Connect to the Socket.IO server.
+        Connect to the Hexashield server.
         """
         if self.connected:
             QMessageBox.information(self, "Info", "Already connected!")
             return
         try:
-            logging.info("Connecting to Socket.IO server.")
+            logging.info("Connecting to Hexashield server.")
             sio.connect(self.agent_details["Socket URL"], transports=["websocket"])
             self.connected = True
-            self.log_message("Connected to Socket.IO server.")
+            self.agent_details["Status"] = "Online"
+            self.log_message("Connected to Hexashield server.")
         except Exception as e:
             QMessageBox.critical(
-                self, "Error", f"Failed to connect to Socket.IO server: {e}"
+                self, "Error", f"Failed to connect to Hexashield server: {e}"
             )
-            self.log_message(f"Error connecting to Socket.IO server: {e}")
+            self.log_message(f"Error connecting to Hexashield server: {e}")
 
     def disconnect_socket(self):
         """
-        Disconnect from the Socket.IO server.
+        Disconnect from the Hexashield server.
         """
         if not self.connected:
             QMessageBox.information(self, "Info", "Not connected!")
             return
 
         try:
-            logging.info("Disconnecting from Socket.IO server.")
+            logging.info("Disconnecting from Hexashield server.")
             sio.disconnect()
             self.connected = False
-            self.log_message("Disconnected from Socket.IO server.")
+            self.agent_details["Status"] = "Offline"
+            self.log_message("Disconnected from Hexashield server.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to disconnect: {e}")
-            self.log_message(f"Error disconnecting from Socket.IO server: {e}")
+            self.log_message(f"Error disconnecting from Hexashield server: {e}")
 
     def register_agent(self):
         """
@@ -160,6 +162,7 @@ class AgentApp(QMainWindow):
         client_data = {
             "agent_id": agent_id,
             "conversation_id": self.agent_details.get("Conversation ID"),
+            "created_by": self.agent_details.get("User ID"),
             "client_info": client_info,
             "status": "online",
             "last_seen": datetime.now(ZoneInfo("UTC")).isoformat(),
@@ -167,12 +170,6 @@ class AgentApp(QMainWindow):
         self.log_message(f"Registering agent with C2 API: {client_data}")
 
         try:
-            # response = requests.post(
-            #     f"{self.agent_details['C2 URL']}/agents/register",
-            #     json=client_data,
-            #     timeout=10,
-            # )
-            # response.raise_for_status()
             self.is_registered = False
             sio.emit("on_agent_registration", client_data)
             self.log_message("Agent registered successfully with C2 API.")
@@ -182,17 +179,17 @@ class AgentApp(QMainWindow):
 
     def register_socket_events(self):
         """
-        Register event handlers for the Socket.IO client.
+        Register event handlers for the Hexashield client.
         """
 
         @sio.on("connect")
         def on_connect():
             self.register_agent()
-            self.log_message("Socket.IO connected.")
+            self.log_message("Hexashield connected.")
 
         @sio.on("disconnect")
         def on_disconnect():
-            self.log_message("Socket.IO disconnected.")
+            self.log_message("Hexashield disconnected.")
 
         @sio.on("on_execute_command")
         def on_execute_command(data):
@@ -293,12 +290,11 @@ class AgentApp(QMainWindow):
                 "conversation_id": self.agent_details["Conversation ID"],
                 "status": overall_status,
                 "outputs": all_outputs,
-                "metadata": {
-                    "priority": priority,
-                    "execution_time": f"{execution_time:.2f}s",
-                    "created_at": created_at.isoformat(),
-                    "completed_at": completed_at.isoformat(),
-                },
+                "priority": priority,
+                "execution_time": f"{execution_time:.2f}s",
+                "completed_at": completed_at.isoformat(),
+                "created_at": created_at.isoformat(),
+                "created_by": self.agent_details["User ID"],
             }
             self.log_message(f"Command response: {response}")
 
@@ -313,11 +309,13 @@ class AgentApp(QMainWindow):
 
 
 def main():
-    conversation_id = os.getenv("conversation_id", "677b9602d17fa84198a9ee3e")
+    conversation_id = os.getenv("conversation_id", "677c4fe73b87c8bd48c2fe2d")
+    user_id = os.getenv("user_id", "677ec4335555a3b7bc1b1969")
     # Example agent details (replace with actual details from the agent)
     agent_details = {
         "Agent ID": "Unknown",
         "Conversation ID": conversation_id,
+        "User ID": user_id,
         "Status": "Offline",
         "Last Seen": datetime.now(ZoneInfo("UTC")).isoformat(),
         "Socket URL": "http://localhost:5003",
