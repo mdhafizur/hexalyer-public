@@ -19,7 +19,6 @@ router = APIRouter()
     description="Fetch a paginated list of conversations, optionally filtered by user_id, created_by, and sorted by a specified field.",
 )
 async def query_conversations(
-    user_id: Optional[int] = Query(None, description="Filter by user_id"),
     created_by: Optional[int] = Query(None, description="Filter by created_by"),
     page: int = Query(1, ge=1, description="Page number (default is 1)"),
     page_size: int = Query(
@@ -47,8 +46,6 @@ async def query_conversations(
     - A paginated and sorted list of conversations matching the criteria.
     """
     filter_criteria = {}
-    if user_id:
-        filter_criteria["user_id"] = user_id
     if created_by:
         filter_criteria["created_by"] = created_by
 
@@ -126,8 +123,6 @@ async def list_conversations(
     - A list of conversations matching the criteria.
     """
     filter_criteria = {}
-    if user_id:
-        filter_criteria["user_id"] = user_id
     if created_by:
         filter_criteria["created_by"] = created_by
 

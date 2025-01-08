@@ -9,6 +9,7 @@ from c2_server.events.utils import current_utc_time
 from models.agent import AgentModel
 from models.task import TaskModel
 from models.message import MessageModel
+from models.conversation import ConversationModel
 import json
 from bson.objectid import ObjectId
 from pydantic import ValidationError
@@ -121,6 +122,11 @@ def handle_command_response(sio, sid: str, data: Dict[str, Any]):
         # Use Pydantic to validate the task data
         data["_id"] = ObjectId()  # Assign a new ObjectId for the task
 
+        conversation_data = conversation_repo.get_conversation_by_id(
+            data["conversation_id"]
+        )
+        data["conversation"] = ConversationModel(**conversation_data).dict(by_alias=True)
+        
         # Store the task in the database
         task_id = task_repo.create_task(data)
         logger.info("Task created with ID: %s", task_id)
@@ -145,7 +151,7 @@ def handle_command_response(sio, sid: str, data: Dict[str, Any]):
 
         # Emit the AI message to the frontend
         ai_message = MessageModel(**task_execution_message).dict(by_alias=True)
-        ai_message['task'] = TaskModel(**ai_message['task']).dict(by_alias=True)
+        ai_message["task"] = TaskModel(**ai_message["task"]).dict(by_alias=True)
         sio.emit(
             "ai_message_stream",
             ai_message,

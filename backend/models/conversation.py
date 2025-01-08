@@ -11,7 +11,6 @@ class ConversationModel(BaseModel):
     """
     Pydantic model representing a conversation entity.
     """
-
     id: PyObjectId = Field(
         default_factory=PyObjectId, alias="_id", description="MongoDB ObjectId"
     )
@@ -25,12 +24,7 @@ class ConversationModel(BaseModel):
         description="Type of the conversation",
         example="manual, webhex, auto",
     )
-    user_id: PyObjectId = Field(
-        ...,
-        description="ID of the user associated with the conversation",
-        example="64309628d1cd938d5163ad50",  # Example ObjectId as a string
-    )
-    created_by: PyObjectId = Field(
+    created_by: str = Field(
         ...,
         description="ID of the user who created the conversation",
         example="64309628d1cd938d5163ad51",  # Example ObjectId as a string
@@ -51,7 +45,7 @@ class ConversationModel(BaseModel):
         """
         Convert string fields to PyObjectId during validation.
         """
-        for field in ["id", "user_id", "created_by"]:
+        for field in ["id"]:
             if field in values and isinstance(values[field], str):
                 try:
                     values[field] = PyObjectId(values[field])
@@ -86,13 +80,12 @@ class ConversationModel(BaseModel):
         """
 
         populate_by_name = True
-        json_encoders = {ObjectId: str}
+        json_encoders = {PyObjectId: str}
         json_schema_extra = {
             "example": {
                 "_id": "64309628d1cd938d5163ad49",
                 "title": "Team Meeting Notes",
                 "type": "manual",
-                "user_id": "64309628d1cd938d5163ad50",
                 "created_by": "64309628d1cd938d5163ad51",
                 "created_at": "2024-12-01T12:00:00Z",
                 "updated_at": "2024-12-01T12:30:00Z",

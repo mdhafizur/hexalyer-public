@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, ValidationError, model_validator
 from typing import Optional, List, Literal, Union
 from models.base import PyObjectId, PaginatedResponseModel
 from bson.objectid import ObjectId
+from models.conversation import ConversationModel
 
 
 class Output(BaseModel):
@@ -24,25 +25,6 @@ class Output(BaseModel):
     )
 
 
-class TaskMetadata(BaseModel):
-    """
-    Metadata associated with a task.
-    """
-
-    priority: Optional[Literal["low", "medium", "high"]] = Field(
-        "medium", description="The priority level of the task."
-    )
-    execution_time: Optional[str] = Field(
-        None, description="The total time taken to execute the task."
-    )
-    created_at: Optional[str] = Field(
-        None, description="The timestamp when the task was created."
-    )
-    completed_at: Optional[str] = Field(
-        None, description="The timestamp when the task was completed."
-    )
-
-
 class TaskModel(BaseModel):
     """
     Pydantic model representing a task executed by an agent.
@@ -57,10 +39,9 @@ class TaskModel(BaseModel):
     agent_id: str = Field(
         ..., description="The ID of the agent for which the command was executed."
     )
-    conversation_id: str = Field(
-        ...,
-        description="ID of the conversation this message belongs to",
-        example="64309628d1cd938d5163ad49",
+    conversation: Optional[ConversationModel] = Field(
+        None,
+        description="Optional conversation data associated with the task",
     )
     status: Literal["success", "failure"] = Field(
         ..., description="The overall status of the task."
@@ -68,9 +49,22 @@ class TaskModel(BaseModel):
     outputs: List[Output] = Field(
         ..., description="A list of outputs generated during the task execution."
     )
-    metadata: Optional[TaskMetadata] = Field(
-        default_factory=TaskMetadata,
-        description="Optional metadata associated with the task (e.g., priority, execution time).",
+    priority: Optional[Literal["low", "medium", "high"]] = Field(
+        "medium", description="The priority level of the task."
+    )
+    execution_time: Optional[str] = Field(
+        None, description="The total time taken to execute the task."
+    )
+    created_at: Optional[str] = Field(
+        None, description="The timestamp when the task was created."
+    )
+    created_by: str = Field(
+        ...,
+        description="ID of the user that created the taks",
+        example="64309628d1cd938d5163ad49",
+    )
+    completed_at: Optional[str] = Field(
+        None, description="The timestamp when the task was completed."
     )
 
     @model_validator(mode="before")
@@ -98,7 +92,7 @@ class TaskModel(BaseModel):
         # Ensure `_id` is converted to a string if it exists and is an ObjectId
         if "_id" in data and isinstance(data["_id"], ObjectId):
             data["_id"] = str(data["_id"])
-            
+
         return data
 
     def json(self, **kwargs):
