@@ -5,6 +5,7 @@ from c2_server.events.utils import current_utc_time
 from models.base import PyObjectId
 from bson.objectid import ObjectId
 from models.report import ReportModel
+from models.task import TaskModel
 
 
 class MessageModel(BaseModel):
@@ -24,7 +25,9 @@ class MessageModel(BaseModel):
         example="64309628d1cd938d5163ad49",
     )
     role: str = Field(
-        ..., description="Sender of the message, either 'user' or 'assistant'", example="user"
+        ...,
+        description="Sender of the message, either 'user' or 'assistant'",
+        example="user",
     )
     content: str = Field(
         ...,
@@ -40,6 +43,10 @@ class MessageModel(BaseModel):
         example={"scanId": 1, "url": "https://example.com", "report": {}},
     )
     report: Optional[ReportModel] = Field(
+        None,
+        description="Optional report data associated with the message",
+    )
+    task: Optional[TaskModel] = Field(
         None,
         description="Optional report data associated with the message",
     )
@@ -79,6 +86,13 @@ class MessageModel(BaseModel):
                 values["report"] = ReportModel(**values["report"])
             except ValidationError as e:
                 raise ValidationError(f"Invalid report data: {e}")
+
+        if "task" in values and isinstance(values["task"], dict):
+            try:
+                values["task"] = TaskModel(**values["task"])
+            except ValidationError as e:
+                raise ValidationError(f"Invalid task data: {e}")
+
         return values
 
     def dict(self, **kwargs):

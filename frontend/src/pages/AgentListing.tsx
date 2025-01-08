@@ -1,7 +1,17 @@
-import { Box, Stack, Typography, Button } from "@mui/material";
+import { Box, Stack, Typography, Button, IconButton, Tooltip } from "@mui/material";
 import { NavLink, Outlet } from "react-router-dom";
 import { useState } from "react";
 import { useAgents } from "@app/agents/hooks"; // Hook to fetch agents
+import CircleIcon from "@mui/icons-material/Circle";
+import InfoIcon from "@mui/icons-material/Info";
+import { keyframes } from "@emotion/react";
+
+// Define pulsating animation
+const pulsate = keyframes`
+  0% { box-shadow: 0 0 5px rgba(0, 255, 0, 0.4); }
+  50% { box-shadow: 0 0 15px rgba(0, 255, 0, 0.8); }
+  100% { box-shadow: 0 0 5px rgba(0, 255, 0, 0.4); }
+`;
 
 const AgentListing: React.FC = () => {
   const { agents, loading, error } = useAgents();
@@ -57,24 +67,71 @@ const AgentListing: React.FC = () => {
               key={agent._id}
               to={`/agents/${agent._id}`}
               style={{ textDecoration: "none" }}
-              activeStyle={{ color: "white" }} // Add this line
+              activeStyle={{ color: "white" }}
             >
               {({ isActive }: { isActive: boolean }) => (
                 <Button
                   sx={{
                     width: "250px",
-                    height: "30px",
+                    height: "40px",
                     borderRadius: "8px",
-                    justifyContent: "center",
+                    justifyContent: "space-between",
                     backgroundColor: isActive ? "white" : "#1e293b",
                     color: isActive ? "black" : "white",
                     "&:hover": {
                       backgroundColor: "#3b82f6",
                     },
+                    display: "flex",
+                    alignItems: "center",
                   }}
                   onClick={() => handleButtonClick(agent._id)}
                 >
-                  Agent: {agent.client_info.hostname}
+                  <Typography
+                    sx={{
+                      textAlign: "left",
+                      flexGrow: 1,
+                      marginLeft: "8px",
+                      fontSize: "14px",
+                      fontWeight: "500",
+                    }}
+                  >
+                    Agent: {agent.client_info.hostname}
+                  </Typography>
+                  <CircleIcon
+                    sx={{
+                      color: agent.status === "online" ? "green" : "gray",
+                      fontSize: "12px",
+                      marginRight: "8px",
+                      animation: agent.status === "online" ? `${pulsate} 1.5s infinite` : "none",
+                      borderRadius: "50%",
+                    }}
+                  />
+                  <Tooltip
+                    title={
+                      <Box>
+                        <Typography variant="body2">
+                          <strong>Hostname:</strong> {agent.client_info.hostname}
+                        </Typography>
+                        <Typography variant="body2">
+                          <strong>IP Address:</strong> {agent.client_info.ip}
+                        </Typography>
+                        <Typography variant="body2">
+                          <strong>Status:</strong> {agent.status}
+                        </Typography>
+                      </Box>
+                    }
+                    placement="top"
+                    arrow
+                  >
+                    <IconButton
+                      sx={{
+                        color: isActive ? "black" : "white",
+                        marginRight: "8px",
+                      }}
+                    >
+                      <InfoIcon />
+                    </IconButton>
+                  </Tooltip>
                 </Button>
               )}
             </NavLink>

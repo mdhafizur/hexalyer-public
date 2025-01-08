@@ -23,16 +23,16 @@ from c2_server.events.agent_events import (
 sio = socketio.Server(
     cors_allowed_origins="*",
     async_mode="gevent",
-    ping_interval=5,  # Increase to 5 seconds for a balanced interval
-    ping_timeout=20,  # Increase to 20 seconds to match client timeout settings
+    ping_interval=10,  # Ping every 10 seconds to keep the connection alive
+    ping_timeout=30,  # Allow up to 30 seconds before considering the connection dead
     logger=True,
     engineio_logger=True,
 )
 
 # Modify the WSGIApp initialization to include the path prefix
 app = socketio.WSGIApp(
-    sio, 
-    # static_files=None, 
+    sio,
+    # static_files=None,
     # socketio_path="/ws/socket.io"
 )
 
@@ -41,11 +41,13 @@ logger = socket_listener_logger
 
 # these are default event triggered when socket is connected and disconnect
 sio.on("connect", handle_client_connect)
-sio.on("disconnect", handle_client_disconnect)
+sio.on("disconnect", lambda sid: handle_client_disconnect(sio, sid))
 
 # Event Registration
-sio.on("on_agent_registration", handle_agent_registration)
-sio.on("on_command_response", handle_command_response)
+sio.on(
+    "on_agent_registration", lambda sid, data: handle_agent_registration(sio, sid, data)
+)
+sio.on("on_command_response", lambda sid, data: handle_command_response(sio, sid, data))
 
 
 sio.on("join_room", lambda sid, data: handle_join_room(sio, sid, data))

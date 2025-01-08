@@ -5,6 +5,7 @@ from models.message import MessageModel
 from pydantic import ValidationError
 from datetime import datetime
 from models.report import ReportModel
+from models.task import TaskModel
 
 # Initialize MessageRepository
 message_repo = MessageRepository()
@@ -58,6 +59,13 @@ def handle_join_room(sio, sid, data):
             if "report" in message_dict and message_dict["report"]:
                 # Ensure nested ObjectId fields in 'report' are converted to strings
                 message_dict["report"] = ReportModel(**message_dict["report"]).dict(
+                    by_alias=True
+                )
+
+            # Handle nested 'task' object if present
+            if "task" in message_dict and message_dict["task"]:
+                # Ensure nested ObjectId fields in 'task' are converted to strings
+                message_dict["task"] = TaskModel(**message_dict["task"]).dict(
                     by_alias=True
                 )
 

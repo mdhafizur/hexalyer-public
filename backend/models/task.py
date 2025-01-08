@@ -98,8 +98,15 @@ class TaskModel(BaseModel):
         # Ensure `_id` is converted to a string if it exists and is an ObjectId
         if "_id" in data and isinstance(data["_id"], ObjectId):
             data["_id"] = str(data["_id"])
-
+            
         return data
+
+    def json(self, **kwargs):
+        """
+        Override `json` to ensure `created_at` and `updated_at` are serialized to strings.
+        """
+        kwargs["by_alias"] = True
+        return super().json(**kwargs)
 
     def json(self, **kwargs):
         """

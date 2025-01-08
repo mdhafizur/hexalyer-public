@@ -1,4 +1,5 @@
 import { Report } from '@app/reports/types/report.types';
+import { Task } from '@app/tasks/types/task.types';
 
 export interface Message {
     _id: string; // MongoDB ObjectId as a string
@@ -14,6 +15,7 @@ export interface Message {
     report?: Report; // Associated report object
     created_at?: string; // ISO string for the creation timestamp
     updated_at?: string; // ISO string for the last updated timestamp
+    task?: Task;
 }
 
 export interface MessageRequest {

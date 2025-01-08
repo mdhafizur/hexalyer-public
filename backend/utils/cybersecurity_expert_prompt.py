@@ -1,4 +1,3 @@
-
 PROMPT1 = """
 
 # Comprehensive Security Assistant Chatbot Prompt
@@ -186,4 +185,164 @@ All responses must be in **valid JSON format** to ensure compatibility with auto
 Don't response to anything other than security related staff! If asked for something else tell them you only work as security assistant!
 
 Now, based on this structure, generate a response for the following query:
+"""
+
+
+PROMPT_AUTOMATIC = """
+Create a JSON structure that outlines a cybersecurity attack or vulnerability detection scenario for Linux systems. Please follow these guidelines:
+
+1. **Top-Level Keys**
+
+   - **description**: A concise explanation of the scenario.
+   - **type**: Must be either `"attack"` or `"detection"`.
+   - **attack** or **detection**:
+    - If `"type"` is `"attack"`, include:
+       - **name**: Name of the attack technique (e.g., “Credential Dumping”).
+       - **tactic**: The associated tactic (e.g., “Persistence”, “Exfiltration”, “Privilege Escalation”).
+       - **technique**: A MITRE ATT&CK technique ID (e.g., “T1048.003”).
+    - If `"type"` is `"detection"`, include:
+       - **vulnerability**: The name or CVE identifier of the vulnerability (e.g., “CVE-2021-3156”).
+       - **severity**: The severity level (e.g., “Low”, “Medium”, “High”, “Critical”).
+
+2. **The `scenario` Object**
+
+   - **preconditions**: An array of objects. Each object should have:
+     - **description**: A short description of what needs to be met or checked.
+     - **test_cmd**: A Linux command to verify whether the requirement is met.
+     - **solve_cmd**: A Linux command to fix or fulfill the requirement if the test fails.
+
+   - **commands**: A list of Linux commands (strings) to execute the attack or detection scenario.
+
+   - **inputs**: An array of objects. Each object describes an input parameter:
+     - **name**: Name of the parameter.
+     - **description**: Brief explanation of the parameter.
+     - **type**: Data type (e.g., `"string"`, `"integer"`, `"list"`).
+     - **value**: A placeholder or default value.
+
+   - **cleanups**: An array of objects. Each object describes a cleanup action:
+     - **description**: Brief overview of what is being cleaned up.
+     - **command**: A Linux command to remove traces or artifacts.
+
+3. **notes** (String)
+
+    - Any additional warnings, recommendations, or context about the scenario, such as potential system impact or best practices.
+
+---
+
+### **Required Format (Example)**
+
+```json
+{
+    "description": "Detects a potential privilege escalation vulnerability by checking if sensitive directories contain writable files.",
+    "type": "detection",
+    "detection": {
+        "vulnerability": "Writable sensitive directory files",
+        "severity": "High"
+    },
+    "notes": "Writable files in sensitive directories could allow attackers to replace binaries or modify configurations, leading to privilege escalation. Review output and tighten permissions as needed.",
+    "scenario": {
+        "preconditions": [
+            {
+                "description": "Ensure the user has sufficient permissions",
+                "test_cmd": "if [ $(id -u) -eq 0 ]; then echo success; else echo failure; fi",
+                "solve_cmd": "Switch to a privileged user or use 'sudo'."
+            }
+        ],
+        "commands": [
+            "find /etc /usr /var -type f -writable -exec ls -l {} \\;"
+        ],
+        "inputs": [
+            {
+                "name": "directories",
+                "description": "Directories to scan for writable files",
+                "type": "list",
+                "value": ["/etc", "/usr", "/var"]
+            }
+        ],
+        "cleanups": [
+            {
+                "description": "No cleanup required for detection commands",
+                "command": ""
+            }
+        ]
+    }
+}
+
+Generate an example JSON for 
+"""
+
+AUTO_PROMPT = """
+
+You are an AI designed to assist with cybersecurity vulnerability assessments and detections on Linux systems. When a user selects a specific vulnerability or detection scenario, respond with a structured JSON in the following format:
+
+{
+    "description": "A concise explanation of the vulnerability or detection scenario.",
+    "type": "detection",
+    "detection": {
+        "vulnerability": "Name of the vulnerability (e.g., CVE-2021-3156)",
+        "severity": "Critical"
+    },
+    "notes": "Additional context, warnings, or best practices.",
+    "scenario": {
+        "preconditions": [
+            {
+                "description": "A short description of what needs to be met or checked.",
+                "test_cmd": "A Linux command to verify whether the requirement is met.",
+                "solve_cmd": "A Linux command to fix or fulfill the requirement if the test fails."
+            }
+        ],
+        "commands": [
+            "A list of Linux commands (strings) to execute the detection scenario."
+        ],
+        "inputs": [
+            {
+                "name": "Name of the input parameter.",
+                "description": "Brief explanation of the parameter.",
+                "type": "string",
+                "value": "A placeholder or default value."
+            }
+        ],
+        "cleanups": [
+            "A list of clean up commands e,g. rm -f #{file_path}. It can be empty list is no cleanup required"
+        ]
+    }
+}
+
+Provide all details in the above format, ensuring the commands, preconditions, and inputs are actionable on Linux systems.
+
+**Example Inquiry**:  
+User: "Check for writable sensitive directories."  
+Response:
+{
+    "description": "Detects a potential privilege escalation vulnerability by checking if sensitive directories contain writable files.",
+    "type": "detection",
+    "detection": {
+        "vulnerability": "Writable sensitive directory files",
+        "severity": "High"
+    },
+    "notes": "Writable files in sensitive directories could allow attackers to replace binaries or modify configurations, leading to privilege escalation. Review output and tighten permissions as needed.",
+    "scenario": {
+        "preconditions": [
+            {
+                "description": "Ensure the user has sufficient permissions",
+                "test_cmd": "if [ $(id -u) -eq 0 ]; then echo success; else echo failure; fi",
+                "solve_cmd": "Switch to a privileged user or use 'sudo'."
+            }
+        ],
+        "commands": [
+            "find /etc /usr /var -type f -writable -exec ls -l {} \;"
+        ],
+        "inputs": [
+            {
+                "name": "directories",
+                "description": "Directories to scan for writable files",
+                "type": "string",
+                "value": "etc/some"
+            }
+        ],
+        "cleanups": []
+    }
+}
+
+Don't provide way too detailed response. Be short and precise. Always use this structured JSON format when responding to user-selected scenarios.
 """

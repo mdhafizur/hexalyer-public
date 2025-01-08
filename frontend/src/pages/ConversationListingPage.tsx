@@ -11,6 +11,11 @@ import {
   Paper,
   IconButton,
   Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
   useMediaQuery,
   Theme,
 } from "@mui/material";
@@ -22,8 +27,16 @@ export default function ConversationListingPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isSmallScreen = useMediaQuery((theme: Theme) => theme.breakpoints.down("md")); // Media query for small screens
+  const isSmallScreen = useMediaQuery((theme: Theme) => theme.breakpoints.down("md"));
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false); // State for the modal
+  const [conversationType, setConversationType] = useState<"auto" | "manual" | "webhex" | null>(null);
+
+  const conversationTypes = [
+    { label: "Manual Chat", value: "manual", description: "A chat to provide customer support or handle queries." },
+    { label: "Webhex Chat", value: "webhex", description: "A conversation involving multiple participants in a group." },
+    { label: "Auto Chat", value: "auto", description: "A one-on-one chat between two individuals." },
+  ];
 
   // Extract the conversation ID or "new" from the URL
   useEffect(() => {
@@ -33,12 +46,21 @@ export default function ConversationListingPage() {
   }, [location.pathname]);
 
   const handleCreateConversation = () => {
-    setSelectedConversation("new");
-    navigate("/conversations/new"); // Update URL for "new" conversation
+    setModalOpen(true); // Open the modal
   };
 
-  const handleSelectConversation = (conversationId: string) => {
+  const handleSelectConversationType = (conversationType: string) => {
+    setSelectedConversation("new");
+    navigate(`/conversations/new?type=${conversationType}`); // Update URL with conversation type
+    setConversationType(conversationType)
+    setModalOpen(false); // Close the modal
+  };
+
+  const handleSelectConversation = (conversationId: string, conversationType: string) => {
+    console.log("conversationId", conversationId)
+    console.log("conversationType", conversationType)
     setSelectedConversation(conversationId);
+    setConversationType(conversationType);
     navigate(`/conversations/${conversationId}`);
   };
 
@@ -47,7 +69,7 @@ export default function ConversationListingPage() {
       component="main"
       sx={{
         display: "flex",
-        flexDirection: isSmallScreen ? "column" : "row", // Stack on small screens, row on larger screens
+        flexDirection: isSmallScreen ? "column" : "row",
         height: "100vh",
         bgcolor: "background.default",
       }}
@@ -57,8 +79,8 @@ export default function ConversationListingPage() {
         elevation={2}
         sx={{
           flexShrink: 0,
-          width: isSmallScreen ? "100%" : 300, // Full width on small screens, fixed width on larger screens
-          maxHeight: "100vh", // Ensure it takes the full viewport height
+          width: isSmallScreen ? "100%" : 300,
+          maxHeight: "100vh",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
@@ -81,7 +103,9 @@ export default function ConversationListingPage() {
             zIndex: 1,
           }}
         >
-          <Typography variant="h6" sx={{ m: 2 }}>Conversations</Typography>
+          <Typography variant="h6" sx={{ m: 2 }}>
+            Conversations
+          </Typography>
           <Tooltip title="Create Conversation">
             <IconButton color="primary" onClick={handleCreateConversation}>
               <AddIcon />
@@ -119,32 +143,34 @@ export default function ConversationListingPage() {
           )}
           {!loading && !error && conversations.length > 0 && (
             <List>
-              {conversations.map((conversation) => (
-                <ListItemButton
-                  key={conversation._id}
-                  onClick={() => handleSelectConversation(conversation._id)}
-                  selected={selectedConversation === conversation._id}
-                  sx={(theme) => ({
-                    "&.Mui-selected": {
-                      backgroundColor: theme.palette.action.selected,
-                      color: theme.palette.primary.main,
-                      fontWeight: "bold",
-                      borderLeft: `4px solid ${theme.palette.primary.main}`,
-                    },
-                    "&:hover": {
-                      backgroundColor: theme.palette.action.hover,
-                    },
-                  })}
-                >
-                  <ListItemText
-                    primary={conversation.title || `Chat ${conversation._id}`}
-                    primaryTypographyProps={{
-                      variant: "body1",
-                      noWrap: true,
-                    }}
-                  />
-                </ListItemButton>
-              ))}
+              {[...conversations]
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                .map((conversation) => (
+                  <ListItemButton
+                    key={conversation._id}
+                    onClick={() => handleSelectConversation(conversation._id, conversation.type)}
+                    selected={selectedConversation === conversation._id}
+                    sx={(theme) => ({
+                      "&.Mui-selected": {
+                        backgroundColor: theme.palette.action.selected,
+                        color: theme.palette.primary.main,
+                        fontWeight: "bold",
+                        borderLeft: `4px solid ${theme.palette.primary.main}`,
+                      },
+                      "&:hover": {
+                        backgroundColor: theme.palette.action.hover,
+                      },
+                    })}
+                  >
+                    <ListItemText
+                      primary={conversation.title || `Chat ${conversation._id}`}
+                      primaryTypographyProps={{
+                        variant: "body1",
+                        noWrap: true,
+                      }}
+                    />
+                  </ListItemButton>
+                ))}
             </List>
           )}
         </Box>
@@ -158,12 +184,12 @@ export default function ConversationListingPage() {
           bgcolor: "background.paper",
           display: "flex",
           flexDirection: "column",
-          p: isSmallScreen ? 1 : 3, // Reduce padding on smaller screens
-          overflowY: "auto", // Ensure chat area is scrollable if content overflows
+          p: isSmallScreen ? 1 : 3,
+          overflowY: "auto",
         }}
       >
-        {selectedConversation ? (
-          <ChatComponent conversationId={selectedConversation} />
+        {selectedConversation && conversationType ? (
+          <ChatComponent conversationId={selectedConversation} conversationType={conversationType} />
         ) : (
           <Box
             sx={{
@@ -179,6 +205,30 @@ export default function ConversationListingPage() {
           </Box>
         )}
       </Box>
+
+      {/* Modal for Selecting Conversation Type */}
+      <Dialog open={modalOpen} onClose={() => setModalOpen(false)}>
+        <DialogTitle>Select Conversation Type</DialogTitle>
+        <DialogContent>
+          {conversationTypes.map((type) => (
+            <Tooltip key={type.value} title={type.description} arrow>
+              <Button
+                variant="outlined"
+                fullWidth
+                sx={{ mb: 1 }}
+                onClick={() => handleSelectConversationType(type.value)}
+              >
+                {type.label}
+              </Button>
+            </Tooltip>
+          ))}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setModalOpen(false)} color="primary">
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

@@ -123,3 +123,39 @@ async def download_agent(agent_type: str):
     return FileResponse(
         file_path, filename=agent_file, media_type="application/octet-stream"
     )
+
+
+# Path to the `agent_ui_app.app` file
+DIST_FOLDER = "dist"
+
+
+@app.get("/download/agent_ui_app/{conversation_id}")
+async def download_agent_ui_app(conversation_id: str):
+    """
+    Endpoint to build and download the compressed agent_ui_app.zip file.
+    """
+    try:
+        # Run the build script with the conversation_id
+        subprocess.run(["./build_and_bind.sh", conversation_id], check=True)
+
+        # Define file paths
+        executable_name = f"agent_app_{conversation_id}"
+        zip_file_name = f"{executable_name}.zip"
+        zip_file_path = os.path.join(DIST_FOLDER, zip_file_name)
+
+        # Check if the zip file exists
+        if not os.path.exists(zip_file_path):
+            raise HTTPException(status_code=404, detail="ZIP file not found!")
+
+        # Return the ZIP file for download
+        return FileResponse(
+            path=zip_file_path,
+            filename=zip_file_name,
+            media_type="application/zip",
+        )
+    except subprocess.CalledProcessError as e:
+        # Handle build errors
+        raise HTTPException(status_code=500, detail=f"Build failed: {e}")
+    except Exception as e:
+        # Handle unexpected errors
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {e}")

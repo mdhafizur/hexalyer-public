@@ -11,6 +11,7 @@ class ConversationModel(BaseModel):
     """
     Pydantic model representing a conversation entity.
     """
+
     id: PyObjectId = Field(
         default_factory=PyObjectId, alias="_id", description="MongoDB ObjectId"
     )
@@ -18,6 +19,11 @@ class ConversationModel(BaseModel):
         ...,
         description="Title of the conversation",
         example="Team Meeting Notes",
+    )
+    type: Optional[str] = Field(
+        default=None,
+        description="Type of the conversation",
+        example="manual, webhex, auto",
     )
     user_id: PyObjectId = Field(
         ...,
@@ -50,7 +56,9 @@ class ConversationModel(BaseModel):
                 try:
                     values[field] = PyObjectId(values[field])
                 except ValueError:
-                    raise ValidationError(f"Invalid ObjectId for field {field}: {values[field]}")
+                    raise ValidationError(
+                        f"Invalid ObjectId for field {field}: {values[field]}"
+                    )
         return values
 
     def dict(self, **kwargs):
@@ -76,12 +84,14 @@ class ConversationModel(BaseModel):
         """
         Pydantic configuration for JSON encoding and schema generation.
         """
+
         populate_by_name = True
         json_encoders = {ObjectId: str}
         json_schema_extra = {
             "example": {
                 "_id": "64309628d1cd938d5163ad49",
                 "title": "Team Meeting Notes",
+                "type": "manual",
                 "user_id": "64309628d1cd938d5163ad50",
                 "created_by": "64309628d1cd938d5163ad51",
                 "created_at": "2024-12-01T12:00:00Z",
@@ -94,4 +104,5 @@ class ConversationPaginatedResponseModel(PaginatedResponseModel[ConversationMode
     """
     Paginated response model for conversations.
     """
+
     pass

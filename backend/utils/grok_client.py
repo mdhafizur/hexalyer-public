@@ -1,5 +1,5 @@
 import requests
-from utils.cybersecurity_expert_prompt import PROMPT1
+from utils.cybersecurity_expert_prompt import PROMPT_AUTOMATIC
 import os
 from dotenv import load_dotenv
 import json
@@ -29,6 +29,7 @@ class XAIChatClient:
         stream=False,
         temperature=0,
         message_history=None,
+        prompt_type="manual",
     ):
         """
         Sends a chat completion request to the X.AI API.
@@ -44,7 +45,14 @@ class XAIChatClient:
         # Prepare the initial payload
         payload = {
             "messages": [
-                {"role": "system", "content": "You are a cybersecurity expert."}
+                {
+                    "role": "system",
+                    "content": (
+                        PROMPT_AUTOMATIC
+                        if prompt_type == "auto"
+                        else "You are a cybersecurity expert."
+                    ),
+                }
             ],
             "model": model,
             "stream": stream,

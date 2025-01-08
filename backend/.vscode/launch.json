@@ -23,6 +23,19 @@
             "preLaunchTask": "wait-for-web-server"
         },
         {
+            "name": "Run Agent App",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/agent/agent_ui_app.py",
+            "console": "integratedTerminal",
+            "args": [
+                "http://localhost:5001/c2/api/v1",
+                "http://localhost:5003"
+            ],
+            "envFile": "${workspaceFolder}/.env",
+            "preLaunchTask": "wait-for-web-server"
+        },
+        {
             "name": "Run ChatGPT Shell",
             "type": "debugpy",
             "request": "launch",
@@ -81,10 +94,10 @@
     ],
     "compounds": [
         {
-            "name": "Run Servers and Agent",
+            "name": "Run Servers and Agent App",
             "configurations": [
                 "Run Servers",
-                "Run Agent"
+                "Run Agent App"
             ]
         },
         {

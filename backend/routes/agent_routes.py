@@ -90,7 +90,7 @@ async def get_agent(agent_id: str) -> AgentModel:
 
 
 @router.put(
-    "/{agent_id}",
+    "/{id}",
     response_model=Dict[str, str],
     responses={
         200: {"description": "Agent successfully updated.", "model": Dict[str, str]},
@@ -100,14 +100,14 @@ async def get_agent(agent_id: str) -> AgentModel:
     summary="Update an existing agent",
     description="Updates the information of an agent identified by its ID.",
 )
-async def update_agent(agent_id: str, update_data: AgentModel) -> Dict[str, str]:
+async def update_agent(id: str, update_data: AgentModel) -> Dict[str, str]:
     """
     **Update Agent**
 
     Updates the details of an agent with the specified ID. Only fields provided in the request will be updated.
 
     **Parameters**:
-    - `agent_id` (str): The unique identifier of the agent.
+    - `id` (str): The unique identifier of the agent.
     - `update_data` (AgentModel): The updated data for the agent.
 
     **Returns**:
@@ -119,7 +119,7 @@ async def update_agent(agent_id: str, update_data: AgentModel) -> Dict[str, str]
     """
     try:
         updated_count = agent_repo.update_agent(
-            agent_id, update_data.dict(exclude_unset=True)
+            id, update_data.dict(exclude_unset=True)
         )
         if updated_count == 0:
             raise HTTPException(status_code=404, detail="Agent not found")

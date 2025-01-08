@@ -39,11 +39,11 @@ class AgentRepository:
         try:
             if not ObjectId.is_valid(agent_id):
                 raise ValueError(f"Invalid agent ID: {agent_id}")
-            return self.collection.find_one({"_id": ObjectId(agent_id)})
+            return self.collection.find_one({"agent_id": agent_id})
         except PyMongoError as e:
             raise ValueError(f"Failed to retrieve agent with ID {agent_id}: {str(e)}")
 
-    def update_agent(self, agent_id: str, update_data: Any) -> int:
+    def update_agent(self, id: str, update_data: Any) -> int:
         """
         Update an agent's data.
 
@@ -53,15 +53,15 @@ class AgentRepository:
         :raises ValueError: If the update operation fails or the ID is invalid.
         """
         try:
-            if not ObjectId.is_valid(agent_id):
-                raise ValueError(f"Invalid agent ID: {agent_id}")
+            if not ObjectId.is_valid(id):
+                raise ValueError(f"Invalid agent ID: {id}")
             result = self.collection.update_one(
-                {"_id": ObjectId(agent_id)},
+                {"_id": ObjectId(id)},
                 {"$set": update_data.dict(exclude_unset=True)},
             )
             return result.modified_count
         except PyMongoError as e:
-            raise ValueError(f"Failed to update agent with ID {agent_id}: {str(e)}")
+            raise ValueError(f"Failed to update agent with ID {id}: {str(e)}")
 
     def delete_agent(self, agent_id: str) -> int:
         """

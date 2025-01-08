@@ -14,7 +14,7 @@ export const fetchConversations = async (): Promise<Conversation[]> => {
 };
 
 // Create a new conversation
-export const createConversation = async (title: string, user_id: string): Promise<Conversation> => {
+export const createConversation = async (title: string, type: string, user_id: string): Promise<Conversation> => {
   const created_by = user_id
   const response = await privateClient.post("/conversations", { title, user_id, created_by });
   return response.data;

@@ -3,13 +3,13 @@ import { io, Socket } from "socket.io-client";
 const SOCKET_URL = import.meta.env.VITE_SOCKET_API_URL as string;
 
 export const socket: Socket = io(SOCKET_URL, {
-    transports: ['websocket', 'polling'], // Ensure WebSocket-only communication
-    autoConnect: true, // Automatically reconnect
-    reconnection: true, // Enable reconnections
-    reconnectionAttempts: Infinity, // Retry forever
-    reconnectionDelay: 5000, // Match server ping_interval (5 seconds)
-    reconnectionDelayMax: 10000, // Allow some variability in delay
-    timeout: 20000, // Match server ping_timeout
+    transports: ['websocket'], // Use WebSocket for real-time performance
+    autoConnect: true,
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 5000, // Retry every 5 seconds if disconnected
+    reconnectionDelayMax: 10000,
+    timeout: 30000, // Match the server's ping_timeout
     closeOnBeforeunload: true,
     forceNew: true
 });

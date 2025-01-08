@@ -13,6 +13,7 @@ class AgentRegistrationRequest(BaseModel):
     """
 
     agent_id: str = Field(..., example="agent-1234")
+    conversation_id: str
     client_info: dict = Field(
         ..., example={"os": "Windows", "ip": "192.168.1.10", "hostname": "agent01"}
     )
@@ -62,6 +63,7 @@ class AgentModel(BaseModel):
         default_factory=PyObjectId, alias="_id", description="MongoDB ObjectId"
     )
     agent_id: str = Field(..., description="Agent ID (UUID)")
+    conversation_id: str = Field(..., description="Conversation ID (ObjectId)")
     client_info: ClientInfo = Field(..., description="Client information")
     last_seen: Optional[datetime] = Field(
         default_factory=lambda: datetime.now(ZoneInfo("UTC")),  # Set UTC timezone
@@ -82,6 +84,7 @@ class AgentModel(BaseModel):
                 "_id": "64309628d1cd938d5163ad49",
                 "sleeptime": 60000000,
                 "agent_id": "c7cec2c7-55a8-4c47-bb92-a538b6a0726c",
+                "conversation_id": "64309628d1cd938d5163ad47",
                 "client_info": {
                     "processid": 41290,
                     "ipaddress": "localhost:50358",

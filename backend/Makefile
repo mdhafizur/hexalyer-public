@@ -35,6 +35,9 @@ build_agent_windows: build_clean setup
 run_agent: build
 	./$(OUTPUT_DIR)/$(EXECUTABLE_NAME)
 
+build_agent_app:
+	. $(VENV_DIR)/bin/activate && pyinstaller --onefile --windowed agent/agent_ui_app.py && zip -r /dist/agent_ui_app.zip agent_ui_app.app
+
 
 # Variables
 PYLINT_TARGET ?= .          # Default to current directory if no target is provided
