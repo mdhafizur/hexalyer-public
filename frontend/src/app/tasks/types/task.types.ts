@@ -4,7 +4,10 @@ export interface Task {
   conversation_id: string; // MongoDB ObjectId as a string
   status: "success" | "failure"; // Task status
   outputs: TaskOutput[]; // Array of task output objects
-  metadata: TaskMetadata; // Metadata about the task
+  priority: "low" | "medium" | "high"; // Priority level of the task
+  execution_time: string; // Time taken to execute the task (e.g., "0.08s")
+  created_at: string; // ISO string for task creation timestamp
+  completed_at: string; // ISO string for task completion timestamp
 }
 
 export interface TaskOutput {
@@ -14,9 +17,3 @@ export interface TaskOutput {
   status: "success" | "failure"; // Status of the step
 }
 
-export interface TaskMetadata {
-  priority: "low" | "medium" | "high"; // Priority level of the task
-  execution_time: string; // Time taken to execute the task (e.g., "0.08s")
-  created_at: string; // ISO string for task creation timestamp
-  completed_at: string; // ISO string for task completion timestamp
-}

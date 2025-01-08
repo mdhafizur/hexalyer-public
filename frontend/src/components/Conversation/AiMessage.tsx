@@ -171,10 +171,10 @@ export function AiMessage({ message, agentId }: { message: Message; agentId?: st
                                 <strong>Agent ID:</strong> {task.agent_id}{"\n"}
                                 <strong>Conversation ID:</strong> {task.conversation_id}{"\n"}
                                 <strong>Status:</strong> {task.status}{"\n"}
-                                <strong>Priority:</strong> {task.metadata.priority}{"\n"}
-                                <strong>Execution Time:</strong> {task.metadata.execution_time}{"\n"}
-                                <strong>Created At:</strong> {task.metadata.created_at}{"\n"}
-                                <strong>Completed At:</strong> {task.metadata.completed_at}
+                                <strong>Priority:</strong> {task.priority}{"\n"}
+                                <strong>Execution Time:</strong> {task.execution_time}{"\n"}
+                                <strong>Created At:</strong> {task.created_at}{"\n"}
+                                <strong>Completed At:</strong> {task.completed_at}
                             </Typography>
 
                             <Typography variant="h6" gutterBottom>
