@@ -19,6 +19,6 @@ export const useTasks = (agentId: string) => {
       fetchTasks();
     }
   }, [fetchTasks, tasks.length]);
-
+  
   return { tasks, loading, error, fetchTasks };
 };
