@@ -23,7 +23,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             try:
                 # Verify the token
                 payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-                request.state.user = payload.get("sub")  # Store user info in request state
+                request.state.user_id = payload.get("sub")  # Store user info in request state
             except JWTError:
                 raise HTTPException(status_code=401, detail="Invalid token")
         

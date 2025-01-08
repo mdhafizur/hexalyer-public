@@ -27,7 +27,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     "/web/api/v1/auth/request-password-reset",
                     "/web/api/v1/auth/reset-password",
                     "/web/api/v1/auth/check-token",
-                    
+                    "/web/api/v1/docs",
+                    "/web/api/v1/healthcheck",
+                    "/web/api/v1/openapi.json"
                 ]:
                     return await call_next(request)
 
@@ -44,7 +46,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                         raise HTTPException(status_code=401, detail="Token not found")
                     # Verify the token
                     payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-                    request.state.user = payload.get(
+                    request.state.user_id = payload.get(
                         "sub"
                     )  # Store user info in request state
                 except JWTError:

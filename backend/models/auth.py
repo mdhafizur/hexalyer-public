@@ -7,7 +7,6 @@ class Token(BaseModel):
     """
     access_token: str  # The JWT access token
     refresh_token: str  # The JWT refresh token
-    token_type: str  # Typically 'Bearer', defines the type of token
 
 
 class User(BaseModel):

@@ -44,7 +44,7 @@ router = APIRouter()
 auth_repo = AuthRepository()
 user_repo = UserRepository()
 
-cred_path = os.getenv('FIREBASE_CREDENTIALS_PATH')
+cred_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
 
 if not cred_path:
     raise ValueError("FIREBASE_CREDENTIALS_PATH environment variable is not set")
@@ -57,7 +57,8 @@ firebase_admin.initialize_app(cred)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-ACCESS_TOKEN_SECRET = os.getenv('SECRET_KEY')
+ACCESS_TOKEN_SECRET = os.getenv("SECRET_KEY")
+
 
 @router.get("/check-token")
 async def check_token(request: Request):
@@ -74,9 +75,13 @@ async def check_token(request: Request):
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
+
 @router.post("/google", response_model=Dict[str, str], status_code=201)
 async def google_sign_in(
-    response: Response, idToken: str = Form(...), first_name: str = Form(...), last_name: str = Form(...)
+    response: Response,
+    idToken: str = Form(...),
+    first_name: str = Form(...),
+    last_name: str = Form(...),
 ) -> Dict[str, str]:
     """
     Handle Google Sign-In.
@@ -90,7 +95,7 @@ async def google_sign_in(
 
         email = decoded_token.get("email")
 
-        if not email :
+        if not email:
             raise HTTPException(status_code=400, detail="Invalid token")
 
         existing_user = user_repo.get_user_by_email(email)
@@ -103,14 +108,15 @@ async def google_sign_in(
                     "".join(random.choices(string.ascii_letters + string.digits, k=12))
                 ),
             }
-            user_id = user_repo.create_user(user_data)
             existing_user = user_repo.get_user_by_email(email)
             message = "User registered and logged in successfully"
         else:
             message = "User logged in successfully"
 
         # Generate access and refresh tokens
-        access_token = auth_repo.create_access_token(data={"sub": str(existing_user["_id"])})
+        access_token = auth_repo.create_access_token(
+            data={"sub": str(existing_user["_id"])}
+        )
         refresh_token = auth_repo.create_refresh_token(
             data={"sub": str(existing_user["_id"])}
         )
@@ -153,8 +159,8 @@ async def request_password_reset(request: PasswordResetRequest) -> Dict[str, str
         user = user_repo.get_user_by_email(request.email)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        
-         # Log the user object to see its structure
+
+        # Log the user object to see its structure
         logger.info(f"User object: {user}")
 
         # Ensure the user object contains the required keys
@@ -213,10 +219,7 @@ async def register_user(
     try:
         # Create a Pydantic model instance from the form data
         user = UserRegister(
-            first_name=first_name,
-            last_name=last_name,
-            email=email,
-            password=password
+            first_name=first_name, last_name=last_name, email=email, password=password
         )
 
         # Hash the password
@@ -246,20 +249,12 @@ async def register_user(
         # Generate access and refresh tokens
         access_token = auth_repo.create_access_token(
             data={
-                "email": created_user["email"],
-                "sub": created_user["email"],
-                "first_name": created_user["first_name"],
-                "last_name": created_user["last_name"],
-                "_id": user_id_str,
+                "sub": user_id_str,
             }
         )
         refresh_token = auth_repo.create_refresh_token(
             data={
-                "email": created_user["email"],
-                "sub": created_user["email"],
-                "first_name": created_user["first_name"],
-                "last_name": created_user["last_name"],
-                "_id": user_id_str,
+                "sub": user_id_str,
             }
         )
 
@@ -306,20 +301,12 @@ async def login_user(
         # Generate access and refresh tokens
         access_token = auth_repo.create_access_token(
             data={
-                "email": user["email"],
-                "sub": user["email"],
-                "first_name": user["first_name"],
-                "last_name": user["last_name"],
-                "_id": str(user["_id"]),
+                "sub": str(user["_id"]),
             }
         )
         refresh_token = auth_repo.create_refresh_token(
             data={
-                "email": user["email"],
-                "sub": user["email"],
-                "first_name": user["first_name"],
-                "last_name": user["last_name"],
-                "_id": str(user["_id"]),
+                "sub": str(user["_id"]),
             }
         )
 
@@ -347,8 +334,8 @@ async def login_user(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/refresh", response_model=Token)
-async def refresh_token(request: Request, response: Response) -> Token:
+@router.get("/refresh")
+async def refresh_token(request: Request, response: Response):
     """Endpoint to refresh access token using refresh token."""
     try:
         refresh_token = request.cookies.get("refresh_token")
@@ -356,22 +343,18 @@ async def refresh_token(request: Request, response: Response) -> Token:
             raise HTTPException(status_code=401, detail="Refresh token missing")
 
         payload = jwt.decode(refresh_token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
+        user_id: str = payload.get("sub")
+        if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid refresh token")
 
-        user = user_repo.get_user_by_email(email)
+        user = user_repo.get_user_by_id(user_id)
         if user is None:
             raise HTTPException(status_code=404, detail="User not found")
 
         # Generate new access token
         access_token = auth_repo.create_access_token(
             data={
-                "email": user["email"],
-                "sub": user["email"],
-                "first_name": user["first_name"],
-                "last_name": user["last_name"],
-                "_id": str(user["_id"]),
+                "sub": str(user["_id"]),
             }
         )
 
@@ -385,27 +368,26 @@ async def refresh_token(request: Request, response: Response) -> Token:
             key="access_token",
             value=access_token,
             httponly=True,
-            samesite="None",
+            samesite="Lax",
             secure=False,
+            max_age=20 * 60,
         )
         response.set_cookie(
             key="refresh_token",
             value=new_refresh_token,
             httponly=True,
-            samesite="None",
+            samesite="Lax",
             secure=False,
+            max_age=20 * 60,
         )
-
-        return Token(
-            access_token=access_token,
-            refresh_token=new_refresh_token,
-            token_type="bearer",
-        )
+        return {
+            "message": "success",
+        }
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
 
-@router.post("/logout", response_model=Dict[str, str])
+@router.get("/logout", response_model=Dict[str, str])
 async def logout_user(response: Response) -> Dict[str, str]:
     """Endpoint to logout user."""
     # Invalidate the token (implementation depends on your token storage strategy)
@@ -422,11 +404,10 @@ async def get_current_user(request: Request) -> UserResponse:
             raise HTTPException(status_code=401, detail="Token not found")
 
         decode_token = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        print(decode_token)
 
         # Ensure the token contains the user ID
-        user_id = decode_token.get("_id")
-        print("1")
+        user_id = decode_token.get("sub")
+
         if not user_id:
             raise HTTPException(
                 status_code=400, detail="Invalid token: user ID not found"
