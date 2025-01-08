@@ -6,13 +6,75 @@ from typing import Optional, List, Dict, Any
 from db.task_repository import TaskRepository
 from bson import ObjectId
 from bson.json_util import dumps
-from models.task import TaskModel
+from models.task import TaskModel, TaskPaginatedResponseModel
 
 # Create an instance of the TaskRepository
 task_repo = TaskRepository()
 
 # Create a FastAPI router for task routes
 router = APIRouter()
+
+
+@router.get(
+    "/query",
+    response_model=TaskPaginatedResponseModel,
+    summary="Query tasks with pagination and sorting",
+    description="Fetch a paginated list of tasks, optionally filtered by agent_id and sorted by a specified field.",
+)
+async def query_tasks(
+    agent_id: Optional[str] = Query(None, description="Filter by agent_id"),
+    page: int = Query(1, ge=1, description="Page number (default is 1)"),
+    page_size: int = Query(
+        10,
+        ge=1,
+        le=100,
+        description="Number of items per page (default is 10, max is 100)",
+    ),
+    sort_by: str = Query(
+        "created_at", description="Field to sort by (default is 'created_at')"
+    ),
+    sort_order: str = Query(
+        "asc",
+        regex="^(asc|desc)$",
+        description="Sort order: 'asc' for ascending, 'desc' for descending (default is 'asc')",
+    ),
+):
+    """
+    Query conversations with pagination and sorting.
+
+    - **agent_id**: Filter conversations by the associated user ID.
+    - **created_by**: Filter conversations by the creator's ID.
+    - **page**: The page number to retrieve.
+    - **page_size**: The number of items per page.
+    - **sort_by**: Field to sort by (default is 'created_at').
+    - **sort_order**: Sorting direction: 'asc' (ascending) or 'desc' (descending).
+
+    Returns:
+    - A paginated and sorted list of conversations matching the criteria.
+    """
+    filter_criteria = {}
+    if agent_id:
+        filter_criteria["agent_id"] = agent_id
+
+    skip = (page - 1) * page_size
+    sort_criteria = [(sort_by, 1 if sort_order == "asc" else -1)]
+
+    try:
+        conversations = task_repo.list_tasks_with_pagination(
+            filter_criteria, skip=skip, limit=page_size, sort=sort_criteria
+        )
+        total_items = task_repo.collection.count_documents(filter_criteria)
+        total_pages = (total_items + page_size - 1) // page_size
+
+        return {
+            "page": page,
+            "page_size": page_size,
+            "total_items": total_items,
+            "total_pages": total_pages,
+            "data": conversations,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post(

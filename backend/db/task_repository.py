@@ -1,6 +1,6 @@
 # db/task_repository.py
 
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 from bson.objectid import ObjectId
 from pymongo.collection import Collection
 from pymongo.errors import PyMongoError
@@ -16,7 +16,37 @@ class TaskRepository:
         """Initialize the TaskRepository and ensure MongoDB connection."""
         if mongodb.db is None:
             mongodb.connect()
-        self.collection: Collection = mongodb.get_collection("tasks")  # Collection name: "tasks"
+        self.collection: Collection = mongodb.get_collection(
+            "tasks"
+        )  # Collection name: "tasks"
+
+    def list_tasks_with_pagination(
+        self,
+        filter_criteria: Optional[Dict[str, Any]],
+        skip: int,
+        limit: int,
+        sort: Optional[List[Tuple[str, int]]] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        List tasks with pagination and sorting.
+
+        :param filter_criteria: A dictionary with MongoDB filter criteria.
+        :param skip: Number of documents to skip (for pagination).
+        :param limit: Maximum number of documents to retrieve (for pagination).
+        :param sort: Optional list of tuples specifying sorting criteria (field, order).
+        :return: A list of matching conversation documents.
+        :raises ValueError: If the operation fails.
+        """
+        try:
+            filter_criteria = filter_criteria or {}
+            query = self.collection.find(filter_criteria).skip(skip).limit(limit)
+
+            if sort:
+                query = query.sort(sort)
+
+            return list(query)
+        except PyMongoError as e:
+            raise ValueError(f"Failed to list tasks with pagination: {e}")
 
     def create_task(self, task_data: Dict[str, Any]) -> str:
         """
@@ -83,7 +113,9 @@ class TaskRepository:
         except PyMongoError as e:
             raise ValueError(f"Failed to delete task: {e}")
 
-    def list_tasks(self, filter_criteria: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def list_tasks(
+        self, filter_criteria: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
         """
         List all tasks matching the given criteria.
 
