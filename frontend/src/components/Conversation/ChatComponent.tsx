@@ -205,6 +205,7 @@ export default function ChatComponent({ conversationId, conversationType, onConv
                 type: conversationType || "manual",
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
+                ...(conversationType === "webhex" && { details: { url: webHexInput } }),
             };
 
             socket.emit("on_stream_message_to_ai", message);
