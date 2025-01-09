@@ -11,11 +11,7 @@ const useLogout = () => {
     console.log("called")
     setLoading(true);
     try {
-      const res = await privateClient.post("/auth/logout", {}, {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      const res = await privateClient.get("/auth/logout");
       
       if (res.status !== 200) {
         throw new Error("Failed to log out");
