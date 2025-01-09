@@ -15,6 +15,7 @@ export const useReports = () => {
             user_id?: string;
             created_by?: string;
             message_id?: string;
+            conversation_id?: string;
             page?: number;
             page_size?: number;
             sort_by?: string;

@@ -28,9 +28,9 @@ const AgentListing: React.FC = () => {
     <Box
       component="main"
       sx={{
-        flexGrow: 1,
-        height: "100vh",
         display: "flex",
+        flexDirection: { xs: "column", md: "row" },
+        height: "100vh",
         bgcolor: "background.default",
       }}
     >
@@ -38,15 +38,22 @@ const AgentListing: React.FC = () => {
       <Box
         sx={{
           bgcolor: "#131D3B",
-          width: "300px",
-          height: "100vh",
-          padding: 5,
+          width: { xs: "100%", md: "300px" },
+          height: { xs: "auto", md: "100vh" },
+          padding: { xs: 2, md: 7 },
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
         }}
       >
-        <Typography variant="h6" sx={{ color: "white", marginBottom: 5 }}>
+        <Typography
+          variant="h6"
+          sx={{
+            color: "white",
+            marginBottom: { xs: 3, md: 10 },
+            textAlign: "center",
+          }}
+        >
           Available Agents
         </Typography>
 
@@ -61,7 +68,7 @@ const AgentListing: React.FC = () => {
           <Typography sx={{ color: "white" }}>No agents available</Typography>
         )}
 
-        <Stack spacing={2}>
+        <Stack spacing={2} sx={{ width: "100%" }}>
           {agents.map((agent) => (
             <NavLink
               key={agent._id}
@@ -69,71 +76,21 @@ const AgentListing: React.FC = () => {
               style={{ textDecoration: "none" }}
               activeStyle={{ color: "white" }}
             >
-              {({ isActive }: { isActive: boolean }) => (
-                <Button
-                  sx={{
-                    width: "250px",
-                    height: "40px",
-                    borderRadius: "8px",
-                    justifyContent: "space-between",
-                    backgroundColor: isActive ? "white" : "#1e293b",
-                    color: isActive ? "black" : "white",
-                    "&:hover": {
-                      backgroundColor: "#3b82f6",
-                    },
-                    display: "flex",
-                    alignItems: "center",
-                  }}
-                  onClick={() => handleButtonClick(agent._id)}
-                >
-                  <Typography
-                    sx={{
-                      textAlign: "left",
-                      flexGrow: 1,
-                      marginLeft: "8px",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                    }}
-                  >
-                    Agent: {agent.client_info.hostname}
-                  </Typography>
-                  <CircleIcon
-                    sx={{
-                      color: agent.status === "online" ? "green" : "gray",
-                      fontSize: "12px",
-                      marginRight: "8px",
-                      animation: agent.status === "online" ? `${pulsate} 1.5s infinite` : "none",
-                      borderRadius: "50%",
-                    }}
-                  />
-                  <Tooltip
-                    title={
-                      <Box>
-                        <Typography variant="body2">
-                          <strong>Hostname:</strong> {agent.client_info.hostname}
-                        </Typography>
-                        <Typography variant="body2">
-                          <strong>IP Address:</strong> {agent.client_info.ip}
-                        </Typography>
-                        <Typography variant="body2">
-                          <strong>Status:</strong> {agent.status}
-                        </Typography>
-                      </Box>
-                    }
-                    placement="top"
-                    arrow
-                  >
-                    <IconButton
-                      sx={{
-                        color: isActive ? "black" : "white",
-                        marginRight: "8px",
-                      }}
-                    >
-                      <InfoIcon />
-                    </IconButton>
-                  </Tooltip>
-                </Button>
-              )}
+              <Button
+                fullWidth
+                sx={{
+                  borderRadius: "5px",
+                  justifyContent: "center",
+                  backgroundColor: "#1e293b",
+                  color: "white",
+                  "&:hover": {
+                    backgroundColor: "#3b82f6",
+                  },
+                }}
+                onClick={() => handleButtonClick(agent._id)}
+              >
+                Agent: {agent.client_info.hostname}
+              </Button>
             </NavLink>
           ))}
         </Stack>

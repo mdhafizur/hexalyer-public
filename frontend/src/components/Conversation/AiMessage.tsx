@@ -1,24 +1,23 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Message } from "@app/messages/types/message.types";
-import { Paper, Typography, Avatar, Box, Link, Button, Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
+import { Paper, Typography, Avatar, Box, Button, Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import { formatDistanceToNow } from "date-fns";
 import ReactMarkdown from "react-markdown";
 import { commandClient } from "@app/axios.client";
+import ProgressModal from './ProgressModal';
+import ScanProgressData from "../../app/reports/hooks/ScanProgressData.json";
 
 const extractJson = (content: string): string | null => {
     try {
-        // Check if content is a valid JSON string
         const parsed = JSON.parse(content);
-        return JSON.stringify(parsed, null, 2); // Return the pretty-printed JSON string
+        return JSON.stringify(parsed, null, 2);
     } catch {
-        // If not a JSON string, fallback to regex
         const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/);
-        return jsonMatch ? jsonMatch[1] : null; // Extract the JSON block
+        return jsonMatch ? jsonMatch[1] : null;
     }
 };
 
-// Function to check if JSON has required keys
 const isJsonWithKeys = (content: string, requiredKeys: string[]): boolean => {
     try {
         const parsed = JSON.parse(content);
@@ -32,30 +31,29 @@ export function AiMessage({ message, agentId }: { message: Message; agentId?: st
     const { report, task } = message;
     const reportId = report?.report_id;
 
-    // Create the report URL if report_id exists
-    const reportUrl = reportId ? `/reports/${reportId}` : null;
+    const [open, setOpen] = useState(false);
+    const [progressOpen, setProgressOpen] = useState(false);
 
-    // Required keys for JSON validation
+    const handleOpen = useCallback(() => {
+        if (ScanProgressData.progress === 100) {
+            setOpen(true);
+        } else {
+            setProgressOpen(true);
+        }
+    }, []);
+
+    const handleClose = useCallback(() => setOpen(false), []);
+    const handleProgressClose = useCallback(() => setProgressOpen(false), []);
+
     const requiredKeys = ["description", "type", "scenario"];
-
-
-    // Extract JSON from message content
     const jsonContent = extractJson(message.content);
-
-    // Check if the extracted JSON is valid
     const isValidJson = jsonContent ? isJsonWithKeys(jsonContent, requiredKeys) : false;
-
-    // Parse JSON if valid
     const jsonData = isValidJson ? JSON.parse(jsonContent!) : null;
-
-    // Modal state for task details
     const [isTaskModalOpen, setTaskModalOpen] = useState(false);
 
-    // Handle API call
     const handleApiCall = async () => {
         if (jsonData) {
             try {
-                console.log("jsonData", jsonData)
                 const response = await commandClient.post(`/agents/${agentId}/commands`, jsonData.scenario);
                 const result = await response.data;
                 console.log("API Response:", result);
@@ -76,7 +74,6 @@ export function AiMessage({ message, agentId }: { message: Message; agentId?: st
                     mb: 1,
                 }}
             >
-                {/* Avatar for AI Icon */}
                 <Avatar
                     sx={{
                         mr: 2,
@@ -134,19 +131,16 @@ export function AiMessage({ message, agentId }: { message: Message; agentId?: st
                             </Button>
                         </Box>
                     )}
-                    {reportUrl && (
-                        <Typography
-                            variant="body2"
-                            sx={{
-                                mt: 1,
-                                display: "block",
-                                color: "primary.main",
-                            }}
+                    {message.type === "webhex" && (
+                        <Button
+                            variant="contained"
+                            color="secondary"
+                            aria-label="View Item"
+                            onClick={handleOpen}
+                            sx={{ mt: 1 }}
                         >
-                            <Link href={reportUrl} target="_blank" rel="noopener noreferrer">
-                                View Report
-                            </Link>
-                        </Typography>
+                            View Report
+                        </Button>
                     )}
                     <Typography
                         variant="caption"
@@ -157,7 +151,6 @@ export function AiMessage({ message, agentId }: { message: Message; agentId?: st
                 </Paper>
             </Box>
 
-            {/* Task Details Modal */}
             <Dialog open={isTaskModalOpen} onClose={() => setTaskModalOpen(false)} maxWidth="sm" fullWidth>
                 <DialogTitle>Task Details</DialogTitle>
                 <DialogContent>
@@ -203,6 +196,15 @@ export function AiMessage({ message, agentId }: { message: Message; agentId?: st
                     </Button>
                 </DialogActions>
             </Dialog>
+            {message.type === "webhex" && (
+                <>
+                    <ProgressModal
+                        open={progressOpen}
+                        onClose={handleProgressClose}
+                        reportId={reportId}
+                    />
+                </>
+            )}
         </>
     );
 }

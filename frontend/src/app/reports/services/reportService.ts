@@ -1,5 +1,5 @@
 import { Report } from '@app/reports/types/report.types';
-import { privateClient, publicClient } from '@app/axios.client';
+import { privateClient } from '@app/axios.client';
 import { BaseQueryParams } from '@app/base.types';
 
 export interface ReportQueryParams extends BaseQueryParams {

@@ -5,7 +5,6 @@ import {
   ListItemButton,
   ListItemText,
   Divider,
-  InputBase,
   Box,
   Typography,
   Tooltip,
@@ -14,30 +13,20 @@ import {
   useTheme,
 } from "@mui/material";
 import {
-  Search,
   Dashboard,
   Chat,
-  Apps,
   Settings,
   Logout,
-
-} from "@mui/icons-material";
-import { styled } from "@mui/system";
-import { useNavigate, useLocation } from "react-router-dom";
-import HexaLayerImage from "../assests/images/HexaLayer.png";
-import MenuOpenIcon from "@mui/icons-material/MenuOpen";
-import DnsIcon from "@mui/icons-material/Dns";
-import useLogout from "hooks/useLogout";
-
-
-const SearchContainer = styled("div")(() => ({
-  display: "flex",
-  alignItems: "center",
-  padding: "5px 10px",
-  borderRadius: "15px",
-  margin: "20px 10px",
-  backgroundColor: "#131D3B",
-}));
+} from '@mui/icons-material';
+import { styled } from '@mui/system';
+import { useNavigate, useLocation } from 'react-router-dom';
+import HexaLayerImage from '../assests/images/HexaLayer.png';
+import MenuOpenIcon from '@mui/icons-material/MenuOpen';
+import DnsIcon from '@mui/icons-material/Dns';
+import useLogout from 'hooks/useLogout';
+import AutoModeIcon from '@mui/icons-material/AutoMode';
+import SummarizeIcon from '@mui/icons-material/Summarize';
+import WebAssetIcon from '@mui/icons-material/WebAsset';
 
 const LeftSidebar: React.FC<{
   open: boolean;
@@ -55,7 +44,10 @@ const LeftSidebar: React.FC<{
     { label: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
     { label: 'Chats', icon: <Chat />, path: '/conversations' },
     { label: 'Agents', icon: <DnsIcon />, path: '/agents' },
-    { label: 'Reports', icon: <Apps />, path: '/reports' },
+    { label: 'Manual Reports', icon: <SummarizeIcon />, path: '/manual-reports' },
+    { label: 'Auto Reports', icon: <AutoModeIcon />, path: '/auto-reports' },
+    { label: 'Webhex Reports', icon: <WebAssetIcon />, path: '/webhex-reports' },
+
   ];
 
   const userItems = [
@@ -118,13 +110,6 @@ const LeftSidebar: React.FC<{
         )}
       </Box>
 
-      <SearchContainer>
-        <Search sx={{ color: "#fff" }} />
-        <InputBase
-          placeholder="Search"
-          sx={{ color: "white", marginLeft: "10px", flexGrow: 1 }}
-        />
-      </SearchContainer>
 
       <Divider />
 
