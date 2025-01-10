@@ -108,6 +108,7 @@ async def google_sign_in(
                     "".join(random.choices(string.ascii_letters + string.digits, k=12))
                 ),
             }
+            user_repo.create_user(user_data)
             existing_user = user_repo.get_user_by_email(email)
             message = "User registered and logged in successfully"
         else:
@@ -407,7 +408,7 @@ async def get_current_user(request: Request) -> UserResponse:
 
         # Ensure the token contains the user ID
         user_id = decode_token.get("sub")
-
+        print("1")
         if not user_id:
             raise HTTPException(
                 status_code=400, detail="Invalid token: user ID not found"
@@ -423,10 +424,8 @@ async def get_current_user(request: Request) -> UserResponse:
         # Remove password from the response
         user.pop("password", None)  # This will remove the 'password' key if it exists
 
-        # Handle the profile field (binary data)
-        if user.get("profile"):
-            # Convert binary data to a Base64 string
-            user["profile"] = base64.b64encode(user["profile"]).decode("utf-8")
+        # Convert the _id field to string
+        user["userId"] = str(user["_id"])
 
         return user
 
@@ -470,51 +469,43 @@ async def get_user(user_id: str, current_user: User = Depends(get_current_user))
 @router.patch("/user/{user_id}", response_model=Dict[str, str])
 async def update_user(
     user_id: str,
-    first_name: Optional[str] = Form(None),  # Make first_name optional
-    last_name: Optional[str] = Form(None),  # Make last_name optional
-    password: Optional[str] = Form(None),  # Make password optional
-    profile: Optional[UploadFile] = File(None),  # Use UploadFile for profile image
+    first_name: Optional[str] = Form(None),
+    last_name: Optional[str] = Form(None),
+    password: Optional[str] = Form(None),
+    confirm_password: Optional[str] = Form(None),
+    profile: Optional[UploadFile] = File(None),
 ) -> Dict[str, str]:
-    """
-    Endpoint to partially update user data by ID.
-    Returns a success message if the update is successful, or raises an HTTPException if the user is not found.
-    The email cannot be changed through this endpoint.
-    """
-    try:
-        # Convert the update fields, ensuring email is not included
-        update_fields = {}
+    update_fields = {}
 
-        # Only add the fields that were provided
-        if first_name is not None:
-            update_fields["first_name"] = first_name
-        if last_name is not None:
-            update_fields["last_name"] = last_name
-        if password is not None:
-            update_fields["password"] = password
+    # Handle optional fields
+    if first_name:
+        update_fields["first_name"] = first_name
+    if last_name:
+        update_fields["last_name"] = last_name
+    if password and confirm_password:
+        if password == confirm_password:
+            update_fields["password"] = auth_repo.hash_password(password)
+        else:
+            raise HTTPException(status_code=400, detail="Passwords do not match")
+    
+    # Handle profile image
+    if profile is not None:  # Ensure profile is an UploadFile
+        try:
+            # Read and encode image as a Base64 string
+            profile_content = await profile.read()
+            encoded_image = base64.b64encode(profile_content).decode("utf-8")
+            update_fields["profile"] = encoded_image
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to process profile image: {str(e)}")
+    elif profile is not None:
+        raise HTTPException(status_code=400, detail="Invalid file type for profile image")
+    
+    # Update user in the database
+    updated_count = user_repo.update_user(user_id, update_fields)
+    if updated_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
 
-        if profile is not None:
-            # Read the profile image as bytes
-            profile_content = await profile.read()  # Get file content as bytes
-
-            # Store the profile image content (bytes) in the database
-            update_fields["profile"] = (
-                profile_content  # Store in the 'profile' field as bytes
-            )
-
-        # Call the repository method to update the user
-        updated_count = user_repo.update_user(user_id, update_fields)
-
-        # Handle case where the user is not found
-        if updated_count == 0:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        return {"message": "User updated successfully"}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail="An error occurred while updating the user"
-        )
+    return {"message": "User updated successfully"}
 
 
 @router.delete("/user/{user_id}", response_model=Dict[str, str])

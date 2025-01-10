@@ -33,7 +33,7 @@ class GoogleSignInRequest(BaseModel):
     idToken: str
         
 class UserResponse(BaseModel):
-    _id: str
+    userId: str
     first_name: str  # The user's first name
     last_name: str  # The user's last name
     email: EmailStr
