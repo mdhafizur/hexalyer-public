@@ -190,13 +190,13 @@ class ScanService:
                 raw_alerts = details.get("alerts", [])
 
                 if raw_alerts:
-                    seen_cweids = set()
+                    seen_names = set()
                     unique_alerts = []
                     for alert in raw_alerts:
                         # Check if 'cweid' exists and is not a duplicate
-                        cweid = alert.get("cweid")
-                        if cweid and cweid not in seen_cweids:
-                            seen_cweids.add(cweid)
+                        alert_name = alert.get("name")
+                        if alert_name and alert_name not in seen_names:
+                            seen_names.add(alert_name)
                             unique_alerts.append(alert)
 
                 if raw_alerts:
@@ -211,13 +211,13 @@ class ScanService:
 
                     # Remove redundant CWE IDs from alerts
                     if raw_alerts:
-                        seen_cweids = set()
+                        seen_names = set()
                         unique_alerts = []
                         for alert in raw_alerts:
                             # Check if 'cweid' exists and is not a duplicate
-                            cweid = alert.get("cweid")
-                            if cweid and cweid not in seen_cweids:
-                                seen_cweids.add(cweid)
+                            alert_name = alert.get("name")
+                            if alert_name and alert_name not in seen_names:
+                                seen_names.add(alert_name)
                                 unique_alerts.append(alert)
 
                     logger.info(f"Fetched {len(unique_alerts)} alerts from ZAP.")
