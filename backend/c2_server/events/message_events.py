@@ -245,6 +245,93 @@ def handle_stream_to_ai_webhex(sio, sid, data):
     """
     Handle streaming of an AI response for a webhex message type.
     """
+    webhex_complete = data.pop("isWebhexComplete", None)
+    if webhex_complete:
+        message_data = MessageModel(**data).dict(by_alias=True)
+        # Convert `_id` and `conversation_id` to ObjectId if necessary
+        if "_id" in message_data and isinstance(message_data["_id"], str):
+            message_data["_id"] = ObjectId(message_data["_id"])
+        if "conversation_id" in message_data and isinstance(
+            message_data["conversation_id"], str
+        ):
+            message_data["conversation_id"] = ObjectId(message_data["conversation_id"])
+
+        # Save the initial message to the database
+        saved_message_id = message_repo.create_message(message_data)
+        saved_message = message_repo.get_message_by_id(saved_message_id)
+
+        # Create an AI message (empty content initially)
+        ai_message_data = {
+            "_id": ObjectId(),  # Create a new ObjectId for the message
+            "conversation_id": saved_message["conversation_id"],  # Conversation ID
+            "role": "assistant",  # The role is "assistant"
+            "content": "",  # Set the initial content as empty
+            "type": message_data["type"],
+            "created_at": current_utc_time().isoformat(),  # Timestamp
+            "updated_at": current_utc_time().isoformat(),  # Timestamp
+        }
+
+        # Save the AI message to the database
+        ai_saved_message_id = message_repo.create_message(ai_message_data)
+
+        # Optionally, retrieve the saved message by ID
+        ai_saved_message = message_repo.get_message_by_id(ai_saved_message_id)
+
+        # Variable to hold the complete content as chunks come in
+        complete_content = ""
+        try:
+            # Start streaming the AI response from the external AI client
+            logger.info(
+                "Streaming AI response for SID %s and message %s", sid, ai_saved_message
+            )
+
+            ai_message = MessageModel(**ai_saved_message).dict(by_alias=True)
+
+            # messages = message_repo.list_messages_with_pagination(
+            #     filter_criteria={
+            #         "conversation_id": ObjectId(message_data["conversation_id"])
+            #     },
+            #     skip=0,
+            #     limit=500,
+            #     sort=[("created_at", 1)],
+            # )
+
+            # message_history = [
+            #     {"role": message["role"], "content": message["content"]}
+            #     for message in messages
+            #     if message[
+            #         "content"
+            #     ].strip()  # Ignore messages with empty or whitespace-only content
+            # ]
+
+            # Using the XAIChatClient to stream the response
+            for chunk in deepseek_client.ask(saved_message.get("content"), stream=True):
+                # Append the chunk to the existing content in memory
+                complete_content += chunk  # Accumulate the chunks
+                ai_message["content"] = chunk
+                # Emit the chunk of the response back to the client
+                sio.emit(
+                    "ai_message_stream",
+                    ai_message,
+                    to=str(message_data["conversation_id"]),
+                )
+
+            # Once the streaming is complete, update the MongoDB message with the full content
+            ai_message["content"] = complete_content  # Set the complete content
+
+            # Before updating the message in MongoDB, remove the '_id' field from ai_message
+            if "_id" in ai_message:
+                del ai_message[
+                    "_id"
+                ]  # Remove the _id field to avoid MongoDB update errors
+
+            # Update the message in MongoDB with the full content
+            message_repo.update_message(ai_saved_message_id, ai_message)
+
+        except Exception as e:
+            logger.error("Error while streaming AI response: %s", str(e))
+            sio.emit("error", {"error": "Error while streaming AI response"}, to=sid)
+
     message = MessageModel(**data)
     message_data = message.dict(by_alias=True)
 
@@ -350,11 +437,9 @@ def handle_stream_to_ai_auto(sio, sid, data):
             )
 
             updated_content = (
-                f'{message["content"]}\n\nTask: {task}'
-                if task
-                else message["content"]
+                f'{message["content"]}\n\nTask: {task}' if task else message["content"]
             )
-            
+
             # Add the processed message as a dictionary to the message history
             message_history.append(
                 {"role": message["role"], "content": updated_content}
