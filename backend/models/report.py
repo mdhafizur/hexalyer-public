@@ -1,4 +1,4 @@
-from typing import Optional, Any
+from typing import Optional, Any, List
 from datetime import datetime
 from bson.objectid import ObjectId
 from models.base import PyObjectId, PaginatedResponseModel
@@ -13,27 +13,42 @@ class ReportModel(BaseModel):
     id: PyObjectId = Field(
         default_factory=PyObjectId, alias="_id", description="MongoDB ObjectId"
     )
-    message_id: PyObjectId = Field(
-        ...,
+    message_id: Optional[PyObjectId] = Field(
+        None,
         description="ID of the message associated with the report",
-        example="676714d997ed07aa9af95abb",  # Example ObjectId as a string
+        example="676714d997ed07aa9af95abb",
     )
     type: str = Field(
-        ..., description="Type of the report (simple string)", example="webhex"
+        ...,
+        description="Type of the report (e.g., 'webhex').",
+        example="webhex",
+    )
+    conversation_name: Optional[str] = Field(
+        None,
+        description="Name of the conversation associated with the report.",
+        example="WebHex Analysis Report",
+    )
+    data: Optional[List[Any]] = Field(
+        default_factory=list,
+        description="Optional additional details about the report.",
+        example=[
+            {"scan_id": "0", "url": "https://jinx-team.vercel.app/", "report": {}},
+            {"scan_id": "1", "url": "https://another-url.com/", "report": {}},
+        ],
     )
     details: Optional[Any] = Field(
         default_factory=dict,
-        description="Optional additional details about the report",
+        description="Detailed information about the report.",
         example={"scan_id": "0", "url": "https://jinx-team.vercel.app/", "report": {}},
     )
-    created_at: Optional[datetime] = Field(
+    created_at: datetime = Field(
         default_factory=datetime.utcnow,
-        description="Timestamp when the report was created",
+        description="Timestamp when the report was created.",
         example="2024-12-21T19:19:57.788091+00:00",
     )
-    updated_at: Optional[datetime] = Field(
+    updated_at: datetime = Field(
         default_factory=datetime.utcnow,
-        description="Timestamp when the report was last updated",
+        description="Timestamp when the report was last updated.",
         example="2024-12-21T19:19:57.788114+00:00",
     )
 
@@ -42,7 +57,8 @@ class ReportModel(BaseModel):
         """
         Convert string fields to PyObjectId during validation.
         """
-        for field in ["id", "message_id"]:
+        objectid_fields = ["id", "message_id"]
+        for field in objectid_fields:
             if field in values and isinstance(values[field], str):
                 try:
                     values[field] = PyObjectId(values[field])
@@ -54,19 +70,18 @@ class ReportModel(BaseModel):
 
     def dict(self, **kwargs):
         """
-        Override `dict` to ensure `created_at` and `updated_at` are serialized to strings.
+        Override `dict` to ensure proper serialization of ObjectId and timestamps.
         """
         kwargs["by_alias"] = True
         data = super().dict(**kwargs)
 
-        # Ensure `_id` is converted to a string if it exists and is an ObjectId
+        # Ensure `_id` and `message_id` are strings
         if "_id" in data and isinstance(data["_id"], ObjectId):
             data["_id"] = str(data["_id"])
-
-        # Ensure `message_id` is converted to a string if it exists and is an ObjectId
         if "message_id" in data and isinstance(data["message_id"], ObjectId):
             data["message_id"] = str(data["message_id"])
 
+        # Serialize datetime fields to ISO format
         if data.get("created_at"):
             data["created_at"] = data["created_at"].isoformat()
         if data.get("updated_at"):
@@ -75,7 +90,7 @@ class ReportModel(BaseModel):
 
     def json(self, **kwargs):
         """
-        Override `json` to ensure `created_at` and `updated_at` are serialized to strings.
+        Override `json` to ensure proper serialization of ObjectId and timestamps.
         """
         kwargs["by_alias"] = True
         return super().json(**kwargs)
@@ -92,6 +107,15 @@ class ReportModel(BaseModel):
                 "_id": "676714dc97ed07aa9af95abc",
                 "message_id": "676714d997ed07aa9af95abb",
                 "type": "webhex",
+                "conversation_name": "WebHex Analysis Report",
+                "data": [
+                    {
+                        "scan_id": "0",
+                        "url": "https://jinx-team.vercel.app/",
+                        "report": {},
+                    },
+                    {"scan_id": "1", "url": "https://another-url.com/", "report": {}},
+                ],
                 "details": {
                     "scan_id": "0",
                     "url": "https://jinx-team.vercel.app/",
