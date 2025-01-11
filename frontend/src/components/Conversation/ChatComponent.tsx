@@ -20,22 +20,26 @@ import ObjectId from "bson-objectid";
 import { Message } from "@app/messages/types/message.types";
 import { AiMessage } from "@components/Conversation/AiMessage";
 import { UserMessage } from "@components/Conversation/UserMessage";
-import { useNavigate } from "react-router-dom";
 import ReportIcon from "@mui/icons-material/Assessment"; // Import an appropriate icon
 import { useConversations } from '@app/conversations/hooks/useConversations';
 import { Alert, Snackbar } from "@mui/material"; // Import these components
+import { useNavigate } from 'react-router-dom';
 
 interface ChatComponentProps {
-    conversationId: string | "new";
-    conversationType: "manual" | "webhex" | "auto";
     onConversationCreated?: (conversationId: string) => void;
 }
 
-export default function ChatComponent({ conversationId, conversationType, onConversationCreated }: ChatComponentProps) {
+export default function ChatComponent({ onConversationCreated }: ChatComponentProps) {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
+
     const { loading: conversationLoading } = useAppSelector((state: RootState) => state.conversations);
     const { generateConversationReport, generateReportLoading, generateReportError } = useConversations();
+
+    // State Initialization
+    const [conversationId, setConversationId] = useState<string | "new">("new");
+    const [conversationType, setConversationType] = useState<"manual" | "webhex" | "auto">("manual");
+
 
     // Inside the component
     const [successAlert, setSuccessAlert] = useState(false);
@@ -49,6 +53,7 @@ export default function ChatComponent({ conversationId, conversationType, onConv
     const [connectedAgent, setConnectedAgent] = useState<string | null>(null);
     const [agentId, setAgentId] = useState<string | null>(null);
     const chatContainerRef = useRef<HTMLDivElement | null>(null);
+    const [isWebhexComplete, setIsWebhexComplete] = useState(false);
 
     const handleGenerateReport = async () => {
         if (generateReportLoading) return; // Prevent duplicate triggers
@@ -60,6 +65,7 @@ export default function ChatComponent({ conversationId, conversationType, onConv
             console.error("Error generating report:", generateReportError);
         }
     };
+
 
     // Utility Functions
     const isValidIPorURL = (input: string): boolean => {
@@ -123,6 +129,10 @@ export default function ChatComponent({ conversationId, conversationType, onConv
                         (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
                     );
                 });
+
+                if (conversationType === "webhex" && messages.length >= 2) {
+                    setIsWebhexComplete(true)
+                }
             }
             // setIsFetching(false);
         };
@@ -165,10 +175,11 @@ export default function ChatComponent({ conversationId, conversationType, onConv
             // socket.off("ai_message", handleAiMessage);
         };
 
-    }, [conversationId, addMessage, agentId]);
+    }, [conversationId, addMessage, agentId, conversationType]);
 
     // Join Room on Conversation ID Change
     useEffect(() => {
+
         if (conversationId !== "new" || conversationId == "new") {
             socket.emit("join_room", { conversation_id: conversationId });
             setMessages([]);
@@ -177,6 +188,12 @@ export default function ChatComponent({ conversationId, conversationType, onConv
         setValidationError(null);
         setInputValue("");
         setWebHexInput("")
+
+
+        // webhex
+        if (conversationType === "webhex") {
+            setIsWebhexComplete(true)
+        }
     }, [conversationId, conversationType]);
 
     // Scroll to Bottom on New Messages
@@ -194,6 +211,20 @@ export default function ChatComponent({ conversationId, conversationType, onConv
             setValidationError("Invalid input. Please enter a valid IP or URL.");
         }
     };
+
+    useEffect(() => {
+        // Split the URL into parts
+        const pathParts = location.pathname.split("/");
+
+        // Assuming the structure is `/chat/:conversationId/:conversationType`
+        const convId = pathParts[2]; // 12345
+        const convType = pathParts[3]; // manual
+
+        console.log("select conversationId", convId)
+        setConversationId(convId)
+        setConversationType(convType)
+
+    }, [location.pathname]);
 
     const handleSendMessage = async (customInputValue = inputValue) => {
         if (!customInputValue.trim()) return;
@@ -216,14 +247,20 @@ export default function ChatComponent({ conversationId, conversationType, onConv
                 _id: generatedId,
                 conversation_id: conversationId,
                 role: "user",
-                content: conversationType === "webhex" ? `WebHex request: ${customInputValue}` : customInputValue,
+                content: conversationType === "webhex" && isWebhexComplete === false ? `WebHex request: ${customInputValue}` : customInputValue,
                 type: conversationType || "manual",
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
                 ...(conversationType === "webhex" && { details: { url: webHexInput } }),
             };
 
-            socket.emit("on_stream_message_to_ai", message);
+            let tempMessage: any = {};
+            if (isWebhexComplete) {
+                tempMessage = message;
+                tempMessage['isWebhexComplete'] = true
+            }
+
+            socket.emit("on_stream_message_to_ai", tempMessage);
             addMessage(message);
             setInputValue("");
         } catch (error) {
@@ -365,10 +402,10 @@ export default function ChatComponent({ conversationId, conversationType, onConv
                     <Box sx={{ display: "flex", alignItems: "center" }}>
                         <TextField
                             fullWidth
-                            placeholder={conversationType === "webhex" ? "Enter Website IP or Domain. e.g. www.google.com" : "Type a message..."}
-                            value={conversationType === "webhex" ? webHexInput : inputValue}
+                            placeholder={conversationType === "webhex" && isWebhexComplete === false ? "Enter Website IP or Domain. e.g. www.google.com" : "Type a message..."}
+                            value={conversationType === "webhex" && isWebhexComplete === false ? webHexInput : inputValue}
                             onChange={(e) =>
-                                conversationType === "webhex"
+                                conversationType === "webhex" && isWebhexComplete == false
                                     ? handleWebHexInputChange(e.target.value)
                                     : setInputValue(e.target.value)
                             }
@@ -381,7 +418,7 @@ export default function ChatComponent({ conversationId, conversationType, onConv
                             onClick={() => handleSendMessage(webHexInput || inputValue)}
                             disabled={
                                 conversationLoading ||
-                                (conversationType === "webhex"
+                                (conversationType === "webhex" && isWebhexComplete == false
                                     ? isUrlChecking || !isWebhexUrlValid
                                     : !(inputValue.trim() || webHexInput.trim()))
                             }

@@ -49,9 +49,15 @@ export default function ConversationListingPage() {
   ];
 
   useEffect(() => {
+    // Split the URL into parts
     const pathParts = location.pathname.split("/");
-    const conversationId = pathParts[pathParts.length - 1];
-    setSelectedConversation(conversationId === "new" ? "new" : conversationId || null);
+
+    // Assuming the structure is `/chat/:conversationId/:conversationType`
+    const convId = pathParts[2]; // conversationId
+    // const conversationType = pathParts[3]; // conversationType
+
+    console.log("select conversationId", convId)
+    setSelectedConversation(convId === "new" ? "new" : convId || null);
   }, [location.pathname]);
 
   const handleCreateConversation = () => {
@@ -60,7 +66,7 @@ export default function ConversationListingPage() {
 
   const handleSelectConversationType = (conversationType: string) => {
     setSelectedConversation("new");
-    navigate(`/conversations/new?type=${conversationType}`);
+    navigate(`/conversations/new/${conversationType}`);
     setConversationType(conversationType as "auto" | "manual" | "webhex");
     setModalOpen(false);
   };
@@ -68,7 +74,9 @@ export default function ConversationListingPage() {
   const handleSelectConversation = (conversationId: string, conversationType: string) => {
     setSelectedConversation(conversationId);
     setConversationType(conversationType as "auto" | "manual" | "webhex");
-    navigate(`/conversations/${conversationId}`);
+    navigate(`/conversations/${conversationId}/${conversationType}`);
+    console.log("conversationType", conversationType)
+    console.log("conversationId", conversationId)
   };
 
   const handleStartEditing = (conversationId: string, currentTitle: string) => {
@@ -80,13 +88,13 @@ export default function ConversationListingPage() {
     if (editingConversationId) {
       const newTitle = editedTitles[conversationId]?.trim(); // Trim to avoid updates due to unnecessary spaces
       const currentTitle = conversations.find((c) => c._id === conversationId)?.title || "";
-  
+
       // Only proceed with update if the title has changed
       if (newTitle && newTitle !== currentTitle) {
         updateConversation(conversationId, { title: newTitle, created_by });
         fetchConversations();
       }
-  
+
       setEditingConversationId(null);
     }
   };
@@ -221,13 +229,13 @@ export default function ConversationListingPage() {
                         }}
                       >
                         {editingConversationId === conversation._id ? (
-                          <DoneAllIcon sx={{color: "white"}}/>
+                          <DoneAllIcon sx={{ color: "white" }} />
                         ) : (
-                          <DriveFileRenameOutlineIcon sx={{color: "white"}}/>
+                          <DriveFileRenameOutlineIcon sx={{ color: "white" }} />
                         )}
                       </IconButton>
                     </Tooltip>
-                    {conversation.type === "webhex" ? <WebAssetIcon/>: conversation.type === "auto" ? (<AutoModeIcon/>) : (<SummarizeIcon/>)}
+                    {conversation.type === "webhex" ? <WebAssetIcon /> : conversation.type === "auto" ? (<AutoModeIcon />) : (<SummarizeIcon />)}
                   </ListItemButton>
                 ))}
             </List>
@@ -248,7 +256,7 @@ export default function ConversationListingPage() {
         }}
       >
         {selectedConversation && conversationType ? (
-          <ChatComponent conversationId={selectedConversation} conversationType={conversationType} />
+          <ChatComponent />
         ) : (
           <Box
             sx={{

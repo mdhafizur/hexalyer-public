@@ -52,7 +52,7 @@ const router = createBrowserRouter([
             ),
           },
           {
-            path: ":conversationId",
+            path: ":conversationId/:conversationType",
             element: (
               <ProtectedRoute>
                 <ConversationListingPage />
