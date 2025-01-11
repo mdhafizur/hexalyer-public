@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from c2_server.events.utils import current_utc_time
 from db.message_repository import MessageRepository
 from db.report_repository import ReportRepository
+from models.report import ReportModel
 
 logger = logging.getLogger(__name__)
 
@@ -129,82 +130,127 @@ class ScanService:
             )
 
     async def fetch_scan_progress(self, report_id: str):
+        """
+        Fetches the scan progress and alerts for a given report ID.
+
+        Args:
+            report_id (str): The ID of the report to fetch progress for.
+
+        Returns:
+            dict: A dictionary containing the scan progress and alert details.
+
+        Raises:
+            HTTPException: If the report is not found, invalid, or an unexpected error occurs.
+        """
         try:
-            # Log the start of the process
             logger.info(f"Fetching scan progress for report_id: {report_id}")
 
-            # Fetch the report by its ID
+            # Retrieve the report from the repository
             report = self.report_repository.get_report_by_id(report_id)
             if not report:
+                logger.error(f"Report with ID {report_id} not found.")
                 raise HTTPException(status_code=404, detail="Report not found.")
 
-            # Extract scan_id and url
+            # Extract necessary details
             details = report.get("details", {})
             scan_id = details.get("scan_id")
             url = details.get("url")
 
             if not scan_id or not url:
+                logger.error(
+                    f"Missing scan_id or URL in report details for report_id: {report_id}"
+                )
                 raise HTTPException(
                     status_code=400,
                     detail="Scan ID or URL not found in the report details.",
                 )
 
-            # Log the scan_id and URL
             logger.info(f"Scan ID: {scan_id}, URL: {url}")
 
-            # Fetch scan progress data
+            # Fetch scan progress
             progress_data = await self.zap_service.make_request(
                 "ascan/view/status/", {"scanId": scan_id}
             )
-            logger.info(f"Received progress data: {progress_data}")
-
             progress_percentage = progress_data.get("status")
+
             if progress_percentage is None:
+                logger.error("Progress data not found in ZAP response.")
                 raise HTTPException(status_code=400, detail="Progress data not found.")
+
+            logger.info(f"Scan progress: {progress_percentage}%")
 
             # Fetch detailed scan progress
             scan_progress_response = await self.zap_service.make_request(
                 "ascan/view/scanProgress/", {"scanId": scan_id}
             )
             scan_progress_data = scan_progress_response.get("scanProgress", [])
-            logger.info(f"Scan progress data: {scan_progress_data}")
 
-            # If progress is 100%, fetch and update alerts
+            # Handle completion of the scan
             if progress_percentage == "100":
-                alerts = details.get("alerts", [])
-                if not alerts:  # If alerts are empty or not present
-                    logger.info("No alerts found in the report. Fetching from ZAP.")
+                raw_alerts = details.get("alerts", [])
+
+                if raw_alerts:
+                    seen_cweids = set()
+                    unique_alerts = []
+                    for alert in raw_alerts:
+                        # Check if 'cweid' exists and is not a duplicate
+                        cweid = alert.get("cweid")
+                        if cweid and cweid not in seen_cweids:
+                            seen_cweids.add(cweid)
+                            unique_alerts.append(alert)
+
+                if raw_alerts:
+                    logger.info(
+                        "No alerts found in the report. Fetching alerts from ZAP."
+                    )
 
                     alerts_data = await self.zap_service.make_request(
                         "core/view/alerts/", {"baseurl": url}
                     )
-                    logger.info(f"Received alerts data: {alerts_data}")
+                    raw_alerts = alerts_data.get("alerts", [])
 
-                    # Update the report with fetched alerts
-                    report["details"]["alerts"] = alerts_data.get("alerts", [])
+                    # Remove redundant CWE IDs from alerts
+                    if raw_alerts:
+                        seen_cweids = set()
+                        unique_alerts = []
+                        for alert in raw_alerts:
+                            # Check if 'cweid' exists and is not a duplicate
+                            cweid = alert.get("cweid")
+                            if cweid and cweid not in seen_cweids:
+                                seen_cweids.add(cweid)
+                                unique_alerts.append(alert)
 
-                    # Remove `_id` field for MongoDB updates
-                    report.pop("_id", None)
+                    logger.info(f"Fetched {len(unique_alerts)} alerts from ZAP.")
 
+                    # Update report with fetched alerts
+                    report["details"]["alerts"] = unique_alerts
+                    report.pop("_id", None)  # Remove MongoDB's internal field
                     self.report_repository.update_report(
                         report_id=report_id, update_data=report
                     )
-                    logger.info(f"Report updated with alerts.")
 
-                    # Update the related message with the updated report
+                    logger.info("Report updated with fetched alerts.")
+
+                    # Update related message with the updated report
                     message = self.message_repository.get_message_by_report_id(
                         report_id
                     )
                     if message:
+                        msg_id = str(
+                            message.pop("_id", None)
+                        )  # Remove MongoDB's internal field
                         message["report"] = report
-                        msg_id = str(message["_id"])
-                        message.pop("_id", None)
                         self.message_repository.update_message(
                             message_id=msg_id, update_data=message
                         )
-                        logger.info(f"Message updated with the latest report.")
+                        logger.info("Related message updated with the latest report.")
 
-            # Return raw JSON object
+                return {
+                    "progress": 100,
+                    "report": unique_alerts,
+                }
+
+            # Return progress and scan progress details
             return {
                 "progress": int(progress_percentage),
                 "scan_progress": (
@@ -216,7 +262,7 @@ class ScanService:
             logger.error(f"HTTPException: {http_exc.detail}")
             raise
         except Exception as e:
-            logger.error(f"Unexpected error in fetch_scan_progress: {str(e)}")
+            logger.exception("Unexpected error in fetch_scan_progress.")
             raise HTTPException(status_code=500, detail="Internal Server Error")
 
 
