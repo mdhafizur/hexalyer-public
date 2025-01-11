@@ -16,20 +16,30 @@ import {
   DialogContent,
   DialogActions,
   Button,
+  TextField,
   useMediaQuery,
   Theme,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import ChatComponent from "@components/Conversation/ChatComponent";
+import DriveFileRenameOutlineIcon from "@mui/icons-material/DriveFileRenameOutline";
+import DoneAllIcon from "@mui/icons-material/DoneAll";
+import AutoModeIcon from '@mui/icons-material/AutoMode';
+import SummarizeIcon from '@mui/icons-material/Summarize';
+import WebAssetIcon from '@mui/icons-material/WebAsset';
+
 
 export default function ConversationListingPage() {
-  const { conversations, loading, error } = useConversations();
+  const { fetchConversations, updateConversation, conversations, loading, error } = useConversations();
   const navigate = useNavigate();
   const location = useLocation();
 
   const isSmallScreen = useMediaQuery((theme: Theme) => theme.breakpoints.down("md"));
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
-  const [modalOpen, setModalOpen] = useState(false); // State for the modal
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingConversationId, setEditingConversationId] = useState<string | null>(null);
+  const [editedTitles, setEditedTitles] = useState<Record<string, string>>({});
+
   const [conversationType, setConversationType] = useState<"auto" | "manual" | "webhex">("manual");
 
   const conversationTypes = [
@@ -38,7 +48,6 @@ export default function ConversationListingPage() {
     { label: "Auto Chat", value: "auto", description: "A one-on-one chat between two individuals." },
   ];
 
-  // Extract the conversation ID or "new" from the URL
   useEffect(() => {
     const pathParts = location.pathname.split("/");
     const conversationId = pathParts[pathParts.length - 1];
@@ -46,22 +55,40 @@ export default function ConversationListingPage() {
   }, [location.pathname]);
 
   const handleCreateConversation = () => {
-    setModalOpen(true); // Open the modal
+    setModalOpen(true);
   };
 
   const handleSelectConversationType = (conversationType: string) => {
     setSelectedConversation("new");
-    navigate(`/conversations/new?type=${conversationType}`); // Update URL with conversation type
+    navigate(`/conversations/new?type=${conversationType}`);
     setConversationType(conversationType as "auto" | "manual" | "webhex");
-    setModalOpen(false); // Close the modal
+    setModalOpen(false);
   };
 
   const handleSelectConversation = (conversationId: string, conversationType: string) => {
-    console.log("conversationId", conversationId)
-    console.log("conversationType", conversationType)
     setSelectedConversation(conversationId);
     setConversationType(conversationType as "auto" | "manual" | "webhex");
     navigate(`/conversations/${conversationId}`);
+  };
+
+  const handleStartEditing = (conversationId: string, currentTitle: string) => {
+    setEditingConversationId(conversationId);
+    setEditedTitles((prev) => ({ ...prev, [conversationId]: currentTitle }));
+  };
+
+  const handleSaveTitle = (conversationId: string, created_by: string) => {
+    if (editingConversationId) {
+      const newTitle = editedTitles[conversationId]?.trim(); // Trim to avoid updates due to unnecessary spaces
+      const currentTitle = conversations.find((c) => c._id === conversationId)?.title || "";
+  
+      // Only proceed with update if the title has changed
+      if (newTitle && newTitle !== currentTitle) {
+        updateConversation(conversationId, { title: newTitle, created_by });
+        fetchConversations();
+      }
+  
+      setEditingConversationId(null);
+    }
   };
 
   return (
@@ -162,13 +189,45 @@ export default function ConversationListingPage() {
                       },
                     })}
                   >
-                    <ListItemText
-                      primary={conversation.title || `Chat ${conversation._id}`}
-                      primaryTypographyProps={{
-                        variant: "body1",
-                        noWrap: true,
-                      }}
-                    />
+                    {editingConversationId === conversation._id ? (
+                      <TextField
+                        size="small"
+                        value={editedTitles[conversation._id] || ""}
+                        onChange={(e) =>
+                          setEditedTitles((prev) => ({ ...prev, [conversation._id]: e.target.value }))
+                        }
+                        onBlur={() => handleSaveTitle(conversation._id, conversation.created_by)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            handleSaveTitle(conversation._id, conversation.created_by);
+                          }
+                        }}
+                        autoFocus
+                      />
+                    ) : (
+                      <ListItemText
+                        primary={conversation.title || `Chat ${conversation._id}`}
+                        primaryTypographyProps={{
+                          variant: "body1",
+                          noWrap: true,
+                        }}
+                      />
+                    )}
+                    <Tooltip title="Rename">
+                      <IconButton
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartEditing(conversation._id, conversation.title || "");
+                        }}
+                      >
+                        {editingConversationId === conversation._id ? (
+                          <DoneAllIcon sx={{color: "white"}}/>
+                        ) : (
+                          <DriveFileRenameOutlineIcon sx={{color: "white"}}/>
+                        )}
+                      </IconButton>
+                    </Tooltip>
+                    {conversation.type === "webhex" ? <WebAssetIcon/>: conversation.type === "auto" ? (<AutoModeIcon/>) : (<SummarizeIcon/>)}
                   </ListItemButton>
                 ))}
             </List>
@@ -218,7 +277,14 @@ export default function ConversationListingPage() {
                 sx={{ mb: 1 }}
                 onClick={() => handleSelectConversationType(type.value)}
               >
-                {type.label}
+                {type.value === "webhex" ? (
+                  <WebAssetIcon />
+                ) : type.value === "auto" ? (
+                  <AutoModeIcon />
+                ) : (
+                  <SummarizeIcon />
+                )}
+                <span style={{ marginLeft: 8 }}>{type.label}</span>
               </Button>
             </Tooltip>
           ))}

@@ -88,7 +88,7 @@ export function AiMessage({ message, agentId }: { message: Message; agentId?: st
                 <Paper
                     elevation={3}
                     sx={{
-                        p: 1.5,
+                        p: 3,
                         maxWidth: "70%",
                         bgcolor: "grey.200",
                         color: "primary.contrastText",

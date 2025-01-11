@@ -219,13 +219,6 @@ export default function ChatComponent({ conversationId, conversationType, onConv
     // Render
     return (
         <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-            <AppBar position="static">
-                <Toolbar>
-                    <Typography variant="h6">
-                        {conversationId === "new" ? `New Conversation - ${conversationType}` : `Conversation: ${conversationId} - ${conversationType}`}
-                    </Typography>
-                </Toolbar>
-            </AppBar>
             <Box ref={chatContainerRef} sx={{ flexGrow: 1, overflowY: "auto" }}>
                 {loading ? (
                     <CircularProgress />
