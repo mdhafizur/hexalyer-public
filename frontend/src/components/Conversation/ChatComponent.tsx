@@ -238,8 +238,8 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
                 if (createConversationThunk.fulfilled.match(resultAction)) {
                     const newConversation = resultAction.payload;
                     onConversationCreated?.(newConversation._id);
-                    navigate(`/conversations/${newConversation._id}`);
-                    conversationId = newConversation._id;
+                    navigate(`/conversations/${newConversation._id}/${newConversation.type}`);
+                    setConversationId(newConversation._id)
                 }
             }
 
@@ -351,8 +351,9 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
                                     if (createConversationThunk.fulfilled.match(resultAction)) {
                                         const newConversation = resultAction.payload;
                                         onConversationCreated?.(newConversation._id);
-                                        navigate(`/conversations/${newConversation._id}`);
+                                        navigate(`/conversations/${newConversation._id}/${newConversation.type}`);
                                         targetConversationId = newConversation._id;
+                                        setConversationId(newConversation._id)
                                     } else {
                                         console.error("Failed to create conversation");
                                         return; // Exit if the conversation creation fails

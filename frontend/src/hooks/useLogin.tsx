@@ -12,7 +12,7 @@ interface LoginData {
 
 const useLogin = () => {
   const [loading, setLoading] = useState(false);
-  const {  setIsAuthenticated } = useAuthContext();
+  const { setIsAuthenticated } = useAuthContext();
   const navigate = useNavigate();
 
   const login = async ({ email, password }: LoginData) => {
@@ -43,10 +43,10 @@ const useLogin = () => {
 
       localStorage.setItem("isAuthenticated", "true");
       setIsAuthenticated(true);
-      navigate('/'); // Redirect to home page after successful login
+      navigate('/dashboard'); // Redirect to home page after successful login
       toast.success("Login successful");
 
-      
+
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
         const errorMessage = mapErrorCodeToMessage(error.response.status, error.response.data);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Drawer,
   List,
@@ -22,7 +22,7 @@ import {
   Logout,
 } from '@mui/icons-material';
 import { styled } from '@mui/system';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import HexaLayerImage from '../assests/images/HexaLayer.png';
 import MenuOpenIcon from '@mui/icons-material/MenuOpen';
 import DnsIcon from '@mui/icons-material/Dns';
@@ -42,21 +42,33 @@ const LeftSidebar: React.FC<{
   setSidebarOpen: (open: boolean) => void;
 }> = ({ open, setSidebarOpen }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const [selectedItem, setSelectedItem] = useState<string>('Dashboard'); // Track selected item
-  const { logout } = useLogout(); // Use the useLogout hook
+  const { logout } = useLogout();
 
+  const sidebarItems = [
+    { label: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
+    { label: 'Chats', icon: <Chat />, path: '/conversations' },
+    { label: 'Agents', icon: <DnsIcon />, path: '/agents' },
+    { label: 'Reports', icon: <Apps />, path: '/reports' },
+  ];
+
+  const userItems = [
+    { label: 'User Settings', icon: <Settings />, path: '/user-profile' },
+    { label: 'Logout', icon: <Logout />, path: '/login' },
+  ];
 
   const handleNavigation = (path: string, label: string) => {
-    setSelectedItem(label);
     if (label === 'Logout') {
       logout(); // Call the logout function
     }
     navigate(path);
     if (isMobile) setSidebarOpen(false); // Close sidebar on mobile after navigation
   };
+
+  const isSelected = (path: string) => location.pathname.startsWith(path);
 
   return (
     <Drawer
@@ -104,21 +116,17 @@ const LeftSidebar: React.FC<{
       <Divider />
 
       <List>
-        {[
-          { label: 'Dashboard', icon: <Dashboard />, path: '/' },
-          { label: 'Chats', icon: <Chat />, path: '/conversations' },
-          { label: 'Agents', icon: <DnsIcon />, path: '/agents' },
-          { label: 'Reports', icon: <Apps />, path: '/reports' },
-        ].map((item) => (
+        {sidebarItems.map((item) => (
           <Tooltip key={item.label} title={item.label}>
             <ListItemButton
               onClick={() => handleNavigation(item.path, item.label)}
               sx={{
-                padding: '10px 20px', // Add more padding to left and right
-                backgroundColor:
-                  selectedItem === item.label ? theme.palette.background.default : 'transparent',
+                padding: '10px 20px',
+                backgroundColor: isSelected(item.path)
+                  ? theme.palette.background.default
+                  : 'transparent',
                 borderRadius: '12px 0px 0px 12px',
-                marginLeft: selectedItem === item.label ? '15px' : '0px',
+                marginLeft: isSelected(item.path) ? '15px' : '0px',
                 '&:hover': { backgroundColor: theme.palette.action.hover },
               }}
             >
@@ -134,15 +142,15 @@ const LeftSidebar: React.FC<{
       <Divider />
 
       <List sx={{ marginTop: 'auto' }}>
-        {[
-          { label: 'User Settings', icon: <Settings />, path: '/user-profile' },
-          { label: 'Logout', icon: <Logout />, path: '/login' },
-        ].map((item) => (
+        {userItems.map((item) => (
           <Tooltip key={item.label} title={item.label}>
             <ListItemButton
               onClick={() => handleNavigation(item.path, item.label)}
               sx={{
-                padding: '10px 20px', // Add more padding to left and right
+                padding: '10px 20px',
+                backgroundColor: isSelected(item.path)
+                  ? theme.palette.background.default
+                  : 'transparent',
                 '&:hover': { backgroundColor: theme.palette.action.hover },
               }}
             >
