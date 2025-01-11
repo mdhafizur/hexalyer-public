@@ -1,17 +1,13 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ResponsiveLine } from "@nivo/line";
-import { Box } from "@mui/material";
-import statsData from "../../assests/dummy-data/statsData.json";
-
-// Define the type for the task
-interface Task {
-  date: string;
-  // Add other properties that exist in each task object
-}
+import { Box, CircularProgress, Typography } from "@mui/material";
+import { useTaskData } from '../../hooks/useTaskData';
 
 interface ChartDataPoint {
   x: string;
   y: number;
+  agent_ids: string[]; // Changed to array to store multiple agent IDs
 }
 
 interface LineChartData {
@@ -21,35 +17,99 @@ interface LineChartData {
 }
 
 const TaskCompletionTrends: React.FC = () => {
+  const navigate = useNavigate();
+  const { tasks, loading, error, noData } = useTaskData();
   const [chartData, setChartData] = useState<LineChartData[]>([]);
 
   useEffect(() => {
-    // Aggregate tasks by date
-    const taskCountsByDate: { [key: string]: number } = {};
-    statsData.forEach((task: Task) => {
-      const date = task.date;
-      taskCountsByDate[date] = (taskCountsByDate[date] || 0) + 1;
-    });
+    if (tasks.length > 0) {
+      // Create a map to aggregate tasks by date
+      const tasksByDate = new Map<string, { count: number; agent_ids: string[] }>();
 
-    // Sort dates in chronological order
-    const sortedDates = Object.keys(taskCountsByDate).sort(
-      (a, b) => new Date(a).getTime() - new Date(b).getTime()
+      tasks.forEach((task) => {
+        const date = new Date(task.completed_at).toLocaleDateString("en-US");
+
+        if (!tasksByDate.has(date)) {
+          tasksByDate.set(date, { count: 0, agent_ids: [] });
+        }
+
+        const dateData = tasksByDate.get(date)!;
+        dateData.count += 1;
+        dateData.agent_ids.push(task.agent_id);
+      });
+
+      // Convert map to sorted array of data points
+      const sortedDates = Array.from(tasksByDate.keys()).sort(
+        (a, b) => new Date(a).getTime() - new Date(b).getTime()
+      );
+
+      const aggregatedData = sortedDates.map(date => ({
+        x: date,
+        y: tasksByDate.get(date)!.count,
+        agent_ids: tasksByDate.get(date)!.agent_ids
+      }));
+
+      const chartData: LineChartData[] = [
+        {
+          id: "Task Completion",
+          color: "hsl(220, 70%, 50%)",
+          data: aggregatedData,
+        },
+      ];
+
+      setChartData(chartData);
+    }
+  }, [tasks]);
+
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "400px",
+        }}
+      >
+        <CircularProgress />
+      </Box>
     );
+  }
 
-    // Transform data for Nivo Line Chart
-    const transformedData: LineChartData[] = [
-      {
-        id: "Tasks Completed",
-        color: "hsl(220, 70%, 50%)",
-        data: sortedDates.map((date) => ({
-          x: date,
-          y: taskCountsByDate[date],
-        })),
-      },
-    ];
+  if (error) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "400px",
+          bgcolor: 'background.default',
+        }}
+      >
+        <Typography variant="h6" color="error">
+          Error loading data: {error.message}
+        </Typography>
+      </Box>
+    );
+  }
 
-    setChartData(transformedData);
-  }, []);
+  if (noData || chartData.length === 0) {
+    return (
+      <Box sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '350px',
+        width: '100%',
+        minWidth: '350px',
+        bgcolor: 'background.default',
+      }}>
+        <Typography variant="h6" color="textSecondary">No data available for Task Radar</Typography>
+      </Box>
+    );
+  }
+
 
   return (
     <Box
@@ -68,7 +128,7 @@ const TaskCompletionTrends: React.FC = () => {
         xScale={{ type: "point" }}
         yScale={{
           type: "linear",
-          min: "auto",
+          min: 0, // Set minimum to 0 to better show task counts
           max: "auto",
           stacked: false,
           reverse: false,
@@ -121,7 +181,7 @@ const TaskCompletionTrends: React.FC = () => {
             translateY: 0,
             itemsSpacing: 0,
             itemDirection: "left-to-right",
-            itemWidth: 80,
+            itemWidth: 93,
             itemHeight: 20,
             itemOpacity: 0.75,
             symbolSize: 12,
@@ -138,17 +198,31 @@ const TaskCompletionTrends: React.FC = () => {
             ],
           },
         ]}
+        onClick={(point) => {
+          // Modified to handle multiple agent IDs
+          const agent_ids = (point.data as unknown as ChartDataPoint).agent_ids;
+          if (agent_ids && agent_ids.length > 0) {
+            // For now, navigate to the first agent's page
+            // You might want to modify this to show a selection dialog
+            navigate(`/agents/${agent_ids[0]}`);
+          }
+        }}
         theme={{
           axis: {
             ticks: {
               text: {
-                fill: "#ffffff", // Change tick text color to white
+                fill: "#ffffff",
               },
             },
             legend: {
               text: {
-                fill: "#ffffff", // Change legend text color to white
+                fill: "#ffffff",
               },
+            },
+          },
+          legends: {
+            text: {
+              fill: "#ffffff",
             },
           },
         }}

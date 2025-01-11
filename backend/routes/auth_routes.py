@@ -129,7 +129,7 @@ async def google_sign_in(
             httponly=True,
             samesite="Lax",
             secure=False,
-            max_age=20 * 60,  # 20 minutes in seconds
+            max_age=30 * 60,  # 30 minutes in seconds
         )
         response.set_cookie(
             key="refresh_token",
@@ -137,7 +137,7 @@ async def google_sign_in(
             httponly=True,
             samesite="Lax",
             secure=False,
-            max_age=20 * 60,  # 20 minutes in seconds
+            max_age=30 * 60,  # 30 minutes in seconds
         )
 
         return {"message": message}
@@ -318,7 +318,7 @@ async def login_user(
             httponly=True,
             samesite="Lax",
             secure=False,
-            max_age=20 * 60,
+            max_age=30 * 60,
         )
         response.set_cookie(
             key="refresh_token",
@@ -326,7 +326,7 @@ async def login_user(
             httponly=True,
             samesite="Lax",
             secure=False,
-            max_age=20 * 60,
+            max_age=30 * 60,
         )
         print(jwt.decode(access_token, SECRET_KEY, algorithms=["HS256"]))
 
@@ -371,7 +371,7 @@ async def refresh_token(request: Request, response: Response):
             httponly=True,
             samesite="Lax",
             secure=False,
-            max_age=20 * 60,
+            max_age=30 * 60,
         )
         response.set_cookie(
             key="refresh_token",
@@ -379,7 +379,7 @@ async def refresh_token(request: Request, response: Response):
             httponly=True,
             samesite="Lax",
             secure=False,
-            max_age=20 * 60,
+            max_age=30 * 60,
         )
         return {
             "message": "success",

@@ -4,7 +4,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Carousel } from "react-responsive-carousel";
 import "react-responsive-carousel/lib/styles/carousel.min.css";
 import "./carousel.css"; // Import the custom CSS
-import Group from "../assests/images/Group.png";
+import Image1 from "../assests/images/Image_1.png";
+import Image2 from "../assests/images/Image_2.png";
+import Image3 from "../assests/images/Image_3.png";
+import Image4 from "../assests/images/Image_4.png";
 import toast, { Toaster } from "react-hot-toast";
 import { Global, css } from '@emotion/react';
 import { privateClient } from '@app/axios.client';
@@ -88,23 +91,30 @@ const ResetPassword: React.FC = () => {
             >
               <div>
                 <img
-                  src={Group}
-                  alt="Slide 1"
-                  style={{ width: "100%", height: "100%", objectFit: "contain" }}
-                />
-              </div>
-              <div>
-                <img
-                  src={Group}
-                  alt="Slide 2"
-                  style={{ width: "100%", height: "100%", objectFit: "contain" }}
-                />
-              </div>
-              <div>
-                <img
-                  src={Group}
+                  src={Image4}
                   alt="Slide 3"
-                  style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                  style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 10 }}
+                />
+              </div>
+              <div>
+                <img
+                  src={Image1}
+                  alt="Slide 1"
+                  style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 10 }}
+                />
+              </div>
+              <div>
+                <img
+                  src={Image2}
+                  alt="Slide 2"
+                  style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 10 }}
+                />
+              </div>
+              <div>
+                <img
+                  src={Image3}
+                  alt="Slide 3"
+                  style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 10 }}
                 />
               </div>
             </Carousel>

@@ -1,15 +1,23 @@
 # routes/task_routes.py
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from db.task_repository import TaskRepository
+from db.agent_repository import AgentRepository
 from bson import ObjectId
 from bson.json_util import dumps
 from models.task import TaskModel, TaskPaginatedResponseModel
+from jose import jwt, JWTError
+import os
+
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM")
 
 # Create an instance of the TaskRepository
 task_repo = TaskRepository()
+agent_repo = AgentRepository()
 
 # Create a FastAPI router for task routes
 router = APIRouter()
@@ -193,14 +201,41 @@ async def delete_task(task_id: str):
 
 @router.get("/", response_model=List[TaskModel])
 async def list_tasks(
+    request: Request,
     agent_id: Optional[str] = Query(None, description="Filter by agent_id"),
 ):
     """
     Endpoint to list tasks with optional filters.
     """
     try:
-        filter_criteria = {}
+                # Get the access token from the cookies
+        token = request.cookies.get("access_token")
+        if not token:
+            raise HTTPException(status_code=401, detail="Token not found")
+
+        # Decode the token to get the user ID (sub)
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            user_id = payload.get("sub")
+            if not user_id:
+                raise HTTPException(status_code=400, detail="Invalid token: user ID not found")
+            print(f"Current user ID: {user_id}")
+        except JWTError:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        filter_criteria = {"conversation.user_id": user_id}
         tasks = task_repo.list_tasks(filter_criteria)
+        for task in tasks:
+            agent_id = task.get("agent_id")
+            if agent_id:
+                agent_details = agent_repo.get_agent_by_id(str(agent_id))
+                if agent_details and "client_info" in agent_details:
+                    hostname = agent_details["client_info"].get("hostname")
+                    agent_object_id = agent_details.get("_id")
+                    print("Agent object id" , agent_object_id)
+                    if hostname:
+                        task["agent_name"] = hostname
+                        task["agent_id"] = str(agent_object_id)
         return tasks
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

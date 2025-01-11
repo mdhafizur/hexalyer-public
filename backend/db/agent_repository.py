@@ -37,8 +37,6 @@ class AgentRepository:
         :raises ValueError: If the ID is invalid or retrieval fails.
         """
         try:
-            if not ObjectId.is_valid(agent_id):
-                raise ValueError(f"Invalid agent ID: {agent_id}")
             return self.collection.find_one({"agent_id": agent_id})
         except PyMongoError as e:
             raise ValueError(f"Failed to retrieve agent with ID {agent_id}: {str(e)}")

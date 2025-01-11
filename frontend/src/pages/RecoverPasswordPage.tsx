@@ -11,7 +11,10 @@ import { Carousel } from "react-responsive-carousel";
 import "react-responsive-carousel/lib/styles/carousel.min.css";
 import "./carousel.css"; // Import the custom CSS
 import { Global, css } from "@emotion/react";
-import Group from "../assests/images/Group.png";
+import Image1 from "../assests/images/Image_1.png";
+import Image2 from "../assests/images/Image_2.png";
+import Image3 from "../assests/images/Image_3.png";
+import Image4 from "../assests/images/Image_4.png";
 import toast, { Toaster } from "react-hot-toast";
 import { privateClient } from "@app/axios.client";
 
@@ -44,14 +47,14 @@ const RecoverPasswordPage: React.FC = () => {
       } else {
         toast.error("An unknown error occurred");
       }
-    } 
+    }
   };
 
   return (
     <>
-    {/* Global Styles */}
-    <Global
-      styles={css`
+      {/* Global Styles */}
+      <Global
+        styles={css`
         body, html {
           margin: 0;
           padding: 0;
@@ -59,49 +62,56 @@ const RecoverPasswordPage: React.FC = () => {
           background-color: #202840;
         }
       `}
-    />
+      />
 
-    <Box sx={pageContainerStyle}>
-      {/* Right Illustration Content */}
-      <Box sx={illustrationContainerStyle}>
-        <Box sx={illustrationBoxStyle}>
-          <Carousel
-            showThumbs={false}
-            autoPlay
-            infiniteLoop
-            showStatus={false}
-            emulateTouch
-            interval={5000}
-            showArrows={false}
-          >
-            <div>
-              <img
-                src={Group}
-                alt="Slide 1"
-                style={{ width: "100%", height: "100%", objectFit: "contain" }}
-              />
-            </div>
-            <div>
-              <img
-                src={Group}
-                alt="Slide 2"
-                style={{ width: "100%", height: "100%", objectFit: "contain" }}
-              />
-            </div>
-            <div>
-              <img
-                src={Group}
-                alt="Slide 3"
-                style={{ width: "100%", height: "100%", objectFit: "contain" }}
-              />
-            </div>
-          </Carousel>
+      <Box sx={pageContainerStyle}>
+        {/* Right Illustration Content */}
+        <Box sx={illustrationContainerStyle}>
+          <Box sx={illustrationBoxStyle}>
+            <Carousel
+              showThumbs={false}
+              autoPlay
+              infiniteLoop
+              showStatus={false}
+              emulateTouch
+              interval={5000}
+              showArrows={false}
+            >
+              <div>
+                <img
+                  src={Image4}
+                  alt="Slide 3"
+                  style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 10 }}
+                />
+              </div>
+              <div>
+                <img
+                  src={Image1}
+                  alt="Slide 1"
+                  style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 10 }}
+                />
+              </div>
+              <div>
+                <img
+                  src={Image2}
+                  alt="Slide 2"
+                  style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 10 }}
+                />
+              </div>
+              <div>
+                <img
+                  src={Image3}
+                  alt="Slide 3"
+                  style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 10 }}
+                />
+              </div>
+            </Carousel>
+          </Box>
         </Box>
-      </Box>
 
-      {/* Left Content */}
-      {/* Left Content */}
-      <Box sx={leftContentStyle}>
+        {/* Left Content */}
+        {/* Left Content */}
+        <Box sx={leftContentStyle}>
           <Typography variant="h4" gutterBottom fontWeight="600">
             Recover your password
           </Typography>
@@ -154,56 +164,56 @@ const RecoverPasswordPage: React.FC = () => {
           )}
         </Box>
       </Box>
-    <Toaster />
-  </>
-);
+      <Toaster />
+    </>
+  );
 };
 
 /* Emotion Styles */
 const pageContainerStyle = {
-display: 'flex',
-alignItems: 'center',
-height: '100vh',
-color: '#fff',
-fontFamily: 'Arial, sans-serif',
-margin: '0 10%',
-justifyContent: 'space-between',
+  display: 'flex',
+  alignItems: 'center',
+  height: '100vh',
+  color: '#fff',
+  fontFamily: 'Arial, sans-serif',
+  margin: '0 10%',
+  justifyContent: 'space-between',
 
-'@media (max-width: 768px)': {
-  flexDirection: 'column',
-  margin: '0 5%',
-  textAlign: 'center',
-},
+  '@media (max-width: 768px)': {
+    flexDirection: 'column',
+    margin: '0 5%',
+    textAlign: 'center',
+  },
 };
 
 const leftContentStyle = {
-flex: 1,
-textAlign: 'left',
+  flex: 1,
+  textAlign: 'left',
 
-'@media (max-width: 768px)': {
-  marginBottom: '30px',
-},
+  '@media (max-width: 768px)': {
+    marginBottom: '30px',
+  },
 };
 
 const illustrationContainerStyle = {
-flex: 1,
-display: 'flex',
-justifyContent: 'center',
-alignItems: 'center',
+  flex: 1,
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
 };
 
 const illustrationBoxStyle = {
-backgroundColor: '#2a385d',
-borderRadius: '20px',
-padding: '20px',
-boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.3)',
-maxWidth: '450px',
-width: '100%',
-textAlign: 'center',
+  backgroundColor: '#2a385d',
+  borderRadius: '20px',
+  padding: '20px',
+  boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.3)',
+  maxWidth: '450px',
+  width: '100%',
+  textAlign: 'center',
 
-'@media (max-width: 768px)': {
-  padding: '15px',
-},
+  '@media (max-width: 768px)': {
+    padding: '15px',
+  },
 };
 
 export default RecoverPasswordPage;

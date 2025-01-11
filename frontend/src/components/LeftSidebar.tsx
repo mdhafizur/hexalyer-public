@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   Drawer,
   List,
@@ -12,7 +12,7 @@ import {
   Button,
   useMediaQuery,
   useTheme,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Search,
   Dashboard,
@@ -20,21 +20,23 @@ import {
   Apps,
   Settings,
   Logout,
-} from '@mui/icons-material';
-import { styled } from '@mui/system';
-import { useNavigate, useLocation } from 'react-router-dom';
-import HexaLayerImage from '../assests/images/HexaLayer.png';
-import MenuOpenIcon from '@mui/icons-material/MenuOpen';
-import DnsIcon from '@mui/icons-material/Dns';
-import useLogout from 'hooks/useLogout';
 
-const SearchContainer = styled('div')(() => ({
-  display: 'flex',
-  alignItems: 'center',
-  padding: '5px 10px',
-  borderRadius: '15px',
-  margin: '20px 10px',
-  backgroundColor: '#131D3B',
+} from "@mui/icons-material";
+import { styled } from "@mui/system";
+import { useNavigate, useLocation } from "react-router-dom";
+import HexaLayerImage from "../assests/images/HexaLayer.png";
+import MenuOpenIcon from "@mui/icons-material/MenuOpen";
+import DnsIcon from "@mui/icons-material/Dns";
+import useLogout from "hooks/useLogout";
+
+
+const SearchContainer = styled("div")(() => ({
+  display: "flex",
+  alignItems: "center",
+  padding: "5px 10px",
+  borderRadius: "15px",
+  margin: "20px 10px",
+  backgroundColor: "#131D3B",
 }));
 
 const LeftSidebar: React.FC<{
@@ -44,9 +46,10 @@ const LeftSidebar: React.FC<{
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const { logout } = useLogout();
+
 
   const sidebarItems = [
     { label: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
@@ -68,34 +71,44 @@ const LeftSidebar: React.FC<{
     if (isMobile) setSidebarOpen(false); // Close sidebar on mobile after navigation
   };
 
+
   const isSelected = (path: string) => location.pathname.startsWith(path);
+
+  const handleLogout = () => {
+    logout();
+    if (isMobile) setSidebarOpen(false); // Close sidebar on mobile after logout
+  };
+
 
   return (
     <Drawer
       sx={{
-        '& .MuiDrawer-paper': {
-          width: isMobile ? '100%' : 260,
-          height: isMobile ? '50%' : '100%',
-          boxSizing: 'border-box',
-          backgroundColor: '#202940',
-          color: 'white',
+        "& .MuiDrawer-paper": {
+          width: isMobile ? "100%" : 260,
+          height: isMobile ? "50%" : "100%",
+          boxSizing: "border-box",
+          backgroundColor: "#202940",
+          color: "white",
         },
       }}
-      variant={isMobile ? 'temporary' : 'persistent'}
-      anchor={isMobile ? 'top' : 'left'}
+      variant={isMobile ? "temporary" : "persistent"}
+      anchor={isMobile ? "top" : "left"}
       open={open}
       onClose={() => setSidebarOpen(false)} // Close sidebar on mobile when clicked outside
     >
       <Box
         sx={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: '20px',
-          borderBottom: '1px solid #3c3c3c',
+          display: "flex",
+          alignItems: "center",
+          padding: "20px",
+          borderBottom: "1px solid #3c3c3c",
         }}
       >
         <img src={HexaLayerImage} alt="HexaLayer Logo" height={30} width={30} />
-        <Typography variant="h6" sx={{ color: 'white', flexGrow: 1, fontFamily: 'roboto' }}>
+        <Typography
+          variant="h6"
+          sx={{ color: "white", flexGrow: 1, fontFamily: "roboto" }}
+        >
           HexaShield
         </Typography>
         {isMobile && (
@@ -106,10 +119,10 @@ const LeftSidebar: React.FC<{
       </Box>
 
       <SearchContainer>
-        <Search sx={{ color: '#fff' }} />
+        <Search sx={{ color: "#fff" }} />
         <InputBase
           placeholder="Search"
-          sx={{ color: 'white', marginLeft: '10px', flexGrow: 1 }}
+          sx={{ color: "white", marginLeft: "10px", flexGrow: 1 }}
         />
       </SearchContainer>
 
@@ -136,27 +149,23 @@ const LeftSidebar: React.FC<{
               </Box>
             </ListItemButton>
           </Tooltip>
-        ))}
+        ))}                         
       </List>
 
       <Divider />
 
       <List sx={{ marginTop: 'auto' }}>
         {userItems.map((item) => (
+
           <Tooltip key={item.label} title={item.label}>
             <ListItemButton
               onClick={() => handleNavigation(item.path, item.label)}
               sx={{
-                padding: '10px 20px',
-                backgroundColor: isSelected(item.path)
-                  ? theme.palette.background.default
-                  : 'transparent',
-                '&:hover': { backgroundColor: theme.palette.action.hover },
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                 {item.icon}
-                <ListItemText primary={item.label} sx={{ color: '#fff' }} />
+                <ListItemText primary={item.label} sx={{ color: "#fff" }} />
               </Box>
             </ListItemButton>
           </Tooltip>

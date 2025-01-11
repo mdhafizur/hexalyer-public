@@ -1,26 +1,72 @@
-import React, { useEffect, useState } from "react";
-import { ResponsiveBar } from "@nivo/bar";
-import { Box } from "@mui/material";
-import statsData from "../../assests/dummy-data/statsData.json"; // Importing task data
+import React from 'react';
+import { ResponsiveBar } from '@nivo/bar';
+import { Box, CircularProgress, Typography } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
+import { useTaskData } from '../../hooks/useTaskData';
 
 const AgentTaskBarChart: React.FC = () => {
-  const [chartData, setChartData] = useState<{ agent: string; tasks: number }[]>([]);
+  const { tasks, loading, error, noData } = useTaskData();
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    // Aggregate task counts by agent
-    const agentTaskCounts: { [key: string]: number } = {};
-    statsData.forEach((task) => {
-      agentTaskCounts[task.agent] = (agentTaskCounts[task.agent] || 0) + 1;
-    });
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
-    // Transform into chart format
-    const transformedData = Object.keys(agentTaskCounts).map((agent) => ({
-      agent,
-      tasks: agentTaskCounts[agent],
-    }));
+  // Process the data
+  const agentTaskCounts: { [key: string]: number } = {};
+  const agentIds: { [key: string]: string } = {};
 
-    setChartData(transformedData);
-  }, []);
+  tasks.forEach((task) => {
+    if (!agentTaskCounts[task.agent_name]) {
+      agentTaskCounts[task.agent_name] = 0;
+      agentIds[task.agent_name] = task.agent_id;
+    }
+    agentTaskCounts[task.agent_name]++;
+  });
+
+  const chartData = Object.keys(agentTaskCounts).map((agent_name) => ({
+    agent_name,
+    agent_id: agentIds[agent_name],
+    tasks: agentTaskCounts[agent_name],
+  }));
+
+  if (error) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "400px",
+          bgcolor: 'background.default',
+        }}
+      >
+        <Typography variant="h6" color="error">
+          Error loading data: {error.message}
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (noData || chartData.length === 0) {
+    return (
+      <Box sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '350px',
+        width: '100%',
+        minWidth: '350px',
+        bgcolor: 'background.default',
+      }}>
+        <Typography variant="h6" color="textSecondary">No data available for Task Bar</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -36,7 +82,7 @@ const AgentTaskBarChart: React.FC = () => {
       <ResponsiveBar
         data={chartData}
         keys={["tasks"]}
-        indexBy="agent"
+        indexBy="agent_name"
         margin={{ top: 20, right: 80, bottom: 80, left: 80 }}
         padding={0.3}
         colors={{ scheme: "category10" }}
@@ -77,10 +123,23 @@ const AgentTaskBarChart: React.FC = () => {
           axis: {
             ticks: {
               line: { stroke: "#ddd", strokeWidth: 1 },
-              text: { fill: "#333" },
+              text: { fill: "#fff" },
+            },
+            legend: {
+              text: {
+                fill: "#ffffff", // Change legend text color to white
+              },
             },
           },
           grid: { line: { stroke: "#eee", strokeWidth: 1 } },
+        }}
+        onClick={(node) => {
+          const agentData = chartData.find((data) => data.agent_name === node.indexValue);
+          if (agentData && agentData.agent_id) {
+            navigate(`/agents/${agentData.agent_id}`);
+          } else {
+            console.warn("Agent data not found for:", node.indexValue);
+          }
         }}
       />
     </Box>

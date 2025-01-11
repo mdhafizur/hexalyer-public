@@ -39,6 +39,9 @@ class TaskModel(BaseModel):
     agent_id: str = Field(
         ..., description="The ID of the agent for which the command was executed."
     )
+    agent_name: str = Field(
+        ..., description="The name of the agent for which the command was executed."
+    )
     conversation: Optional[ConversationModel] = Field(
         None,
         description="Optional conversation data associated with the task",

@@ -1,56 +1,109 @@
 import React, { useEffect, useState } from "react";
 import { ResponsiveRadar } from "@nivo/radar";
-import { Box } from "@mui/material";
-import statsData from "../../assests/dummy-data/statsData.json"; // Importing task data
+import { Box, CircularProgress, Typography } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+import { useTaskData } from '../../hooks/useTaskData';
 
-
+// Define types
 interface AgentMetrics {
-  [agent: string]: {
+  [agent_name: string]: {
+    agent_id: string;
     tasksCompleted: number;
     timeTaken: number;
-    vulnerabilitiesIdentified: number;
   };
 }
+
 interface ChartData extends Record<string, unknown> {
-  agent: string;
+  agent_name: string;
+  agent_id: string;
   tasksCompleted: number;
   timeTaken: number;
-  vulnerabilitiesIdentified: number;
 }
 
-
 const AgentPerformanceRadarChart: React.FC = () => {
+  const { tasks, loading, error, noData } = useTaskData();
   const [chartData, setChartData] = useState<ChartData[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const agentMetrics: AgentMetrics = {};
+    if (tasks.length > 0) {
+      const agentMetrics: AgentMetrics = {};
 
-    statsData.forEach((task) => {
-      const { agent, timeTaken, vulnerable } = task;
+      tasks.forEach((task) => {
+        const { agent_name, agent_id, execution_time } = task;
 
-      if (!agentMetrics[agent]) {
-        agentMetrics[agent] = { tasksCompleted: 0, timeTaken: 0, vulnerabilitiesIdentified: 0 };
-      }
+        if (!agentMetrics[agent_name]) {
+          agentMetrics[agent_name] = {
+            agent_id,
+            tasksCompleted: 0,
+            timeTaken: 0,
+          };
+        }
 
-      agentMetrics[agent].tasksCompleted += 1;
+        agentMetrics[agent_name].tasksCompleted += 1;
+        const time = parseFloat(parseFloat(execution_time.replace("s", "") || "0").toFixed(2));
+        agentMetrics[agent_name].timeTaken += time;
+      });
 
-      // Parse timeTaken, e.g., "18mins" -> 18
-      const time = parseInt(timeTaken.replace("mins", ""), 10) || 0;
-      agentMetrics[agent].timeTaken += time;
+      const transformedData: ChartData[] = Object.keys(agentMetrics).map((agent_name) => ({
+        agent_name,
+        agent_id: agentMetrics[agent_name].agent_id,
+        tasksCompleted: agentMetrics[agent_name].tasksCompleted,
+        timeTaken: agentMetrics[agent_name].timeTaken,
+      }));
 
-      // Count vulnerabilities identified
-      agentMetrics[agent].vulnerabilitiesIdentified += vulnerable.length;
-    });
+      setChartData(transformedData);
+    }
+  }, [tasks]);
 
-    const transformedData: ChartData[] = Object.keys(agentMetrics).map((agent) => ({
-      agent,
-      tasksCompleted: agentMetrics[agent].tasksCompleted,
-      timeTaken: agentMetrics[agent].timeTaken,
-      vulnerabilitiesIdentified: agentMetrics[agent].vulnerabilitiesIdentified,
-    }));
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "400px",
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
 
-    setChartData(transformedData);
-  }, []);
+  if (error) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "400px",
+          bgcolor: 'background.default',
+        }}
+      >
+        <Typography variant="h6" color="error">
+          Error loading data: {error.message}
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (noData || chartData.length === 0) {
+    return (
+      <Box sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '350px',
+        width: '100%',
+        minWidth: '350px',
+        bgcolor: 'background.default',
+      }}>
+        <Typography variant="h6" color="textSecondary">No data available for Task Radar</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -60,15 +113,19 @@ const AgentPerformanceRadarChart: React.FC = () => {
         height: "400px",
         width: "100%",
         minWidth: "400px",
+        position: "relative",
       }}
     >
-      <h2 style={{ textAlign: "center" }}>Agent Performance Across Metrics</h2>
+      <h2 style={{ textAlign: "center", marginBottom: "20px" }}>
+        Agent Performance Across Metrics
+      </h2>
+
       <ResponsiveRadar
         data={chartData}
-        keys={["tasksCompleted", "timeTaken", "vulnerabilitiesIdentified"]}
-        indexBy="agent"
+        keys={["tasksCompleted", "timeTaken"]}
+        indexBy="agent_name"
         maxValue="auto"
-        margin={{ right: 80, bottom: 40, left: 80 }}
+        margin={{ top: 40, right: 80, bottom: 40, left: 80 }}
         curve="linearClosed"
         borderWidth={2}
         borderColor={{ from: "color" }}
@@ -85,10 +142,32 @@ const AgentPerformanceRadarChart: React.FC = () => {
         blendMode="multiply"
         animate={true}
         isInteractive={true}
+        onClick={(data) => {
+          console.log("Clicked data:", data);
+          const agentData = chartData.find((item) => item.agent_name === data.agent_name);
+          if (agentData) {
+            navigate(`/agents/${agentData.agent_id}`);
+          } else {
+            console.error("Agent not found for indexValue:", data.indexValue);
+          }
+        }}
         theme={{
           dots: {
             text: {
               fill: "#fff",
+            },
+            
+          },
+          axis: {
+            ticks: {
+              text: {
+                fill: "#ffffff", // Change tick text color to white
+              },
+            },
+            legend: {
+              text: {
+                fill: "#ffffff", // Change legend text color to white
+              },
             },
           },
           tooltip: {

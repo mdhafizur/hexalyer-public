@@ -14,7 +14,10 @@ import {
 import { Carousel } from "react-responsive-carousel";
 import "react-responsive-carousel/lib/styles/carousel.min.css";
 import "./carousel.css"; // Import the custom CSS
-import Group from "../assests/images/Group.png";
+import Image1 from "../assests/images/Image_1.png";
+import Image2 from "../assests/images/Image_2.png";
+import Image3 from "../assests/images/Image_3.png";
+import Image4 from "../assests/images/Image_4.png";
 import TermsAndConditions from "../components/TermsAndConditions";
 import useSignUp from "hooks/useSignUp";
 import { useNavigate } from "react-router-dom";
@@ -111,34 +114,44 @@ const RegisterPage = () => {
             >
               <div>
                 <img
-                  src={Group}
+                  src={Image4}
+                  alt="Slide 3"
+                  style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 10 }}
+                />
+              </div>
+              <div>
+                <img
+                  src={Image1}
                   alt="Slide 1"
                   style={{
                     width: "100%",
                     height: "auto",
                     objectFit: "contain",
+                    borderRadius: 10,
                   }}
                 />
               </div>
               <div>
                 <img
-                  src={Group}
+                  src={Image2}
                   alt="Slide 2"
                   style={{
                     width: "100%",
                     height: "auto",
                     objectFit: "contain",
+                    borderRadius: 10,
                   }}
                 />
               </div>
               <div>
                 <img
-                  src={Group}
+                  src={Image3}
                   alt="Slide 3"
                   style={{
                     width: "100%",
                     height: "auto",
                     objectFit: "contain",
+                    borderRadius: 10,
                   }}
                 />
               </div>
@@ -214,7 +227,7 @@ const RegisterPage = () => {
                 />
               </Grid>
               <Grid item xs={12}>
-              <TextField
+                <TextField
                   fullWidth
                   label="Password"
                   name="password"
