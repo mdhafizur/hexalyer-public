@@ -28,6 +28,7 @@ class DeepSeekChatClient:
         model="deepseek-chat",
         stream=False,
         temperature=0,
+        system_prompt=None,
         message_history=None,
         prompt_type="manual",
     ):
@@ -43,20 +44,27 @@ class DeepSeekChatClient:
         url = f"{self.base_url}/chat/completions"
 
         # Prepare the initial payload
-        payload = {
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        AUTO_PROMPT
-                        if prompt_type == "auto"
-                        else "You are a cybersecurity expert."
-                    ),
-                }
-            ],
-            "model": model,
-            "stream": stream
-        }
+        if system_prompt:
+            payload = {
+                "messages": [{"role": "system", "content": system_prompt}],
+                "model": model,
+                "stream": stream,
+            }
+        else:
+            payload = {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            AUTO_PROMPT
+                            if prompt_type == "auto"
+                            else "You are a cybersecurity expert."
+                        ),
+                    }
+                ],
+                "model": model,
+                "stream": stream,
+            }
 
         # Add message history if provided
         if message_history:
@@ -67,7 +75,7 @@ class DeepSeekChatClient:
 
         try:
             response = requests.post(
-                url, headers=self.headers, json=payload, stream=stream, timeout=20
+                url, headers=self.headers, json=payload, stream=stream, timeout=60
             )
             response.raise_for_status()
 

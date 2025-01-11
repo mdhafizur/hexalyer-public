@@ -4,12 +4,25 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, List, Dict, Any
 from db.conversation_repository import ConversationRepository
 from models.conversation import ConversationModel, ConversationPaginatedResponseModel
+from bson.objectid import ObjectId
+from db.message_repository import MessageRepository
+from db.report_repository import ReportRepository
+from utils.deepseek_client import DeepSeekChatClient
+from utils.cybersecurity_expert_prompt import AUTO_AND_MANUAL_REPORT_PROMPT
+from c2_server.events.utils import current_utc_time
+import re
+import json
 
 # Create an instance of the ConversationRepository
 conversation_repo = ConversationRepository()
 
 # Create a FastAPI router for conversation routes
 router = APIRouter()
+
+message_repo = MessageRepository()
+report_repo = ReportRepository()
+
+deepseek_client = DeepSeekChatClient()
 
 
 @router.get(
@@ -27,9 +40,13 @@ async def query_conversations(
         le=100,
         description="Number of items per page (default is 10, max is 100)",
     ),
-    sort_by: str = Query("created_at", description="Field to sort by (default is 'created_at')"),
+    sort_by: str = Query(
+        "created_at", description="Field to sort by (default is 'created_at')"
+    ),
     sort_order: str = Query(
-        "asc", regex="^(asc|desc)$", description="Sort order: 'asc' for ascending, 'desc' for descending (default is 'asc')"
+        "asc",
+        regex="^(asc|desc)$",
+        description="Sort order: 'asc' for ascending, 'desc' for descending (default is 'asc')",
     ),
 ):
     """
@@ -130,7 +147,6 @@ async def list_conversations(
     return conversations
 
 
-
 @router.post(
     "/",
     response_model=ConversationModel,
@@ -159,7 +175,7 @@ async def create_conversation(conversation: ConversationModel) -> Any:
     try:
         # Ensure `_id` is properly handled for MongoDB
         conversation_data = conversation.dict(by_alias=True)
-        
+
         # Create the conversation in the database
         conversation_id = conversation_repo.create_conversation(conversation_data)
 
@@ -169,7 +185,7 @@ async def create_conversation(conversation: ConversationModel) -> Any:
             raise HTTPException(
                 status_code=500, detail="Failed to retrieve the created agent"
             )
-        
+
         # Return success response
         return created_conversation
     except ValueError as e:
@@ -230,3 +246,100 @@ async def delete_conversation(conversation_id: str):
     if deleted_count == 0:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return {"message": "Conversation deleted"}
+
+
+@router.get(
+    "/{conversation_id}/generate/report",
+    response_model=Any,
+    summary="Generate a conversation report by ID",
+    description="Fetch the details of a specific conversation using its ID and generate a report.",
+)
+async def generate_conversation_report(conversation_id: str):
+    """
+    Generate a conversation report by its ID.
+
+    - **conversation_id**: The ID of the conversation to retrieve.
+
+    Returns:
+    - A generated report based on the conversation history.
+
+    Example Response:
+    ```json
+    {
+        "report": "Detailed summary of the conversation..."
+    }
+    """
+    if not conversation_id or not ObjectId.is_valid(conversation_id):
+        raise HTTPException(status_code=400, detail="Invalid conversation ID")
+
+    # Fetch messages from the repository
+    messages = message_repo.list_messages_with_pagination(
+        filter_criteria={"conversation_id": ObjectId(conversation_id)},
+        skip=0,
+        limit=50,
+        sort=[("created_at", 1)],
+    )
+
+    if not messages:
+        raise HTTPException(status_code=404, detail="Conversation not found or empty")
+
+    # Prepare the message history for report generation
+    message_history = [
+        {"role": message["role"], "content": message["content"]}
+        for message in messages
+        if message["content"].strip()  # Exclude empty or whitespace-only content
+    ]
+
+    if not message_history:
+        raise HTTPException(
+            status_code=400,
+            detail="Conversation has no valid content to generate a report",
+        )
+
+    # Generate report using the deepseek client
+    try:
+        response = deepseek_client.ask(
+            message_history=message_history,
+            system_prompt=AUTO_AND_MANUAL_REPORT_PROMPT,
+        )
+        text = response.get("choices", [{}])[0].get("message", {}).get("content", "")
+        json_match = re.search(r"```json\n(.*?)\n```", text, re.DOTALL)
+
+        if not json_match:
+            raise ValueError("Invalid response format: JSON block not found")
+
+        json_content = json_match.group(1)
+        parsed_data = json.loads(json_content)
+        report_string = json.dumps(parsed_data, indent=4)
+        report_json = json.loads(report_string)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to generate report: {str(e)}"
+        )
+
+    # Fetch conversation details
+    conversation = conversation_repo.get_conversation_by_id(conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Create report data
+    report_data = {
+        "_id": ObjectId(),
+        "message_id": None,
+        "conversation_name": conversation.get("title"),
+        "type": conversation.get("type"),
+        "details": None,
+        "data": report_json,
+        "created_at": current_utc_time().isoformat(),
+        "updated_at": current_utc_time().isoformat(),
+    }
+
+    # Save the report in the repository
+    try:
+        report_repo.create_report(report_data)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to save the report: {str(e)}"
+        )
+
+    return {"message": "success", "report_id": str(report_data["_id"])}
