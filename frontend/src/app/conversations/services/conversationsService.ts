@@ -34,3 +34,9 @@ export const queryConversations = async (params: ConversationQueryParams): Promi
   const response = await privateClient.get("/conversations/query", { params });
   return response.data;
 };
+
+// Query conversations with filters and pagination
+export const generateConversationReport = async (conversationId: string): Promise<any> => {
+  const response = await privateClient.get(`/conversations/${conversationId}/generate/report`);
+  return response.data;
+};

@@ -7,10 +7,9 @@ import {
     IconButton,
     ListItem,
     CircularProgress,
-    AppBar,
-    Toolbar,
     Grow,
     Button,
+    Fab,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import { useAppDispatch, useAppSelector } from "@app/hook";
@@ -22,6 +21,9 @@ import { Message } from "@app/messages/types/message.types";
 import { AiMessage } from "@components/Conversation/AiMessage";
 import { UserMessage } from "@components/Conversation/UserMessage";
 import { useNavigate } from "react-router-dom";
+import ReportIcon from "@mui/icons-material/Assessment"; // Import an appropriate icon
+import { useConversations } from '@app/conversations/hooks/useConversations';
+import { Alert, Snackbar } from "@mui/material"; // Import these components
 
 interface ChatComponentProps {
     conversationId: string | "new";
@@ -32,8 +34,11 @@ interface ChatComponentProps {
 export default function ChatComponent({ conversationId, conversationType, onConversationCreated }: ChatComponentProps) {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
-    const { loading } = useAppSelector((state: RootState) => state.conversations);
+    const { loading: conversationLoading } = useAppSelector((state: RootState) => state.conversations);
+    const { generateConversationReport, generateReportLoading, generateReportError } = useConversations();
 
+    // Inside the component
+    const [successAlert, setSuccessAlert] = useState(false);
     // State Management
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState("");
@@ -45,6 +50,16 @@ export default function ChatComponent({ conversationId, conversationType, onConv
     const [agentId, setAgentId] = useState<string | null>(null);
     const chatContainerRef = useRef<HTMLDivElement | null>(null);
 
+    const handleGenerateReport = async () => {
+        if (generateReportLoading) return; // Prevent duplicate triggers
+        try {
+            console.log("Generate report triggered!");
+            await generateConversationReport(conversationId);
+            setSuccessAlert(true); // Show success alert
+        } catch (err) {
+            console.error("Error generating report:", generateReportError);
+        }
+    };
 
     // Utility Functions
     const isValidIPorURL = (input: string): boolean => {
@@ -219,8 +234,32 @@ export default function ChatComponent({ conversationId, conversationType, onConv
     // Render
     return (
         <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+            {conversationType != "webhex" && (
+                <>
+                    <Fab
+                        color="primary"
+                        aria-label="generate-report"
+                        onClick={handleGenerateReport}
+                        disabled={generateReportLoading} // Disable button while generateReportLoading
+                        sx={{ position: "absolute", top: 16, right: 16, zIndex: 1000 }}
+                    >
+                        {generateReportLoading ? <CircularProgress sx={{ color: "white" }} size={24} /> : <ReportIcon />}
+                    </Fab>
+                    <Snackbar
+                        open={successAlert}
+                        autoHideDuration={3000} // Automatically close after 3 seconds
+                        onClose={() => setSuccessAlert(false)}
+                        anchorOrigin={{ vertical: "top", horizontal: "right" }} // Adjust position if needed
+                    >
+                        <Alert onClose={() => setSuccessAlert(false)} severity="success" sx={{ width: "100%" }}>
+                            Report has been generated successfully! You can access it in {conversationType} report section
+                        </Alert>
+                    </Snackbar>
+                </>
+            )}
+
             <Box ref={chatContainerRef} sx={{ flexGrow: 1, overflowY: "auto" }}>
-                {loading ? (
+                {conversationLoading ? (
                     <CircularProgress />
                 ) : (
                     messages.length === 0 && <Typography>No messages yet.</Typography>
@@ -341,7 +380,7 @@ export default function ChatComponent({ conversationId, conversationType, onConv
                             color="primary"
                             onClick={() => handleSendMessage(webHexInput || inputValue)}
                             disabled={
-                                loading ||
+                                conversationLoading ||
                                 (conversationType === "webhex"
                                     ? isUrlChecking || !isWebhexUrlValid
                                     : !(inputValue.trim() || webHexInput.trim()))

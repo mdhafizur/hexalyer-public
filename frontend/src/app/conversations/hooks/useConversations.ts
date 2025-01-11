@@ -5,6 +5,7 @@ import {
     createConversationThunk,
     updateConversationThunk,
     queryConversationsThunk,
+    generateConversationReportThunk,
 } from '../slices/conversationsSlice';
 import { RootState } from '../../store';
 import { Conversation } from '../types/conversation.types';
@@ -13,7 +14,7 @@ export const useConversations = () => {
     const dispatch = useAppDispatch();
 
     // Extract state data
-    const { conversations, loading, error } = useAppSelector((state: RootState) => state.conversations);
+    const { conversations, loading, error, generateReportLoading, generateReportError } = useAppSelector((state: RootState) => state.conversations);
 
     // Fetch all conversations
     const fetchConversations = useCallback(() => {
@@ -21,8 +22,8 @@ export const useConversations = () => {
     }, [dispatch]);
 
     // Create a new conversation
-    const createConversation = useCallback((title: string, user_id: string) => {
-        return dispatch(createConversationThunk({ title: title, user_id: user_id }));
+    const createConversation = useCallback((title: string, user_id: string, type: string) => {
+        return dispatch(createConversationThunk({ title: title, user_id: user_id, type: type }));
     }, [dispatch]);
 
     // Update an existing conversation
@@ -38,6 +39,13 @@ export const useConversations = () => {
         [dispatch]
     );
 
+    const generateConversationReport = useCallback(
+        (conversationId: string) => {
+            return dispatch(generateConversationReportThunk(conversationId));
+        },
+        [dispatch]
+    );
+
     // Automatically fetch conversations on initialization
     useEffect(() => {
         if (!conversations.length) {
@@ -49,9 +57,12 @@ export const useConversations = () => {
         conversations,
         loading,
         error,
+        generateReportLoading,
+        generateReportError,
         fetchConversations,
         createConversation,
         updateConversation,
         queryConversations,
+        generateConversationReport,
     };
 };

@@ -4,12 +4,15 @@ import {
     createConversation,
     updateConversation,
     queryConversations,
+    generateConversationReport
 } from '../services/conversationsService';
 import { Conversation } from '@app/conversations/types/conversation.types';
 
 interface ConversationsState {
     conversations: Conversation[]; // List of conversations
     loading: boolean; // Loading state for API calls
+    generateReportLoading: boolean;
+    generateReportError: string | null;
     error: string | null; // Error message, if any
     selectedConversationId: string | null; // ID of the currently selected conversation
 }
@@ -17,6 +20,8 @@ interface ConversationsState {
 const initialState: ConversationsState = {
     conversations: [],
     loading: false,
+    generateReportLoading: false,
+    generateReportError: null,
     error: null,
     selectedConversationId: null,
 };
@@ -94,6 +99,23 @@ export const queryConversationsThunk = createAsyncThunk<
     }
 );
 
+// Thunk for querying conversations
+export const generateConversationReportThunk = createAsyncThunk<
+    any, // Success return type
+    string, // Argument type (conversationId)
+    { rejectValue: FetchError } // Error return type
+>(
+    'conversations/generateReport',
+    async (conversationId, { rejectWithValue }) => {
+        try {
+            const response = await generateConversationReport(conversationId);
+            return response;
+        } catch (error: any) {
+            return rejectWithValue({ message: error.message || 'Failed to query conversations' });
+        }
+    }
+);
+
 const conversationsSlice = createSlice({
     name: 'conversations',
     initialState,
@@ -127,6 +149,18 @@ const conversationsSlice = createSlice({
             .addCase(fetchConversationsThunk.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload?.message || 'Failed to fetch conversations';
+            })
+            .addCase(generateConversationReportThunk.pending, (state) => {
+                state.generateReportLoading = true;
+                state.generateReportError = null;
+            })
+            .addCase(generateConversationReportThunk.fulfilled, (state, action: PayloadAction<any>) => {
+                state.generateReportLoading = false;
+                state.generateReportError = action.payload;
+            })
+            .addCase(generateConversationReportThunk.rejected, (state, action) => {
+                state.generateReportLoading = false;
+                state.generateReportError = action.payload?.message || 'Failed to fetch conversations';
             })
             // Create a new conversation
             .addCase(createConversationThunk.pending, (state) => {
