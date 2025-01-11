@@ -151,7 +151,7 @@ class ScanService:
                 logger.error(f"Report with ID {report_id} not found.")
                 raise HTTPException(status_code=404, detail="Report not found.")
 
-            if report['details']['alerts']:
+            if report.get('details', {}).get('alerts'):
                 return {
                     "progress": 100,
                     "report": report['details']['alerts'],
