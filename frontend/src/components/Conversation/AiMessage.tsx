@@ -5,7 +5,7 @@ import SmartToyIcon from "@mui/icons-material/SmartToy";
 import { formatDistanceToNow } from "date-fns";
 import ReactMarkdown from "react-markdown";
 import { commandClient } from "@app/axios.client";
-import ProgressModal from './ProgressModal';
+import ReportProgressModal from './ReportProgressModal';
 
 const extractJson = (content: string): string | null => {
     try {
@@ -188,7 +188,7 @@ export function AiMessage({ message, agentId }: { message: Message; agentId?: st
             </Dialog>
             {message.type === "webhex" && reportId && (
                 <>
-                    <ProgressModal
+                    <ReportProgressModal
                         open={progressOpen}
                         onClose={handleProgressClose}
                         reportId={reportId}

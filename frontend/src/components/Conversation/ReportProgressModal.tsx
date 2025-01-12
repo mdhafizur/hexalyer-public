@@ -38,7 +38,7 @@ import useFetchProgress from "../../app/reports/hooks/useFetchProgress";
 import { generatePDF } from "../Reports/generatePDF";
 import { riskLevels } from "../../app/base.types";
 
-const ProgressModal = ({
+const ReportProgressModal = ({
   open,
   onClose,
   reportId,
@@ -127,8 +127,8 @@ const ProgressModal = ({
         top: "50%",
         left: "50%",
         transform: "translate(-50%, -50%)",
-        width: "90%",
-        maxWidth: 800,
+        width: "60%",
+        maxWidth: 1000,
         maxHeight: "80vh",
         overflowY: "auto",
         bgcolor: "background.paper",
@@ -148,7 +148,7 @@ const ProgressModal = ({
         }}
       >
         <Typography id="progress-modal-title" variant="h4" component="h2">
-          Scan Progress
+          Web Hex Scan Progress
         </Typography>
         <IconButton
           onClick={onClose}
@@ -312,7 +312,7 @@ const ProgressModal = ({
           }}
         >
           <Typography id="report-modal-title" variant="h4" component="h2">
-            Scan Report
+            Web Hex Report
           </Typography>
           <IconButton
             onClick={onClose}
@@ -570,7 +570,7 @@ const ProgressModal = ({
   );
 };
 
-export default ProgressModal;
+export default ReportProgressModal;
 
 const status = {
   Complete: {

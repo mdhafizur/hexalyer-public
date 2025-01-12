@@ -18,7 +18,7 @@ import {
   Button,
 } from "@mui/material";
 import React, { useState } from "react";
-import ProgressModal from "@components/Conversation/ProgressModal";
+import ReportProgressModal from "@components/Conversation/ReportProgressModal";
 
 export default function ReportListingPage() {
   const { reports, loading, error } = useReports(); // Custom hook to fetch reports
@@ -214,7 +214,7 @@ export default function ReportListingPage() {
         />
       </Paper>
       
-      <ProgressModal open={open} onClose={handleClose} reportId={selectedReportId} />
+      <ReportProgressModal open={open} onClose={handleClose} reportId={selectedReportId} />
     </Box>
   );
 }
