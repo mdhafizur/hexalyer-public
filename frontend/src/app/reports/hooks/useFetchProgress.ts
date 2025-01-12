@@ -1,16 +1,19 @@
 import useSWR from 'swr';
 import { privateClient } from '@app/axios.client';
-import { WebHexReportProgress } from '../types/WebHexReportProgress';
 
-const fetcher = (url: string) => privateClient.get(url).then(res => res.data);
+const fetcher = (reportId: string) => {
+  const requestURL = `${BASE_URL}/webhex/scans/${reportId}/progress`
+  return privateClient.get(requestURL).then(res => res.data);
+}
 
+const BASE_URL = import.meta.env.VITE_WEB_API_URL as string;
 const useFetchProgress = (reportId: string) => {
   const { data: progressData, error } = useSWR<any>(
-    `http://localhost:5000/web/api/v1/webhex/scans/${reportId}/progress`,
+    reportId,
     fetcher,
     {
       keepPreviousData: true,
-      refreshInterval: 1000, // Refresh every 10 seconds
+      refreshInterval: 10000, // Refresh every 10 seconds
     }
   );
 

@@ -1,7 +1,6 @@
 import { riskLevels } from "@app/base.types";
 import { useReports } from "@app/reports/hooks/useReports"; // Custom hook to fetch reports
 import { Report } from "@app/reports/types/report.types";
-import ReportModal from "@components/Reports/ReportModal";
 import { generatePDF } from "@components/Reports/generatePDF";
 import {
   Box,
@@ -17,11 +16,8 @@ import {
   Paper,
   TableSortLabel,
   Button,
-  Modal,
-  IconButton 
 } from "@mui/material";
 import React, { useState } from "react";
-import CloseIcon from '@mui/icons-material/Close';
 import ProgressModal from "@components/Conversation/ProgressModal";
 
 export default function ReportListingPage() {
@@ -62,6 +58,7 @@ export default function ReportListingPage() {
   };
 
   function handleViewClick(id: string) {
+    console.log("report id", id)
     setSelectedReportId(id); 
     handleOpen();
   }

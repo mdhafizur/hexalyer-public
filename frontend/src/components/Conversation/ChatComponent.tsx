@@ -183,6 +183,7 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
         if (conversationId !== "new" || conversationId == "new") {
             socket.emit("join_room", { conversation_id: conversationId });
             setMessages([]);
+            setIsWebhexComplete(false)
         }
 
         setValidationError(null);
@@ -191,9 +192,12 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
 
 
         // webhex
-        if (conversationType === "webhex") {
+        if (conversationType === "webhex" && messages.length >= 2) {
             setIsWebhexComplete(true)
         }
+
+        console.log("conversationType", conversationType)
+        console.log("isWebhexComplete", isWebhexComplete)
     }, [conversationId, conversationType]);
 
     // Scroll to Bottom on New Messages
@@ -247,19 +251,21 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
                 _id: generatedId,
                 conversation_id: conversationId,
                 role: "user",
-                content: conversationType === "webhex" && isWebhexComplete === false ? `WebHex request: ${customInputValue}` : customInputValue,
+                content: conversationType === "webhex" && isWebhexComplete === false ? `WebHex request: ${webHexInput}` : customInputValue,
                 type: conversationType || "manual",
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
                 ...(conversationType === "webhex" && { details: { url: webHexInput } }),
             };
 
-            let tempMessage: any = {};
+            let tempMessage: any = message;
             if (isWebhexComplete) {
-                tempMessage = message;
                 tempMessage['isWebhexComplete'] = true
             }
 
+            // console.log("isWebhexComplete", isWebhexComplete)
+            // console.log("tempMessage", tempMessage)
+            // return
             socket.emit("on_stream_message_to_ai", tempMessage);
             addMessage(message);
             setInputValue("");
