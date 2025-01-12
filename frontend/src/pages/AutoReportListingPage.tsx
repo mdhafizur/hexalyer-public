@@ -17,38 +17,44 @@ import {
   TableSortLabel,
   Button,
   Modal,
-  IconButton, 
+  IconButton,
 } from "@mui/material";
 import React, { useState } from "react";
-import CloseIcon from '@mui/icons-material/Close';
-
+import CloseIcon from "@mui/icons-material/Close";
 
 export default function AutoReportListingPage() {
   const { reports, loading, error } = useReports(); // Custom hook to fetch reports
   const reportData = reports?.data || []; // Access reports from 'data' if available
-  const autoData = reportData.filter((report) => report.type === "auto")
-  console.log(autoData)
+  const autoData = reportData.filter((report: { type: string; }) => report.type === "auto");
   const [page, setPage] = React.useState(0); // Page state for pagination
   const [rowsPerPage, setRowsPerPage] = React.useState(10); // Rows per page state
   const [order, setOrder] = React.useState<"asc" | "desc">("asc"); // Sorting order
-  const [orderBy, setOrderBy] = React.useState<string>("created_at"); // Default sort by "created_at"
+  const [orderBy, setOrderBy] = React.useState<string>("updated_at"); // Default sort by "updated_at"
   const [open, setOpen] = useState(false);
-  const [selectedReport, setselectedReport] = useState<Record<string, unknown> | undefined>(undefined);
-  
+  const [selectedReport, setselectedReport] = useState<
+    Record<string, unknown> | undefined
+  >(undefined);
+
   const dummData = [
     {
-        "findings": "Writable files detected in sensitive system directories.",
-        "description": "Writable files in directories such as `/etc`, `/usr`, or `/var` pose a risk of privilege escalation. Unauthorized users can replace binaries or modify configurations, leading to system compromise. Loose permissions also fail compliance audits like CIS Benchmarks.",
-        "solutions": "1. Run `find /etc /usr /var -type f -writable -exec ls -l {} \\;` to identify writable files.\\n2. Use `chmod` to restrict file permissions (e.g., `chmod 640 <file>`).\\n3. Audit permissions regularly with tools like `auditctl` or `osquery`.",
-        "standard references": "1. CIS Benchmark for Linux.\\n2. CVE-2021-3156 - Privilege escalation via writable files."
+      findings: "Writable files detected in sensitive system directories.",
+      description:
+        "Writable files in directories such as `/etc`, `/usr`, or `/var` pose a risk of privilege escalation. Unauthorized users can replace binaries or modify configurations, leading to system compromise. Loose permissions also fail compliance audits like CIS Benchmarks.",
+      solutions:
+        "1. Run `find /etc /usr /var -type f -writable -exec ls -l {} \\;` to identify writable files.\\n2. Use `chmod` to restrict file permissions (e.g., `chmod 640 <file>`).\\n3. Audit permissions regularly with tools like `auditctl` or `osquery`.",
+      "standard references":
+        "1. CIS Benchmark for Linux.\\n2. CVE-2021-3156 - Privilege escalation via writable files.",
     },
     {
-        "findings": "Weak user passwords detected.",
-        "description": "Weak passwords are susceptible to brute-force attacks, compromising account security. Attackers may gain unauthorized access, leading to data breaches or privilege escalation. This risk is heightened in systems without password policies.",
-        "solutions": "1. Use password auditing tools like `John the Ripper` or `Hydra`.\\n2. Enforce strong password policies: minimum length of 12 characters, inclusion of special characters, and periodic updates.\\n3. Disable inactive accounts and lock accounts after repeated failed login attempts.",
-        "standard references": "1. NIST SP 800-63B - Digital Identity Guidelines.\\n2. OWASP Authentication Cheat Sheet.\\n3. CIS Benchmark Password Policy Recommendations."
-    }
-]
+      findings: "Weak user passwords detected.",
+      description:
+        "Weak passwords are susceptible to brute-force attacks, compromising account security. Attackers may gain unauthorized access, leading to data breaches or privilege escalation. This risk is heightened in systems without password policies.",
+      solutions:
+        "1. Use password auditing tools like `John the Ripper` or `Hydra`.\\n2. Enforce strong password policies: minimum length of 12 characters, inclusion of special characters, and periodic updates.\\n3. Disable inactive accounts and lock accounts after repeated failed login attempts.",
+      "standard references":
+        "1. NIST SP 800-63B - Digital Identity Guidelines.\\n2. OWASP Authentication Cheat Sheet.\\n3. CIS Benchmark Password Policy Recommendations.",
+    },
+  ];
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
@@ -77,10 +83,10 @@ export default function AutoReportListingPage() {
 
   function handleDownloadClick(reportData: Report) {
     autoManualGeneratePDF("auto", reportData || dummData);
-    }
+  }
 
   function handleViewClick(data: Record<string, unknown> | undefined) {
-    setselectedReport(data); 
+    setselectedReport(data);
     handleOpen();
   }
   // Sort reports based on the selected column and order
@@ -107,10 +113,9 @@ export default function AutoReportListingPage() {
         flexDirection: "column",
         height: "100vh",
         bgcolor: "background.default",
-        p: { xs: 2, sm: 4 }, 
+        p: { xs: 2, sm: 4 },
       }}
     >
-        
       {/* Reports Table */}
       <Paper elevation={2} sx={{ flexGrow: 1, overflow: "hidden" }}>
         {/* Table Header */}
@@ -136,14 +141,14 @@ export default function AutoReportListingPage() {
                 <TableCell>Conversation</TableCell>
                 <TableCell>
                   <TableSortLabel
-                    active={orderBy === "created_at"}
-                    direction={orderBy === "created_at" ? order : "asc"}
-                    onClick={() => handleRequestSort("created_at")}
+                    active={orderBy === "updated_at"}
+                    direction={orderBy === "updated_at" ? order : "asc"}
+                    onClick={() => handleRequestSort("updated_at")}
                   >
-                    Created At
+                    Updated At
                   </TableSortLabel>
                 </TableCell>
-                
+
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -172,13 +177,27 @@ export default function AutoReportListingPage() {
                   .map((report: Report) => (
                     <TableRow key={report._id}>
                       <TableCell>{report.conversation_name}</TableCell>
-                      <TableCell>{report.updated_at}</TableCell>
+                      <TableCell> 
+                        {new Date(report?.updated_at || "").toLocaleString(
+                          "de-DE",
+                          {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                          }
+                        )}
+                      </TableCell>
                       <TableCell sx={{ display: "flex", gap: 2 }}>
                         <Button
                           variant="contained"
                           color="secondary"
                           aria-label="View Item"
-                          onClick={() => handleViewClick(report?.data || dummData)}
+                          onClick={() =>
+                            handleViewClick(report?.data || dummData)
+                          }
                         >
                           View
                         </Button>
@@ -262,7 +281,10 @@ export default function AutoReportListingPage() {
 
           {/* Content Section */}
           <Box id="modal-description">
-            <AutoManualReportModal reportType="manual" reportData={selectedReport} />
+            <AutoManualReportModal
+              reportType="manual"
+              reportData={selectedReport}
+            />
           </Box>
         </Box>
       </Modal>

@@ -23,7 +23,9 @@ import ReportProgressModal from "@components/Conversation/ReportProgressModal";
 export default function ReportListingPage() {
   const { reports, loading, error } = useReports(); // Custom hook to fetch reports
   const tempData = reports?.data || []; // Access reports from 'data' if available
-  const reportData = tempData.filter((report: { type: string; }) => report.type === "webhex")
+  const reportData = tempData.filter(
+    (report: { type: string }) => report.type === "webhex"
+  );
   const [page, setPage] = React.useState(0); // Page state for pagination
   const [rowsPerPage, setRowsPerPage] = React.useState(10); // Rows per page state
   const [order, setOrder] = React.useState<"asc" | "desc">("asc"); // Sorting order
@@ -58,23 +60,29 @@ export default function ReportListingPage() {
   };
 
   function handleViewClick(id: string) {
-    console.log("report id", id)
-    setSelectedReportId(id); 
+    console.log("report id", id);
+    setSelectedReportId(id);
     handleOpen();
   }
 
   function handleDownloadClick(report: Report) {
-    const riskSummary = report?.details?.alerts.reduce((acc: { [key in keyof typeof riskLevels]?: number }, item) => {
-      acc[item.risk] = (acc[item.risk] || 0) + 1;
-      return acc;
-    }, {});
+    const riskSummary = report?.details?.alerts?.reduce(
+      (acc: { [key in keyof typeof riskLevels]?: number }, item) => {
+        acc[item.risk] = (acc[item.risk] || 0) + 1;
+        return acc;
+      },
+      {}
+    );
 
-    const alertSummary = report.details?.alerts.reduce((acc: { [key: string]: number }, item) => {
-      acc[item.name] = (acc[item.name] || 0) + 1;
-      return acc;
-    }, {});
+    const alertSummary = report.details?.alerts?.reduce(
+      (acc: { [key: string]: number }, item) => {
+        acc[item.name] = (acc[item.name] || 0) + 1;
+        return acc;
+      },
+      {}
+    );
 
-    generatePDF(report.details?.alerts, riskSummary, alertSummary);
+    generatePDF(report.details.alerts, riskSummary, alertSummary);
   }
 
   // Sort reports based on the selected column and order
@@ -101,7 +109,7 @@ export default function ReportListingPage() {
         flexDirection: "column",
         height: "100vh",
         bgcolor: "background.default",
-        p: { xs: 2, sm: 4 }, 
+        p: { xs: 2, sm: 4 },
       }}
     >
       {/* Reports Table */}
@@ -136,7 +144,7 @@ export default function ReportListingPage() {
                     Created At
                   </TableSortLabel>
                 </TableCell>
-                
+
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -165,18 +173,30 @@ export default function ReportListingPage() {
                   .map((report: Report) => (
                     <TableRow key={report._id}>
                       <TableCell>
-                      <Typography variant="body2">
-                        <a
-                          href={report.details?.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ color: 'white' }}
-                        >
-                          {report.details?.url}
-                        </a>
-                      </Typography>
+                        <Typography variant="body2">
+                          <a
+                            href={report.details?.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: "white" }}
+                          >
+                            {report.details?.url}
+                          </a>
+                        </Typography>
                       </TableCell>
-                      <TableCell>{report.updated_at}</TableCell>
+                      <TableCell>
+                        {new Date(report?.created_at || "").toLocaleString(
+                          "de-DE",
+                          {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                          }
+                        )}
+                      </TableCell>
                       <TableCell sx={{ display: "flex", gap: 2 }}>
                         <Button
                           variant="contained"
@@ -213,8 +233,12 @@ export default function ReportListingPage() {
           onRowsPerPageChange={handleChangeRowsPerPage}
         />
       </Paper>
-      
-      <ReportProgressModal open={open} onClose={handleClose} reportId={selectedReportId} />
+
+      <ReportProgressModal
+        open={open}
+        onClose={handleClose}
+        reportId={selectedReportId}
+      />
     </Box>
   );
 }
