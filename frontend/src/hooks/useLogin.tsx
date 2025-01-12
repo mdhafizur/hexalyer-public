@@ -4,6 +4,8 @@ import { useAuthContext } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { privateClient } from '@app/axios.client';
 import axios from "axios";
+import { fetchUserThunk } from '@app/users/slices/usersSlice';
+import { useAppDispatch } from '@app/hook';
 
 interface LoginData {
   email: string;
@@ -14,6 +16,7 @@ const useLogin = () => {
   const [loading, setLoading] = useState(false);
   const { setIsAuthenticated } = useAuthContext();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
 
   const login = async ({ email, password }: LoginData) => {
     const success = handleInputErrors({ email, password });
@@ -43,6 +46,10 @@ const useLogin = () => {
 
       localStorage.setItem("isAuthenticated", "true");
       setIsAuthenticated(true);
+
+      const result = await dispatch(fetchUserThunk()).unwrap(); // Unwrap the result for direct access
+      localStorage.setItem('user', JSON.stringify(result));
+
       navigate('/dashboard'); // Redirect to home page after successful login
       toast.success("Login successful");
 

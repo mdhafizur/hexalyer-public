@@ -19,6 +19,7 @@ const useLogout = () => {
       }
 
       localStorage.removeItem("isAuthenticated");
+      localStorage.removeItem("user");
       setIsAuthenticated(false);
       toast.success("Logged out successfully");
     } catch (error) {

@@ -29,7 +29,7 @@ const isJsonWithKeys = (content: string, requiredKeys: string[]): boolean => {
 export function AiMessage({ message, agentId }: { message: Message; agentId?: string }) {
     const { report, task } = message;
     const reportId = report?._id;
-    console.log("reportId", reportId)
+    // console.log("reportId", reportId)
 
     const [progressOpen, setProgressOpen] = useState(false);
 

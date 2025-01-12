@@ -10,6 +10,7 @@ import {
     Grow,
     Button,
     Fab,
+    Stack,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import { useAppDispatch, useAppSelector } from "@app/hook";
@@ -24,6 +25,8 @@ import ReportIcon from "@mui/icons-material/Assessment"; // Import an appropriat
 import { useConversations } from '@app/conversations/hooks/useConversations';
 import { Alert, Snackbar } from "@mui/material"; // Import these components
 import { useNavigate } from 'react-router-dom';
+import DownloadAgentModal from './DownloadAgentModal';
+import { getUserIdFromLocalStorage } from 'utils/cookieValidation';
 
 interface ChatComponentProps {
     onConversationCreated?: (conversationId: string) => void;
@@ -34,6 +37,7 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
     const navigate = useNavigate();
 
     const { loading: conversationLoading } = useAppSelector((state: RootState) => state.conversations);
+    const { agents } = useAppSelector((state: RootState) => state.agents);
     const { generateConversationReport, generateReportLoading, generateReportError } = useConversations();
 
     // State Initialization
@@ -54,6 +58,17 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
     const [agentId, setAgentId] = useState<string | null>(null);
     const chatContainerRef = useRef<HTMLDivElement | null>(null);
     const [isWebhexComplete, setIsWebhexComplete] = useState(false);
+
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+
+    const handleOpenModal = () => {
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+    };
 
     const handleGenerateReport = async () => {
         if (generateReportLoading) return; // Prevent duplicate triggers
@@ -107,6 +122,7 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
     // Socket Handlers
     useEffect(() => {
         const handleAgentConnection = (data: any) => {
+            console.log("handleAgentConnection", data)
             if (data.conversation_id && data.conversation_id === conversationId && data.status == "online") {
                 setConnectedAgent(data.client_info.hostname || "Unknown Agent");
                 setAgentId(data.agent_id)
@@ -179,7 +195,6 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
 
     // Join Room on Conversation ID Change
     useEffect(() => {
-
         if (conversationId !== "new" || conversationId == "new") {
             socket.emit("join_room", { conversation_id: conversationId });
             setMessages([]);
@@ -198,6 +213,23 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
 
         console.log("conversationType", conversationType)
         console.log("isWebhexComplete", isWebhexComplete)
+
+
+        // Check if conversationAgent exists in agents by matching agent.client_info.hostname
+        console.log("agents", agents)
+        const matchingAgent = agents.find(agent => agent.conversation_id === conversationId);
+        console.log("matchingAgent", matchingAgent)
+        if (matchingAgent && matchingAgent?.status == "online") {
+            console.log("ConversationAgent exists in agents.");
+            setAgentId(matchingAgent._id)
+            setConnectedAgent(matchingAgent.client_info.hostname)
+        } else {
+            console.log("ConversationAgent does not exist in agents.");
+            setAgentId(null)
+            setConnectedAgent(null)
+        }
+
+
     }, [conversationId, conversationType]);
 
     // Scroll to Bottom on New Messages
@@ -224,7 +256,8 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
         const convId = pathParts[2]; // 12345
         const convType = pathParts[3]; // manual
 
-        console.log("select conversationId", convId)
+        console.log("select convId", convId)
+        console.log("select convType", convType)
         setConversationId(convId)
         setConversationType(convType)
 
@@ -236,8 +269,9 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
         const generatedId = ObjectId().toHexString();
         try {
             if (conversationId === "new" && conversationType) {
+                const userId = getUserIdFromLocalStorage();
                 const resultAction = await dispatch(
-                    createConversationThunk({ title: customInputValue, user_id: "67667e7811799977286f3d6b", type: conversationType })
+                    createConversationThunk({ title: customInputValue, user_id: userId, type: conversationType })
                 );
                 if (createConversationThunk.fulfilled.match(resultAction)) {
                     const newConversation = resultAction.payload;
@@ -318,66 +352,81 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
 
 
 
-
             {conversationType === "auto" && !connectedAgent && (
-                <Paper
-                    elevation={3}
-                    sx={{
-                        p: 2,
-                        mt: 2,
-                        textAlign: "center",
-                        width: "100%",
-                        maxWidth: 400,
-                        margin: "0 auto",
-                        borderRadius: 2,
-                    }}
-                >
-                    <Typography variant="h6" sx={{ mb: 1 }}>
-                        Download the Agent
-                    </Typography>
-                    <Typography variant="body2" sx={{ mb: 2 }}>
-                        To get started, download and run the agent on your device.
-                    </Typography>
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={async () => {
-                            try {
-                                let targetConversationId = conversationId;
-
-                                if (conversationId === "new" && conversationType) {
-                                    const resultAction = await dispatch(
-                                        createConversationThunk({
-                                            title: "Agent Conversation",
-                                            user_id: "67667e7811799977286f3d6b", // Replace with dynamic user_id if available
-                                            type: "auto", // Assuming "auto" for agent-related conversations
-                                        })
-                                    );
-
-                                    if (createConversationThunk.fulfilled.match(resultAction)) {
-                                        const newConversation = resultAction.payload;
-                                        onConversationCreated?.(newConversation._id);
-                                        navigate(`/conversations/${newConversation._id}/${newConversation.type}`);
-                                        targetConversationId = newConversation._id;
-                                        setConversationId(newConversation._id)
-                                    } else {
-                                        console.error("Failed to create conversation");
-                                        return; // Exit if the conversation creation fails
-                                    }
-                                }
-
-                                // Trigger the download
-                                const downloadUrl = `http://localhost:5000/web/api/v1/download/agent_ui_app/${targetConversationId}`;
-                                window.open(downloadUrl, "_blank");
-                            } catch (error) {
-                                console.error("Error creating conversation or initiating download:", error);
-                            }
+                <>
+                    <Paper
+                        elevation={3}
+                        sx={{
+                            p: 2,
+                            mt: 2,
+                            textAlign: "center",
+                            width: "100%",
+                            maxWidth: 600,
+                            margin: "0 auto",
+                            borderRadius: 2,
                         }}
                     >
-                        Download Agent
-                    </Button>
-                </Paper>
+                        <Typography variant="h6" sx={{ mb: 1 }}>
+                            Download the Agent
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 2 }}>
+                            To get started, download and run the agent on your device.
+                        </Typography>
+                        <Stack direction="column" spacing={2} alignItems="center">
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                onClick={async () => {
+                                    try {
+                                        let targetConversationId = conversationId;
+                                        const userId = getUserIdFromLocalStorage();
+
+                                        if (conversationId === "new" && conversationType) {
+                                            const resultAction = await dispatch(
+                                                createConversationThunk({
+                                                    title: "Agent Conversation",
+                                                    user_id: userId,
+                                                    type: "auto", // Assuming "auto" for agent-related conversations
+                                                })
+                                            );
+
+                                            if (createConversationThunk.fulfilled.match(resultAction)) {
+                                                const newConversation = resultAction.payload;
+                                                onConversationCreated?.(newConversation._id);
+                                                navigate(`/conversations/${newConversation._id}/${newConversation.type}`);
+                                                targetConversationId = newConversation._id;
+                                                setConversationId(newConversation._id);
+                                            } else {
+                                                console.error("Failed to create conversation");
+                                                return; // Exit if the conversation creation fails
+                                            }
+                                        }
+
+                                        // Trigger the download
+                                        const downloadUrl = `http://localhost:5000/web/api/v1/download/agent_ui_app/${targetConversationId}`;
+                                        window.open(downloadUrl, "_blank");
+                                    } catch (error) {
+                                        console.error("Error creating conversation or initiating download:", error);
+                                    }
+                                }}
+                            >
+                                Download Agent App
+                            </Button>
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                onClick={handleOpenModal}
+                            >
+                                Download Agent Binary
+                            </Button>
+                        </Stack>
+
+                    </Paper>
+                    <DownloadAgentModal open={isModalOpen} handleClose={handleCloseModal} conversationId={conversationId}></DownloadAgentModal>
+                </>
             )}
+
+
 
             {connectedAgent && conversationType === "auto" && (
                 <Paper
