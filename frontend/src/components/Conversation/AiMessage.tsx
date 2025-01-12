@@ -6,7 +6,6 @@ import { formatDistanceToNow } from "date-fns";
 import ReactMarkdown from "react-markdown";
 import { commandClient } from "@app/axios.client";
 import ProgressModal from './ProgressModal';
-import ScanProgressData from "../../app/reports/hooks/ScanProgressData.json";
 
 const extractJson = (content: string): string | null => {
     try {
@@ -32,18 +31,8 @@ export function AiMessage({ message, agentId }: { message: Message; agentId?: st
     const reportId = report?._id;
     console.log("reportId", reportId)
 
-    const [open, setOpen] = useState(false);
     const [progressOpen, setProgressOpen] = useState(false);
 
-    const handleOpen = useCallback(() => {
-        if (ScanProgressData.progress === 100) {
-            setOpen(true);
-        } else {
-            setProgressOpen(true);
-        }
-    }, []);
-
-    const handleClose = useCallback(() => setOpen(false), []);
     const handleProgressClose = useCallback(() => setProgressOpen(false), []);
 
     const requiredKeys = ["description", "type", "scenario"];
@@ -132,12 +121,12 @@ export function AiMessage({ message, agentId }: { message: Message; agentId?: st
                             </Button>
                         </Box>
                     )}
-                    {message.type === "webhex" && (
+                    {message.type === "webhex" && reportId && (
                         <Button
                             variant="contained"
                             color="secondary"
                             aria-label="View Item"
-                            onClick={handleOpen}
+                            onClick={() => setProgressOpen(true)}
                             sx={{ mt: 1 }}
                         >
                             View Report
@@ -197,7 +186,7 @@ export function AiMessage({ message, agentId }: { message: Message; agentId?: st
                     </Button>
                 </DialogActions>
             </Dialog>
-            {message.type === "webhex" && (
+            {message.type === "webhex" && reportId && (
                 <>
                     <ProgressModal
                         open={progressOpen}

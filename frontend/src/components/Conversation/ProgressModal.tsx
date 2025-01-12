@@ -27,6 +27,7 @@ import {
   FormControl,
   InputLabel,
   SelectChangeEvent,
+  CircularProgress,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -63,12 +64,17 @@ const ProgressModal = ({
             left: "50%",
             transform: "translate(-50%, -50%)",
             p: 3,
-            bgcolor: "background.paper",
             borderRadius: 2,
             boxShadow: 24,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexDirection: "column",
+            bgcolor: "rgba(0, 0, 0, 0.5)",
           }}
         >
-          <Typography>Loading...</Typography>
+          <CircularProgress />
+          <Typography sx={{ mt: 2 }}>Loading...</Typography>
         </Box>
       </Modal>
     );
@@ -208,10 +214,10 @@ const ProgressModal = ({
       </Box>
     </Box>
   );
-
+  
   const renderReportContent = () => {
     const reportData = progressData.report;
-
+  
     const removeDuplicates = (data: any[]) => {
       const uniqueItems = new Map();
       if (data) {
@@ -223,9 +229,9 @@ const ProgressModal = ({
       }
       return Array.from(uniqueItems.values());
     };
-
+  
     const filteredReportData = removeDuplicates(reportData);
-
+  
     const riskSummary = filteredReportData.reduce(
       (acc: { [key in keyof typeof riskLevels]?: number }, item) => {
         acc[item.risk] = (acc[item.risk] || 0) + 1;
@@ -233,7 +239,7 @@ const ProgressModal = ({
       },
       {}
     );
-
+  
     const alertSummary = filteredReportData.reduce(
       (acc: { [key: string]: number }, item) => {
         acc[item.name] = (acc[item.name] || 0) + 1;
@@ -241,43 +247,43 @@ const ProgressModal = ({
       },
       {}
     );
-
+  
     const handleGeneratePDF = () => {
       generatePDF(filteredReportData, riskSummary, alertSummary);
     };
-
+  
     const toggleExpanded = (id: string) => {
       setExpanded((prev) => ({
         ...prev,
         [id]: !prev[id],
       }));
     };
-
+  
     const handleChangePage = (event: unknown, newPage: number) => {
       setPage(newPage);
     };
-
+  
     const handleChangeRowsPerPage = (
       event: React.ChangeEvent<HTMLInputElement>
     ) => {
       setRowsPerPage(parseInt(event.target.value, 10));
       setPage(0);
     };
-
+  
     const handleRiskLevelChange = (event: SelectChangeEvent<string>) => {
       setSelectedRiskLevel(event.target.value as string);
       setPage(0);
     };
-
+  
     const filteredData = selectedRiskLevel
       ? filteredReportData.filter((item) => item.risk === selectedRiskLevel)
       : filteredReportData;
-
+  
     const currentPageData = filteredData.slice(
       page * rowsPerPage,
       page * rowsPerPage + rowsPerPage
     );
-
+  
     return (
       <Box
         sx={{
@@ -285,8 +291,8 @@ const ProgressModal = ({
           top: "50%",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          width: "90%",
-          maxWidth: 800,
+          width: "65%",
+          maxWidth: 1000,
           maxHeight: "80vh",
           overflowY: "auto",
           bgcolor: "background.paper",
@@ -295,6 +301,31 @@ const ProgressModal = ({
           p: 3,
         }}
       >
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            borderBottom: "1px solid #ddd",
+            pb: 2,
+            mb: 3,
+          }}
+        >
+          <Typography id="report-modal-title" variant="h4" component="h2">
+            Scan Report
+          </Typography>
+          <IconButton
+            onClick={onClose}
+            aria-label="Close"
+            size="small"
+            sx={{
+              color: "text.secondary",
+              "&:hover": { color: "error.main" },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </Box>
         <Grid container spacing={3}>
           <Grid item xs={12}>
             <div
@@ -314,7 +345,7 @@ const ProgressModal = ({
               </Button>
             </div>
           </Grid>
-
+  
           <Grid item xs={12} md={6}>
             <Card>
               <CardHeader title="Risk Summary" />
@@ -351,7 +382,7 @@ const ProgressModal = ({
               </CardContent>
             </Card>
           </Grid>
-
+  
           <Grid item xs={12} md={6}>
             <Card>
               <CardHeader title="Alert Types" />
@@ -377,7 +408,7 @@ const ProgressModal = ({
               </CardContent>
             </Card>
           </Grid>
-
+  
           <Grid item xs={12}>
             <Card>
               <CardHeader
@@ -457,7 +488,7 @@ const ProgressModal = ({
                             {finding.description}
                           </Typography>
                         </div>
-
+  
                         <div>
                           <Typography variant="h6" gutterBottom>
                             Solution
@@ -466,7 +497,7 @@ const ProgressModal = ({
                             {finding.solution}
                           </Typography>
                         </div>
-
+  
                         <div>
                           <Typography variant="h6" gutterBottom>
                             References
@@ -488,7 +519,7 @@ const ProgressModal = ({
                             </Link>
                           ))}
                         </div>
-
+  
                         {finding.tags && (
                           <div>
                             <Typography variant="h6" gutterBottom>
