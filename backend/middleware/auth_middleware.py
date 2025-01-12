@@ -34,7 +34,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     return await call_next(request)
 
                 # Check for the dynamic download route
-                if request.url.path.startswith("/web/api/v1/download/agent_ui_app/"):
+                if request.url.path.startswith("/web/api/v1/download/"):
                     # Extract the dynamic ID
                     dynamic_id = request.url.path.split("/")[-1]
                     print(f"Dynamic ID detected: {dynamic_id}")

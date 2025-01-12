@@ -63,8 +63,12 @@ app.include_router(webhex_router, prefix="/webhex", tags=["WebHex"])
 app.include_router(report_router, prefix="/reports", tags=["Reports"])
 
 
-@app.get("/download-agent/{agent_type}", response_class=FileResponse, tags=["Agents"])
-async def download_agent(agent_type: str):
+@app.get(
+    "/download/agent/{agent_type}/{user_id}/{conversation_id}",
+    response_class=FileResponse,
+    tags=["Agents"],
+)
+async def download_agent(agent_type: str, user_id: str, conversation_id: str):
     """
     **Download Agent**
 
@@ -72,6 +76,8 @@ async def download_agent(agent_type: str):
 
     **Parameters**:
     - `agent_type`: The type of agent to download. Options are `linux` or `windows`.
+    - `user_id`: The unique identifier for the user requesting the agent.
+    - `conversation_id`: The unique identifier for the conversation.
 
     **Returns**:
     - `FileResponse`: The built agent file from the `dist` folder.
@@ -90,7 +96,6 @@ async def download_agent(agent_type: str):
     agent_file = (
         f"agent{'.exe' if agent_type == 'windows' else ''}"  # Append .exe for Windows
     )
-
     file_path = os.path.join(dist_folder, agent_file)
 
     # Check if the file exists
@@ -99,9 +104,18 @@ async def download_agent(agent_type: str):
             "Agent file not found for %s, triggering build process...", agent_type
         )
         try:
-            # Trigger the build process
+            # Trigger the build process with user_id and conversation_id as environment variables
             build_target = f"build_agent_{agent_type}"
-            subprocess.run(["make", build_target], check=True, cwd=os.getcwd())
+            subprocess.run(
+                ["make", build_target],
+                check=True,
+                cwd=os.getcwd(),
+                env={
+                    **os.environ,
+                    "USER_ID": user_id,
+                    "CONVERSATION_ID": conversation_id,
+                },
+            )
         except subprocess.CalledProcessError as e:
             logger.error("Build process failed for %s: %s", agent_type, e)
             raise HTTPException(
@@ -119,7 +133,12 @@ async def download_agent(agent_type: str):
             )
 
     # Serve the file from the dist folder
-    logger.info("Serving agent file for %s", agent_type)
+    logger.info(
+        "Serving agent file for %s, user_id: %s, conversation_id: %s",
+        agent_type,
+        user_id,
+        conversation_id,
+    )
     return FileResponse(
         file_path, filename=agent_file, media_type="application/octet-stream"
     )

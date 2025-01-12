@@ -61,7 +61,7 @@ def handle_client_disconnect(sio, sid):
             )
             sio.emit(
                 "handle_agent_to_conversation_connection",
-                {agent_id: agent_id},
+                {"agent_id": agent_id, "status": "offline"},
             )
             logger.info("Agent %s marked as offline in the database.", agent_id)
         except ValueError as e:
@@ -125,8 +125,10 @@ def handle_command_response(sio, sid: str, data: Dict[str, Any]):
         conversation_data = conversation_repo.get_conversation_by_id(
             data["conversation_id"]
         )
-        data["conversation"] = ConversationModel(**conversation_data).dict(by_alias=True)
-        
+        data["conversation"] = ConversationModel(**conversation_data).dict(
+            by_alias=True
+        )
+
         # Store the task in the database
         task_id = task_repo.create_task(data)
         logger.info("Task created with ID: %s", task_id)
