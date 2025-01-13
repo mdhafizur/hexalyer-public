@@ -5,7 +5,7 @@ This script allows users to input prompts and receive responses.
 
 import json
 from utils.grok_client import XAIChatClient
-from utils.cybersecurity_expert_prompt import PROMPT1
+from utils.cybersecurity_expert_prompt import AUTO_PROMPT
 
 
 # Initialize the XAIChatClient

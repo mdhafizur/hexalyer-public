@@ -1,5 +1,5 @@
 import requests
-from utils.cybersecurity_expert_prompt import PROMPT_AUTOMATIC
+from utils.cybersecurity_expert_prompt import AUTO_PROMPT, MANUAL_PROMPT
 import os
 from dotenv import load_dotenv
 import json
@@ -48,9 +48,9 @@ class XAIChatClient:
                 {
                     "role": "system",
                     "content": (
-                        PROMPT_AUTOMATIC
+                        AUTO_PROMPT
                         if prompt_type == "auto"
-                        else "You are a cybersecurity expert."
+                        else MANUAL_PROMPT
                     ),
                 }
             ],

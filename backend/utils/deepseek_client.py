@@ -1,5 +1,5 @@
 import requests
-from utils.cybersecurity_expert_prompt import PROMPT_AUTOMATIC, AUTO_PROMPT
+from utils.cybersecurity_expert_prompt import AUTO_PROMPT, MANUAL_PROMPT
 import os
 from dotenv import load_dotenv
 import json
@@ -58,7 +58,7 @@ class DeepSeekChatClient:
                         "content": (
                             AUTO_PROMPT
                             if prompt_type == "auto"
-                            else "You are a cybersecurity expert."
+                            else MANUAL_PROMPT
                         ),
                     }
                 ],

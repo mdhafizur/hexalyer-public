@@ -3,7 +3,7 @@
 from openai import OpenAI
 import os
 import json
-from utils.cybersecurity_expert_prompt import PROMPT1
+from utils.cybersecurity_expert_prompt import AUTO_PROMPT
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,7 +19,7 @@ class CyberSecurityClient:
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         self.model = model
         self.client = OpenAI(api_key=self.api_key)  # Initialize the OpenAI client
-        self.conversation_history = [{"role": "system", "content": PROMPT1}]
+        self.conversation_history = [{"role": "system", "content": AUTO_PROMPT}]
 
     def ask(self, prompt):
         """
