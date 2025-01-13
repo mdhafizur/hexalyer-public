@@ -208,22 +208,7 @@ async def list_tasks(
     Endpoint to list tasks with optional filters.
     """
     try:
-                # Get the access token from the cookies
-        token = request.cookies.get("access_token")
-        if not token:
-            raise HTTPException(status_code=401, detail="Token not found")
-
-        # Decode the token to get the user ID (sub)
-        try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            user_id = payload.get("sub")
-            if not user_id:
-                raise HTTPException(status_code=400, detail="Invalid token: user ID not found")
-            print(f"Current user ID: {user_id}")
-        except JWTError:
-            raise HTTPException(status_code=401, detail="Invalid token")
-
-        filter_criteria = {"conversation.user_id": user_id}
+        filter_criteria = {"conversation.created_by": request.state.user_id}
         tasks = task_repo.list_tasks(filter_criteria)
         for task in tasks:
             agent_id = task.get("agent_id")
@@ -232,7 +217,7 @@ async def list_tasks(
                 if agent_details and "client_info" in agent_details:
                     hostname = agent_details["client_info"].get("hostname")
                     agent_object_id = agent_details.get("_id")
-                    print("Agent object id" , agent_object_id)
+                    print("Agent object id", agent_object_id)
                     if hostname:
                         task["agent_name"] = hostname
                         task["agent_id"] = str(agent_object_id)
