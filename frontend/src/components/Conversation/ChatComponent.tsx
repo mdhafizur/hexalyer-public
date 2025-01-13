@@ -24,7 +24,7 @@ import { UserMessage } from "@components/Conversation/UserMessage";
 import ReportIcon from "@mui/icons-material/Assessment"; // Import an appropriate icon
 import { useConversations } from '@app/conversations/hooks/useConversations';
 import { Alert, Snackbar } from "@mui/material"; // Import these components
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import DownloadAgentModal from './DownloadAgentModal';
 import { getUserIdFromLocalStorage } from 'utils/cookieValidation';
 
@@ -35,14 +35,12 @@ interface ChatComponentProps {
 export default function ChatComponent({ onConversationCreated }: ChatComponentProps) {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
+    const { conversationId, conversationType } = useParams();
 
     const { loading: conversationLoading } = useAppSelector((state: RootState) => state.conversations);
     const { agents } = useAppSelector((state: RootState) => state.agents);
     const { generateConversationReport, generateReportLoading, generateReportError } = useConversations();
 
-    // State Initialization
-    const [conversationId, setConversationId] = useState<string | "new">("new");
-    const [conversationType, setConversationType] = useState<"manual" | "webhex" | "auto">("manual");
 
 
     // Inside the component
@@ -248,42 +246,59 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
         }
     };
 
+
+
+    const createConversation = async (conversationTitle: string) => {
+        if (conversationId && conversationType) {
+            const userId = getUserIdFromLocalStorage();
+            const resultAction = await dispatch(
+                createConversationThunk({ id: ObjectId().toHexString(), title: conversationTitle, created_by: userId, type: conversationType })
+            );
+            if (createConversationThunk.fulfilled.match(resultAction)) {
+                const newConversation = resultAction.payload;
+                onConversationCreated?.(newConversation._id);
+                navigate(`/conversations/${newConversation._id}/${newConversation.type}`);
+            }
+        }
+    }
+
+    const generateConversationTitle = (
+        type: string | undefined,
+        agentName: string | null,
+        userInput: string | null = null
+    ): string => {
+        if (userInput?.trim()) return userInput; // Use user input if provided
+
+        const timestamp = new Date().toISOString().slice(0, 19).replace("T", " ");
+        const baseTitle = `${type || "conversation"}-${timestamp}`;
+
+        if (type === "auto" && agentName) {
+            return `${baseTitle} (Agent: ${agentName})`;
+        }
+
+        return baseTitle;
+    };
     useEffect(() => {
         // Split the URL into parts
-        const pathParts = location.pathname.split("/");
-
-        // Assuming the structure is `/chat/:conversationId/:conversationType`
-        const convId = pathParts[2]; // 12345
-        const convType = pathParts[3]; // manual
-
-        console.log("select convId", convId)
-        console.log("select convType", convType)
-        setConversationId(convId)
-        setConversationType(convType)
-
-    }, [location.pathname]);
+        console.log("select convType", conversationType)
+        console.log("select convId", conversationId)
+        if (conversationId == "new") {
+            const title = generateConversationTitle(conversationType, connectedAgent);
+            createConversation(title)
+        }
+    }, [conversationType, conversationId]);
 
     const handleSendMessage = async (customInputValue = inputValue) => {
         if (!customInputValue.trim()) return;
+        let convId: string = conversationId || "";
+        if (!convId) {
+            return
+        }
 
-        const generatedId = ObjectId().toHexString();
         try {
-            if (conversationId === "new" && conversationType) {
-                const userId = getUserIdFromLocalStorage();
-                const resultAction = await dispatch(
-                    createConversationThunk({ title: customInputValue, user_id: userId, type: conversationType })
-                );
-                if (createConversationThunk.fulfilled.match(resultAction)) {
-                    const newConversation = resultAction.payload;
-                    onConversationCreated?.(newConversation._id);
-                    navigate(`/conversations/${newConversation._id}/${newConversation.type}`);
-                    setConversationId(newConversation._id)
-                }
-            }
-
             const message: Message = {
-                _id: generatedId,
-                conversation_id: conversationId,
+                _id: ObjectId().toHexString(),
+                conversation_id: convId,
                 role: "user",
                 content: conversationType === "webhex" && isWebhexComplete === false ? `WebHex request: ${webHexInput}` : customInputValue,
                 type: conversationType || "manual",
@@ -395,7 +410,6 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
                                                 onConversationCreated?.(newConversation._id);
                                                 navigate(`/conversations/${newConversation._id}/${newConversation.type}`);
                                                 targetConversationId = newConversation._id;
-                                                setConversationId(newConversation._id);
                                             } else {
                                                 console.error("Failed to create conversation");
                                                 return; // Exit if the conversation creation fails

@@ -22,8 +22,8 @@ export const useConversations = () => {
     }, [dispatch]);
 
     // Create a new conversation
-    const createConversation = useCallback((title: string, user_id: string, type: string) => {
-        return dispatch(createConversationThunk({ title: title, user_id: user_id, type: type }));
+    const createConversation = useCallback((id: string, title: string, created_by: string, type: string) => {
+        return dispatch(createConversationThunk({ id: id, title: title, created_by: created_by, type: type }));
     }, [dispatch]);
 
     // Update an existing conversation

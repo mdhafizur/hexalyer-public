@@ -51,13 +51,13 @@ export const fetchConversationsThunk = createAsyncThunk<
 // Thunk for creating a new conversation
 export const createConversationThunk = createAsyncThunk<
     Conversation, // Success return type
-    { title: string; user_id: string, type: string }, // Argument type
+    { id: string; title: string; created_by: string, type: string }, // Argument type
     { rejectValue: FetchError } // Error return type
 >(
     'conversations/createConversation',
-    async ({ title, user_id, type }, { rejectWithValue }) => { // Destructure the payload as an object
+    async ({ id, title, created_by, type }, { rejectWithValue }) => { // Destructure the payload as an object
         try {
-            const conversation = await createConversation(title, type, user_id); // Pass correct arguments
+            const conversation = await createConversation(id, title, type, created_by); // Pass correct arguments
             return conversation; // Return the created conversation
         } catch (error: any) {
             return rejectWithValue({ message: error.message || 'Failed to create conversation' });

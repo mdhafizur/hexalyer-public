@@ -6,12 +6,15 @@ import GoogleIcon from "@mui/icons-material/Google";
 import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../../context/AuthContext";
 import { privateClient } from "@app/axios.client";
+import { useAppDispatch } from '@app/hook';
+import { fetchUserThunk } from '@app/users/slices/usersSlice';
 
 
 
 const GoogleSignIn: React.FC = () => {
   const navigate = useNavigate();
   const { setIsAuthenticated } = useAuthContext();
+  const dispatch = useAppDispatch();
 
   const handleClick = () => {
     signInWithPopup(auth, provider)
@@ -25,7 +28,7 @@ const GoogleSignIn: React.FC = () => {
         const firstName = data._tokenResponse.firstName;
         const lastName = data._tokenResponse.lastName;
 
-        
+
 
 
         const formData = new FormData();
@@ -42,7 +45,9 @@ const GoogleSignIn: React.FC = () => {
           if (response.status === 201) {
             localStorage.setItem("isAuthenticated", "true");
             setIsAuthenticated(true); // Update context state
-            navigate("/"); // Navigate to the home page
+            const result = await dispatch(fetchUserThunk()).unwrap(); // Unwrap the result for direct access
+            localStorage.setItem('user', JSON.stringify(result));
+            navigate("/dashboard"); // Navigate to the home page
           } else {
             throw new Error(response.data.message || "Login failed.");
           }
@@ -69,7 +74,7 @@ const GoogleSignIn: React.FC = () => {
         }}
       >
         Google
-        </Button>
+      </Button>
     </div>
   );
 };

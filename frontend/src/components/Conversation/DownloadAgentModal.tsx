@@ -15,11 +15,11 @@ const DownloadAgentModal = ({ open, handleClose, conversationId }) => {
 
 chmod +x agent
 
-./agent`;
+U_ID=${userId} C_ID=${conversationId} ./agent`;
 
     const windowsCode = `Invoke-WebRequest -Uri ${import.meta.env.VITE_WEB_API_URL}/download/agent/windows/${userId}/${conversationId} -OutFile agent.exe
 
-.\\agent.exe`;
+U_ID=${userId} C_ID=${conversationId} .\\agent.exe`;
 
     return (
         <Modal open={open} onClose={handleClose}>

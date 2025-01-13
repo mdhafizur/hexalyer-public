@@ -72,7 +72,7 @@ const AgentListing: React.FC = () => {
           {agents.map((agent) => (
             <NavLink
               key={agent._id}
-              to={`/agents/${agent._id}`}
+              to={`/agents/${agent.agent_id}`}
               style={{ textDecoration: "none" }}
               activeStyle={{ color: "white" }}
             >
