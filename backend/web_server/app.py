@@ -72,7 +72,8 @@ async def download_agent(agent_type: str, user_id: str, conversation_id: str):
     """
     **Download Agent**
 
-    Triggers the build process for the specified agent type if the file is missing and then serves it.
+    Triggers the build process for the specified agent type after deleting any existing file,
+    and then serves the new built agent.
 
     **Parameters**:
     - `agent_type`: The type of agent to download. Options are `linux` or `windows`.
@@ -98,39 +99,52 @@ async def download_agent(agent_type: str, user_id: str, conversation_id: str):
     )
     file_path = os.path.join(dist_folder, agent_file)
 
-    # Check if the file exists
-    if not os.path.exists(file_path):
-        logger.info(
-            "Agent file not found for %s, triggering build process...", agent_type
-        )
+    # Delete the existing file if it exists
+    if os.path.exists(file_path):
         try:
-            # Trigger the build process with user_id and conversation_id as environment variables
-            build_target = f"build_agent_{agent_type}"
-            subprocess.run(
-                ["make", build_target],
-                check=True,
-                cwd=os.getcwd(),
-                env={
-                    **os.environ,
-                    "USER_ID": user_id,
-                    "CONVERSATION_ID": conversation_id,
-                },
-            )
-        except subprocess.CalledProcessError as e:
-            logger.error("Build process failed for %s: %s", agent_type, e)
-            raise HTTPException(
-                status_code=500, detail=f"Build process failed for {agent_type}"
-            ) from e
-
-        # Check again if the file exists after the build
-        if not os.path.exists(file_path):
-            logger.error(
-                "Build completed but agent file is still missing for %s", agent_type
-            )
+            logger.info("Deleting existing agent file: %s", file_path)
+            os.remove(file_path)
+        except OSError as e:
+            logger.error("Failed to delete agent file: %s, error: %s", file_path, e)
             raise HTTPException(
                 status_code=500,
-                detail=f"Agent file not found after build for {agent_type}",
-            )
+                detail=f"Failed to delete existing agent file for {agent_type}",
+            ) from e
+
+    # Trigger the build process
+    logger.info(
+        "Starting build process for agent type: %s, user_id: %s, conversation_id: %s",
+        agent_type,
+        user_id,
+        conversation_id,
+    )
+    try:
+        build_target = f"build_agent_{agent_type}"
+        subprocess.run(
+            ["make", build_target],
+            check=True,
+            cwd=os.getcwd(),
+            env={
+                **os.environ,
+                "USER_ID": user_id,
+                "CONVERSATION_ID": conversation_id,
+            },
+        )
+    except subprocess.CalledProcessError as e:
+        logger.error("Build process failed for %s: %s", agent_type, e)
+        raise HTTPException(
+            status_code=500, detail=f"Build process failed for {agent_type}"
+        ) from e
+
+    # Check if the file exists after the build
+    if not os.path.exists(file_path):
+        logger.error(
+            "Build completed but agent file is still missing for %s", agent_type
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Agent file not found after build for {agent_type}",
+        )
 
     # Serve the file from the dist folder
     logger.info(

@@ -177,13 +177,15 @@ async def create_conversation(conversation: ConversationModel) -> Any:
         conversation_data = conversation.dict(by_alias=True)
 
         # Create the conversation in the database
-        conversation_id = conversation_repo.create_conversation(conversation_data)
+        conv_data = conversation_data
+        conv_data["_id"] = ObjectId(conversation_data["_id"])
+        conversation_id = conversation_repo.create_conversation(conv_data)
 
         # Fetch the inserted agent from the database
         created_conversation = conversation_repo.get_conversation_by_id(conversation_id)
         if not created_conversation:
             raise HTTPException(
-                status_code=500, detail="Failed to retrieve the created agent"
+                status_code=500, detail="Failed to retrieve the created conversation"
             )
 
         # Return success response
@@ -303,15 +305,25 @@ async def generate_conversation_report(conversation_id: str):
             system_prompt=AUTO_AND_MANUAL_REPORT_PROMPT,
         )
         text = response.get("choices", [{}])[0].get("message", {}).get("content", "")
-        json_match = re.search(r"```json\n(.*?)\n```", text, re.DOTALL)
+        try:
+            # First, try to parse the entire text as JSON
+            parsed_data = json.loads(text)
+        except json.JSONDecodeError:
+            # If full text isn't valid JSON, attempt to extract JSON block
+            json_match = re.search(r"```json\n(.*?)\n```", text, re.DOTALL)
+            if not json_match:
+                raise ValueError("Invalid response format: JSON block not found")
 
-        if not json_match:
-            raise ValueError("Invalid response format: JSON block not found")
+            # Parse the extracted JSON content
+            json_content = json_match.group(1)
+            parsed_data = json.loads(json_content)
 
-        json_content = json_match.group(1)
-        parsed_data = json.loads(json_content)
+        # Convert parsed data to a formatted string and reload as JSON (if needed)
         report_string = json.dumps(parsed_data, indent=4)
-        report_json = json.loads(report_string)
+        report_json = json.loads(
+            report_string
+        )  # Can directly use `parsed_data` if not needed
+
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to generate report: {str(e)}"

@@ -27,10 +27,11 @@ logging.basicConfig(
 # Initialize Socket.IO client
 sio = socketio.Client(reconnection=True, reconnection_attempts=5)
 
+
 class Agent:
     """
     Represents an agent that interacts with a Command and Control (C2) server using REST and Socket.IO.
-    
+
     Attributes:
         c2_url (str): URL of the C2 server REST API.
         socket_url (str): URL of the Socket.IO server.
@@ -40,13 +41,16 @@ class Agent:
         agent_id (str): Unique identifier for the agent.
     """
 
-    def __init__(self, c2_url: str, socket_url: str, user_id: str, conversation_id: str):
+    def __init__(
+        self, c2_url: str, socket_url: str, user_id: str, conversation_id: str
+    ):
         self.c2_url = c2_url
         self.socket_url = socket_url
         self.user_id = user_id
         self.conversation_id = conversation_id
         self.is_registered = False
         self.agent_id = None
+        self.client_info = None
         self.register_socket_events()
 
     def register_socket_events(self):
@@ -70,62 +74,95 @@ class Agent:
         logging.info("Received command: %s", data)
 
         created_at = datetime.now(ZoneInfo("UTC"))
-        outputs = []
+        # Execute preconditions, commands, and cleanups
+        all_outputs = []
         overall_status = "success"
 
-        # Extract metadata and commands
+        # Extract metadata
         metadata = data.get("metadata", {})
-        priority = metadata.get("priority", "medium")
+        priority = metadata.get("priority", "medium")  # Default priority to "medium"
+
         preconditions = data.get("preconditions", [])
         commands = data.get("commands", [])
         cleanups = data.get("cleanups", [])
 
-        def execute_steps(steps: List[Dict], step_type: str):
-            nonlocal overall_status
-            for step in steps:
-                cmd = step.get("test_cmd" if step_type == "precondition" else "command")
-                if cmd:
-                    output = run_command_in_script_mode(cmd)
-                    status = "failure" if "failure" in output.lower() else "success"
-                    outputs.append({
-                        "type": step_type,
-                        "command": cmd,
-                        "output": output,
-                        "status": status,
-                    })
-                    if status == "failure":
-                        if step_type == "precondition" and "solve_cmd" in step:
-                            solve_output = run_command_in_script_mode(step["solve_cmd"])
-                            solve_status = "success" if "success" in solve_output.lower() else "failure"
-                            outputs.append({
-                                "type": "precondition_solve",
-                                "command": step["solve_cmd"],
-                                "output": solve_output,
-                                "status": solve_status,
-                            })
-                            if solve_status == "failure":
-                                overall_status = "failure"
-                                break
-                        else:
-                            overall_status = "failure"
-                            break
+        for precondition in preconditions:
+            test_cmd = precondition.get("test_cmd")
+            solve_cmd = precondition.get("solve_cmd")
 
-        # Execute preconditions, main commands, and cleanup steps
-        execute_steps(preconditions, "precondition")
+            if test_cmd:
+                test_output = run_command_in_script_mode(test_cmd)
+                test_status = (
+                    "failure" if "failure" in test_output.lower() else "success"
+                )
+                all_outputs.append(
+                    {
+                        "type": "precondition_test",
+                        "command": test_cmd,
+                        "output": test_output,
+                        "status": test_status,
+                    }
+                )
+
+                if test_status == "failure" and solve_cmd:
+                    solve_output = run_command_in_script_mode(solve_cmd)
+                    solve_status = (
+                        "success" if "success" in solve_output.lower() else "failure"
+                    )
+                    all_outputs.append(
+                        {
+                            "type": "precondition_solve",
+                            "command": solve_cmd,
+                            "output": solve_output,
+                            "status": solve_status,
+                        }
+                    )
+                    if solve_status == "failure":
+                        overall_status = "failure"
+                        break
 
         if overall_status == "success":
-            execute_steps(commands, "command")
+            for command in commands:
+                command_output = run_command_in_script_mode(command)
+                command_status = (
+                    "failure" if "failure" in command_output.lower() else "success"
+                )
+                all_outputs.append(
+                    {
+                        "type": "command",
+                        "command": command,
+                        "output": command_output,
+                        "status": command_status,
+                    }
+                )
+                if command_status == "failure":
+                    overall_status = "failure"
 
-        execute_steps(cleanups, "cleanup")
+        for cleanup_command in cleanups:
+            cleanup_output = run_command_in_script_mode(cleanup_command)
+            cleanup_status = (
+                "failure" if "failure" in cleanup_output.lower() else "success"
+            )
+            all_outputs.append(
+                {
+                    "type": "cleanup",
+                    "command": cleanup_command,
+                    "output": cleanup_output,
+                    "status": cleanup_status,
+                }
+            )
+            if cleanup_status == "failure":
+                overall_status = "failure"
 
-        # Prepare response
+        # Calculate execution time
         completed_at = datetime.now(ZoneInfo("UTC"))
         execution_time = (completed_at - created_at).total_seconds()
         response = {
             "agent_id": self.agent_id,
             "conversation_id": self.conversation_id,
+            "agent_name": self.client_info.get("hostname"),
             "status": overall_status,
-            "outputs": outputs,
+            "outputs": all_outputs,
             "priority": priority,
             "execution_time": f"{execution_time:.2f}s",
             "completed_at": completed_at.isoformat(),
@@ -141,7 +178,7 @@ class Agent:
         if self.is_registered:
             return
 
-        client_info = get_client_info()
+        self.client_info = get_client_info()
         self.agent_id, error = get_agent_id()
 
         if error or not self.agent_id:
@@ -152,7 +189,7 @@ class Agent:
             "agent_id": self.agent_id,
             "conversation_id": self.conversation_id,
             "created_by": self.user_id,
-            "client_info": client_info,
+            "client_info": self.client_info,
             "status": "online",
             "last_seen": datetime.now(ZoneInfo("UTC")).isoformat(),
         }
@@ -166,11 +203,12 @@ class Agent:
         except Exception as e:
             logging.error("Failed to register agent: %s", e)
 
+
 if __name__ == "__main__":
     c2_url = os.getenv("C2_URL", "http://localhost:5001/c2/api/v1")
     socket_url = os.getenv("SOCKET_URL", "http://localhost:5003")
-    user_id = os.getenv("USER_ID", "default_user_id")
-    conversation_id = os.getenv("CONVERSATION_ID", "default_conversation_id")
+    user_id = os.getenv("U_ID", "default_user_id")
+    conversation_id = os.getenv("C_ID", "default_conversation_id")
 
     while True:
         try:

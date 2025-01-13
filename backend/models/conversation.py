@@ -61,6 +61,8 @@ class ConversationModel(BaseModel):
         """
         kwargs["by_alias"] = True
         data = super().dict(**kwargs)
+        if "_id" in data and isinstance(data["_id"], ObjectId):
+            data["_id"] = str(data["_id"])
         if data.get("created_at"):
             data["created_at"] = data["created_at"].isoformat()
         if data.get("updated_at"):

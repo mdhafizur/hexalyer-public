@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from datetime import datetime
 from models.report import ReportModel
 from models.task import TaskModel
+from models.conversation import ConversationModel
 
 # Initialize MessageRepository
 message_repo = MessageRepository()
@@ -68,6 +69,13 @@ def handle_join_room(sio, sid, data):
                 message_dict["task"] = TaskModel(**message_dict["task"]).dict(
                     by_alias=True
                 )
+                if (
+                    "conversation" in message_dict["task"]
+                    and message_dict["task"]["conversation"]
+                ):
+                    message_dict["task"]["conversation"] = ConversationModel(
+                        **message_dict["task"]["conversation"]
+                    ).dict(by_alias=True)
 
             messages.append(message_dict)
 

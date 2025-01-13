@@ -154,6 +154,9 @@ def handle_command_response(sio, sid: str, data: Dict[str, Any]):
         # Emit the AI message to the frontend
         ai_message = MessageModel(**task_execution_message).dict(by_alias=True)
         ai_message["task"] = TaskModel(**ai_message["task"]).dict(by_alias=True)
+        ai_message["task"]["conversation"] = ConversationModel(
+            **ai_message["task"]["conversation"]
+        ).dict(by_alias=True)
         sio.emit(
             "ai_message_stream",
             ai_message,
