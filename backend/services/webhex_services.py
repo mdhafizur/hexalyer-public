@@ -151,13 +151,14 @@ class ScanService:
                 logger.error(f"Report with ID {report_id} not found.")
                 raise HTTPException(status_code=404, detail="Report not found.")
 
-            if report.get('details', {}).get('alerts'):
+            # Check for existing alerts in the report
+            if report.get("details", {}).get("alerts"):
                 return {
                     "progress": 100,
-                    "report": report['details']['alerts'],
+                    "report": report["details"]["alerts"],
                 }
 
-            # Extract necessary details
+            # Extract scan details
             details = report.get("details", {})
             scan_id = details.get("scan_id")
             url = details.get("url")
@@ -191,72 +192,57 @@ class ScanService:
             )
             scan_progress_data = scan_progress_response.get("scanProgress", [])
 
-            # Handle completion of the scan
+            # Handle scan completion
             if progress_percentage == "100":
                 raw_alerts = details.get("alerts", [])
 
-                if raw_alerts:
-                    seen_names = set()
-                    unique_alerts = []
-                    for alert in raw_alerts:
-                        # Check if 'cweid' exists and is not a duplicate
-                        alert_name = alert.get("name")
-                        if alert_name and alert_name not in seen_names:
-                            seen_names.add(alert_name)
-                            unique_alerts.append(alert)
-
-                if raw_alerts:
+                if not raw_alerts:
                     logger.info(
                         "No alerts found in the report. Fetching alerts from ZAP."
                     )
-
                     alerts_data = await self.zap_service.make_request(
                         "core/view/alerts/", {"baseurl": url}
                     )
                     raw_alerts = alerts_data.get("alerts", [])
 
-                    # Remove redundant CWE IDs from alerts
-                    if raw_alerts:
-                        seen_names = set()
-                        unique_alerts = []
-                        for alert in raw_alerts:
-                            # Check if 'cweid' exists and is not a duplicate
-                            alert_name = alert.get("name")
-                            if alert_name and alert_name not in seen_names:
-                                seen_names.add(alert_name)
-                                unique_alerts.append(alert)
+                # Deduplicate alerts based on alert name
+                unique_alerts = []
+                seen_names = set()
+                for alert in raw_alerts:
+                    alert_name = alert.get("name")
+                    if alert_name and alert_name not in seen_names:
+                        seen_names.add(alert_name)
+                        unique_alerts.append(alert)
 
-                    logger.info(f"Fetched {len(unique_alerts)} alerts from ZAP.")
+                logger.info(f"Fetched {len(unique_alerts)} unique alerts from ZAP.")
 
-                    # Update report with fetched alerts
-                    report["details"]["alerts"] = unique_alerts
-                    report.pop("_id", None)  # Remove MongoDB's internal field
-                    self.report_repository.update_report(
-                        report_id=report_id, update_data=report
+                # Update report with fetched alerts
+                report["details"]["alerts"] = unique_alerts
+                report.pop("_id", None)  # Remove MongoDB's internal field
+                self.report_repository.update_report(
+                    report_id=report_id, update_data=report
+                )
+                logger.info("Report updated with fetched alerts.")
+
+                # Update related message with the updated report
+                message = self.message_repository.get_message_by_report_id(report_id)
+                if message:
+                    msg_id = str(
+                        message.pop("_id", None)
+                    )  # Remove MongoDB's internal field
+                    message["report"] = report
+                    message["report"]["_id"] = report_id
+                    self.message_repository.update_message(
+                        message_id=msg_id, update_data=message
                     )
-
-                    logger.info("Report updated with fetched alerts.")
-
-                    # Update related message with the updated report
-                    message = self.message_repository.get_message_by_report_id(
-                        report_id
-                    )
-                    if message:
-                        msg_id = str(
-                            message.pop("_id", None)
-                        )  # Remove MongoDB's internal field
-                        message["report"] = report
-                        self.message_repository.update_message(
-                            message_id=msg_id, update_data=message
-                        )
-                        logger.info("Related message updated with the latest report.")
+                    logger.info("Related message updated with the latest report.")
 
                 return {
                     "progress": 100,
                     "report": unique_alerts,
                 }
 
-            # Return progress and scan progress details
+            # Return ongoing scan progress
             return {
                 "progress": int(progress_percentage),
                 "scan_progress": (
