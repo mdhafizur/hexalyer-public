@@ -29,7 +29,7 @@ build_agent_linux: build_clean setup
 
 # Target to build the Windows executable
 build_agent_windows: build_clean setup
-	USER_ID=$(USER_ID) CONVERSATION_ID=$(CONVERSATION_ID) . $(VENV_DIR)/bin/activate && pyinstaller --onefile --name $(EXECUTABLE_NAME).exe --windowed $(SCRIPT)
+	USER_ID=$(USER_ID) CONVERSATION_ID=$(CONVERSATION_ID) . $(VENV_DIR)/bin/activate && pyinstaller --onefile --name $(EXECUTABLE_NAME).exe $(SCRIPT)
 
 # Target to run the executable
 run_agent: build
