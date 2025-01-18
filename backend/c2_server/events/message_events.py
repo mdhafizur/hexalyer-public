@@ -305,7 +305,7 @@ def handle_stream_to_ai_webhex(sio, sid, data):
             # ]
 
             # Using the XAIChatClient to stream the response
-            for chunk in deepseek_client.ask(saved_message.get("content"), stream=True):
+            for chunk in deepseek_client.ask(message=saved_message.get("content"), stream=True):
                 # Append the chunk to the existing content in memory
                 complete_content += chunk  # Accumulate the chunks
                 ai_message["content"] = chunk
