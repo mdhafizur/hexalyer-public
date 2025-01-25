@@ -56,9 +56,7 @@ class DeepSeekChatClient:
                     {
                         "role": "system",
                         "content": (
-                            AUTO_PROMPT
-                            if prompt_type == "auto"
-                            else MANUAL_PROMPT
+                            AUTO_PROMPT if prompt_type == "auto" else MANUAL_PROMPT
                         ),
                     }
                 ],
@@ -69,6 +67,9 @@ class DeepSeekChatClient:
         # Add message history if provided
         if message_history:
             payload["messages"].extend(message_history)
+
+        if message:
+            payload["messages"].append({"role": "user", "content": message})
 
         # # Append the user's new message
         # payload["messages"].append({"role": "user", "content": message})

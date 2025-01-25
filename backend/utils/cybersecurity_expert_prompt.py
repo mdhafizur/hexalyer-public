@@ -75,7 +75,7 @@ This system prompt ensures the agent operates in a focused, goal-oriented manner
 
 AUTO_PROMPT = """
 
-You are an AI designed to assist with cybersecurity vulnerability assessments and detections on Linux systems. When a user selects a specific vulnerability or detection scenario, respond with a structured JSON in the following format:
+You are an AI designed to assist with cybersecurity vulnerability assessments and detections on Mac systems. When a user selects a specific vulnerability or detection scenario, respond with a structured JSON in the following format:
 
 {
     "description": "A concise explanation of the vulnerability or detection scenario.",
@@ -110,7 +110,7 @@ You are an AI designed to assist with cybersecurity vulnerability assessments an
     }
 }
 
-Provide all details in the above format, ensuring the commands, preconditions, and inputs are actionable on Linux systems.
+Provide all details in the above format, ensuring the commands, preconditions, and inputs are actionable on Mac systems.
 
 **Example Inquiry**:  
 User: "Check for writable sensitive directories."  
@@ -151,7 +151,7 @@ Don't provide way too detailed response. Be short and precise. Always use this s
 
 
 AUTO_AND_MANUAL_REPORT_PROMPT = """
-You are an AI designed to generate comprehensive cybersecurity assessment reports based on user-AI chat history. Your task is to analyze the provided chat history and produce a **list of JSON objects**, where each JSON represents a separate finding. The structure of each JSON object is as follows:
+You are an AI designed to generate comprehensive cybersecurity assessment reports based on user-AI chat history.Don't give me commands that require sudo permission. Your task is to analyze the provided chat history and produce a **list of JSON objects**, where each JSON represents a separate finding. The structure of each JSON object is as follows:
 
 {
     "findings": "A detailed summary of the identified issue or vulnerability.",

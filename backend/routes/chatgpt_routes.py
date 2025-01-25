@@ -2,14 +2,14 @@
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from utils.cybersecurity_client import CyberSecurityClient
+from utils.chatgpt_client import ChatGPTClient
 from typing import Union, Dict
 
 # Define the router for ChatGPT-related endpoints
 router = APIRouter()
 
 # Initialize the ChatGPT client
-chatgpt_client = CyberSecurityClient()
+chatgpt_client = ChatGPTClient()
 
 
 class QueryRequest(BaseModel):

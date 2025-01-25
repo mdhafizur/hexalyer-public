@@ -1,19 +1,19 @@
 """
-A simple shell interface for interacting with the CyberSecurityClient.
+A simple shell interface for interacting with the ChatGPTClient.
 This script allows users to input prompts and receive responses.
 """
 
 import json
-from utils.cybersecurity_client import CyberSecurityClient
+from utils.chatgpt_client import ChatGPTClient
 
-# Initialize the CyberSecurityClient
-client = CyberSecurityClient()
+# Initialize the ChatGPTClient
+client = ChatGPTClient()
 
 
 def main():
     """
     Main function for the CyberSecurity Shell interface.
-    Provides an interactive prompt for querying the CyberSecurityClient.
+    Provides an interactive prompt for querying the ChatGPTClient.
     """
     print("CyberSecurity Expert Shell")
     print("Type 'exit' to quit.\n")

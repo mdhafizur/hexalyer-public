@@ -9,22 +9,23 @@ from models.report import ReportModel
 from pydantic import ValidationError
 from c2_server.events.utils import current_utc_time
 from models.report import ReportModel
-from utils.cybersecurity_client import CyberSecurityClient
+from utils.chatgpt_client import ChatGPTClient
 from utils.grok_client import XAIChatClient
 from utils.deepseek_client import DeepSeekChatClient
 from services.webhex_services import ZAPService, ScanService
 import asyncio
 import json
+import gevent
 
 BASE_API_URL = os.getenv("WEBHEX_URL", "http://134.209.237.212:8090/JSON")
 API_KEY = os.getenv("WEBHEX_API_KEY", "hexashield")
 
 logger = socket_listener_logger
 
-# Initialize MessageRepository, CyberSecurityClient
+# Initialize MessageRepository, ChatGPTClient
 message_repo = MessageRepository()
 report_repository = ReportRepository()
-client = CyberSecurityClient()
+chatgpt_client = ChatGPTClient()
 x_ai_client = XAIChatClient()
 deepseek_client = DeepSeekChatClient()
 
@@ -212,19 +213,34 @@ def handle_stream_to_ai_manual(sio, sid, data):
             ].strip()  # Ignore messages with empty or whitespace-only content
         ]
 
-        # Using the XAIChatClient to stream the response
-        for chunk in deepseek_client.ask(
+        # # Using the DeepSeekClient to stream the response
+        # for chunk in deepseek_client.ask(
+        #     saved_message.get("content"), stream=True, message_history=message_history
+        # ):
+        #     # Append the chunk to the existing content in memory
+        #     complete_content += chunk  # Accumulate the chunks
+        #     ai_message["content"] = chunk
+        #     # Emit the chunk of the response back to the client
+        #     sio.emit(
+        #         "ai_message_stream",
+        #         ai_message,
+        #         to=str(message_data["conversation_id"]),
+        #     )
+
+        for chunk in chatgpt_client.ask(
             saved_message.get("content"), stream=True, message_history=message_history
         ):
-            # Append the chunk to the existing content in memory
-            complete_content += chunk  # Accumulate the chunks
-            ai_message["content"] = chunk
-            # Emit the chunk of the response back to the client
-            sio.emit(
-                "ai_message_stream",
-                ai_message,
-                to=str(message_data["conversation_id"]),
-            )
+            print(f"Chunk received: {chunk}")  # Log each chunk
+            if chunk is not None:
+                complete_content += chunk
+                ai_message["content"] = chunk
+                sio.emit(
+                    "ai_message_stream",
+                    ai_message,
+                    to=str(message_data["conversation_id"]),
+                )
+                print(f"Chunk emitted: {chunk}")  # Logs after emit
+                gevent.sleep(0)
 
         # Once the streaming is complete, update the MongoDB message with the full content
         ai_message["content"] = complete_content  # Set the complete content
@@ -305,7 +321,9 @@ def handle_stream_to_ai_webhex(sio, sid, data):
             # ]
 
             # Using the XAIChatClient to stream the response
-            for chunk in deepseek_client.ask(message=saved_message.get("content"), stream=True):
+            for chunk in deepseek_client.ask(
+                message=saved_message.get("content"), stream=True
+            ):
                 # Append the chunk to the existing content in memory
                 complete_content += chunk  # Accumulate the chunks
                 ai_message["content"] = chunk

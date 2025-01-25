@@ -2,10 +2,16 @@
 
 import os
 import socketio
-from geventwebsocket.handler import WebSocketHandler
 from gevent import pywsgi
-from logger.fastapi_logger import socket_listener_logger
+from geventwebsocket.handler import WebSocketHandler
 
+# If you truly need gevent monkey-patching in a standalone context,
+# uncomment the following two lines and ensure this is done BEFORE
+# any other imports that use ssl/socket/threads:
+# from gevent import monkey
+# monkey.patch_all()
+
+from logger.fastapi_logger import socket_listener_logger
 from c2_server.events.conversation_events import (
     handle_join_room,
     handle_load_more_messages,
@@ -19,27 +25,24 @@ from c2_server.events.agent_events import (
     handle_command_response,
 )
 
+
 # Initialize Socket.IO server
 sio = socketio.Server(
     cors_allowed_origins="*",
     async_mode="gevent",
-    ping_interval=10,  # Ping every 10 seconds to keep the connection alive
-    ping_timeout=30,  # Allow up to 30 seconds before considering the connection dead
+    ping_interval=10,  # Ping every 10 seconds
+    ping_timeout=60,  # Allow up to 60 seconds before considering the connection dead
     logger=True,
     engineio_logger=True,
 )
 
-# Modify the WSGIApp initialization to include the path prefix
-app = socketio.WSGIApp(
-    sio,
-    # static_files=None,
-    # socketio_path="/ws/socket.io"
-)
+# WSGIApp for Socket.IO + gevent
+app = socketio.WSGIApp(sio)
 
 # Configure logger
 logger = socket_listener_logger
 
-# these are default event triggered when socket is connected and disconnect
+# Default event handlers
 sio.on("connect", handle_client_connect)
 sio.on("disconnect", lambda sid: handle_client_disconnect(sio, sid))
 
@@ -48,15 +51,11 @@ sio.on(
     "on_agent_registration", lambda sid, data: handle_agent_registration(sio, sid, data)
 )
 sio.on("on_command_response", lambda sid, data: handle_command_response(sio, sid, data))
-
-
 sio.on("join_room", lambda sid, data: handle_join_room(sio, sid, data))
 sio.on("leave_room", lambda sid, data: handle_leave_room(sio, sid, data))
 sio.on(
     "load_more_messages", lambda sid, data: handle_load_more_messages(sio, sid, data)
 )
-
-
 sio.on("send_message", lambda sid, data: handle_send_message(sio, sid, data))
 sio.on("on_stream_message_to_ai", lambda sid, data: handle_stream_to_ai(sio, sid, data))
 
@@ -75,19 +74,17 @@ def run_socket_server(host="0.0.0.0", port=5003):
 
     Notes:
         - For HTTPS, set the `SSL_CERTFILE` and `SSL_KEYFILE` environment variables
-            to the paths of the SSL certificate and key files.
+          to the paths of the SSL certificate and key files.
         - The server is compatible with WebSocket clients using the `geventwebsocket` handler.
     """
-    protocol = os.getenv("SOCKET_PROTOCOL", "http")  # Default to 'http'
+    protocol = os.getenv("SOCKET_PROTOCOL", "http").lower()  # Default to 'http'
 
     print(f"\nStarting Socket.IO server on {protocol}://{host}:{port}")
 
     if protocol == "http":
-        # Start the HTTP server with Gevent
         server = pywsgi.WSGIServer((host, port), app, handler_class=WebSocketHandler)
         server.serve_forever()
     elif protocol == "https":
-        # For HTTPS, you need to provide SSL certificates
         ssl_context = {
             "certfile": os.getenv("SSL_CERTFILE", "path/to/certfile.pem"),
             "keyfile": os.getenv("SSL_KEYFILE", "path/to/keyfile.pem"),
@@ -103,3 +100,16 @@ def run_socket_server(host="0.0.0.0", port=5003):
     else:
         logger.error("Unsupported protocol. Use 'http' or 'https'.")
         raise ValueError("Unsupported protocol. Use 'http' or 'https'.")
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run the Socket.IO server via gevent.")
+    parser.add_argument("--host", default="0.0.0.0", help="Host address to listen on.")
+    parser.add_argument(
+        "--port", type=int, default=5003, help="Port number to listen on."
+    )
+
+    args = parser.parse_args()
+    run_socket_server(host=args.host, port=args.port)

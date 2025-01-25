@@ -1,14 +1,7 @@
 {
     "version": "0.2.0",
     "configurations": [
-        {
-            "name": "Run Servers",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/main.py",
-            "console": "integratedTerminal",
-            "envFile": "${workspaceFolder}/.env"
-        },
+        // 1) Run Agent
         {
             "name": "Run Agent",
             "type": "debugpy",
@@ -19,9 +12,9 @@
                 "http://localhost:5001/c2/api/v1",
                 "http://localhost:5003"
             ],
-            "envFile": "${workspaceFolder}/.env",
-            "preLaunchTask": "wait-for-web-server"
+            "envFile": "${workspaceFolder}/.env"
         },
+        // 2) Run Agent App
         {
             "name": "Run Agent App",
             "type": "debugpy",
@@ -32,9 +25,9 @@
                 "http://localhost:5001/c2/api/v1",
                 "http://localhost:5003"
             ],
-            "envFile": "${workspaceFolder}/.env",
-            "preLaunchTask": "wait-for-web-server"
+            "envFile": "${workspaceFolder}/.env"
         },
+        // 3) Run ChatGPT Shell
         {
             "name": "Run ChatGPT Shell",
             "type": "debugpy",
@@ -43,6 +36,7 @@
             "console": "integratedTerminal",
             "envFile": "${workspaceFolder}/.env"
         },
+        // 4) Run Grok Shell
         {
             "name": "Run Grok Shell",
             "type": "debugpy",
@@ -51,6 +45,7 @@
             "console": "integratedTerminal",
             "envFile": "${workspaceFolder}/.env"
         },
+        // 5) Run Web Server (FastAPI/Uvicorn) with Hot Reload
         {
             "name": "Run Web Server with Hot Reload",
             "type": "debugpy",
@@ -61,12 +56,13 @@
                 "--host",
                 "localhost",
                 "--port",
-                "5000",
+                "5002",
                 "--reload"
             ],
             "console": "integratedTerminal",
             "envFile": "${workspaceFolder}/.env"
         },
+        // 6) Run C2 Server (FastAPI/Uvicorn) with Hot Reload
         {
             "name": "Run C2 Server with Hot Reload",
             "type": "debugpy",
@@ -75,7 +71,7 @@
             "args": [
                 "c2_server.app:app",
                 "--host",
-                "0.0.0.0",
+                "localhost",
                 "--port",
                 "5001",
                 "--reload"
@@ -83,25 +79,31 @@
             "console": "integratedTerminal",
             "envFile": "${workspaceFolder}/.env"
         },
+        // 7) Run Socket.IO Server (Gevent) with Hot Reload
         {
             "name": "Run Socket.IO Server with Hot Reload",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/c2_server/c2_socket_server_debug.py",
+            // "program": "${workspaceFolder}/c2_server/c2_socket_server.py",
+            "module": "c2_server.c2_socket_server", // load as a module
             "console": "integratedTerminal",
-            "envFile": "${workspaceFolder}/.env"
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                // Tells Python "logger" is a top-level package in the project root
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "args": [
+                "--host",
+                "localhost",
+                "--port",
+                "5003"
+            ]
         }
     ],
     "compounds": [
+        // Run all three servers at once, each in its own process:
         {
-            "name": "Run Servers and Agent App",
-            "configurations": [
-                "Run Servers",
-                "Run Agent App"
-            ]
-        },
-        {
-            "name": "Hotreload Servers",
+            "name": "Run All Servers (Hot Reload)",
             "configurations": [
                 "Run Web Server with Hot Reload",
                 "Run C2 Server with Hot Reload",
