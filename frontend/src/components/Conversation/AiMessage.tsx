@@ -53,7 +53,7 @@ export function AiMessage({ message, agentId }: { message: Message; agentId?: st
         }
     };
 
-    const renderContent = <ReactMarkdown>{message.content}</ReactMarkdown>;
+    const renderContent = useCallback(() => <ReactMarkdown>{message.content}</ReactMarkdown>, [message.content]);
 
     return (
         <>
@@ -81,7 +81,7 @@ export function AiMessage({ message, agentId }: { message: Message; agentId?: st
                         color: "primary.contrastText",
                     }}
                 >
-                    {renderContent}
+                    {renderContent()}
                     {isValidJson && (
                         <Box sx={{ mt: 1 }}>
                             <Typography variant="subtitle2" color="primary">

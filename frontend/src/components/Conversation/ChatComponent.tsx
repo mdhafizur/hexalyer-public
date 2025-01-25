@@ -157,6 +157,7 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
 
 
         const handleAiMessageStream = (aiMessage: Message) => {
+            // console.log("aiMessage", aiMessage)
             if (aiMessage.conversation_id === conversationId) {
                 setMessages((prev) => {
                     const index = prev.findIndex((msg) => msg._id === aiMessage._id);
@@ -179,17 +180,50 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
 
         socket.on("handle_agent_to_conversation_connection", handleAgentConnection);
         socket.on("message_history", handleMessageHistory);
-        socket.on("ai_message_stream", handleAiMessageStream);
+        // socket.on("ai_message_stream", handleAiMessageStream);
         // socket.on("ai_message", handleAiMessage);
 
         return () => {
             socket.off("handle_agent_to_conversation_connection", handleAgentConnection);
             socket.off("message_history", handleMessageHistory);
-            socket.off("ai_message_stream", handleAiMessageStream);
+            // socket.off("ai_message_stream", handleAiMessageStream);
             // socket.off("ai_message", handleAiMessage);
         };
 
     }, [conversationId, addMessage, agentId, conversationType]);
+
+
+    useEffect(() => {
+
+        const handleAiMessageStream = (aiMessage: Message) => {
+            console.log("Received AI Message:", aiMessage);
+            if (aiMessage.conversation_id === conversationId) {
+                setMessages((prev) => {
+                    const index = prev.findIndex((msg) => msg._id === aiMessage._id);
+
+                    if (index !== -1) {
+                        // Update the content of the existing message at the same index
+                        const updatedMessages = [...prev];
+                        updatedMessages[index] = {
+                            ...updatedMessages[index],
+                            content: updatedMessages[index].content + aiMessage.content,
+                        };
+                        return updatedMessages;
+                    }
+
+                    // Add new message at the end if it doesn't exist
+                    return [...prev, aiMessage];
+                });
+            }
+        };
+
+        socket.on("ai_message_stream", handleAiMessageStream);
+
+        return () => {
+            socket.off("ai_message_stream", handleAiMessageStream);
+            // socket.off("ai_message", handleAiMessage);
+        };
+    }, []);
 
     // Join Room on Conversation ID Change
     useEffect(() => {

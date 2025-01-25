@@ -3,15 +3,15 @@ import { io, Socket } from "socket.io-client";
 const SOCKET_URL = import.meta.env.VITE_SOCKET_API_URL as string;
 
 export const socket: Socket = io(SOCKET_URL, {
-    transports: ['websocket'], // Use WebSocket for real-time performance
+    transports: ["websocket"], // Use WebSocket for real-time performance
     autoConnect: true,
     reconnection: true,
     reconnectionAttempts: Infinity,
     reconnectionDelay: 5000, // Retry every 5 seconds if disconnected
     reconnectionDelayMax: 10000,
-    timeout: 30000, // Match the server's ping_timeout
+    timeout: 60000, // Match the server's ping_timeout (1 minute)
     closeOnBeforeunload: true,
-    forceNew: true
+    forceNew: true,
 });
 
 // Event listeners for debugging and monitoring
