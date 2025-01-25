@@ -213,24 +213,10 @@ def handle_stream_to_ai_manual(sio, sid, data):
             ].strip()  # Ignore messages with empty or whitespace-only content
         ]
 
-        # # Using the DeepSeekClient to stream the response
-        # for chunk in deepseek_client.ask(
-        #     saved_message.get("content"), stream=True, message_history=message_history
-        # ):
-        #     # Append the chunk to the existing content in memory
-        #     complete_content += chunk  # Accumulate the chunks
-        #     ai_message["content"] = chunk
-        #     # Emit the chunk of the response back to the client
-        #     sio.emit(
-        #         "ai_message_stream",
-        #         ai_message,
-        #         to=str(message_data["conversation_id"]),
-        #     )
-
-        for chunk in chatgpt_client.ask(
+        # Using the DeepSeekClient to stream the response
+        for chunk in deepseek_client.ask(
             saved_message.get("content"), stream=True, message_history=message_history
         ):
-            print(f"Chunk received: {chunk}")  # Log each chunk
             if chunk is not None:
                 complete_content += chunk
                 ai_message["content"] = chunk
@@ -239,8 +225,23 @@ def handle_stream_to_ai_manual(sio, sid, data):
                     ai_message,
                     to=str(message_data["conversation_id"]),
                 )
-                print(f"Chunk emitted: {chunk}")  # Logs after emit
+                # print(f"Chunk emitted: {chunk}")  # Logs after emit
                 gevent.sleep(0)
+
+        # for chunk in chatgpt_client.ask(
+        #     saved_message.get("content"), stream=True, message_history=message_history
+        # ):
+        #     # print(f"Chunk received: {chunk}")  # Log each chunk
+        #     if chunk is not None:
+        #         complete_content += chunk
+        #         ai_message["content"] = chunk
+        #         sio.emit(
+        #             "ai_message_stream",
+        #             ai_message,
+        #             to=str(message_data["conversation_id"]),
+        #         )
+        #         # print(f"Chunk emitted: {chunk}")  # Logs after emit
+        #         gevent.sleep(0)
 
         # Once the streaming is complete, update the MongoDB message with the full content
         ai_message["content"] = complete_content  # Set the complete content
