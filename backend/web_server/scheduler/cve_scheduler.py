@@ -3,31 +3,42 @@
 import os
 import logging
 import asyncio
+from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from motor.motor_asyncio import AsyncIOMotorClient
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-from sentence_transformers import SentenceTransformer
 from typing import AsyncGenerator, List, Dict
 from fastapi import FastAPI
+from pymongo import UpdateOne
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+
+# Download stopwords if not already done
+nltk.download("punkt")
+nltk.download("punkt_tab")
+nltk.download("stopwords")
+
 
 # Configuration
 MONGO_URL = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 DB_NAME = os.getenv("MONGO_DB", "hexalayer")
 COLLECTION_NAME = "cves"
-EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+RESULTS_PER_PAGE = 2000  # Max allowed by NVD API
+NVD_API_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 
 # Initialize MongoDB
 mongodb_client = AsyncIOMotorClient(MONGO_URL)
 mongodb_collection = mongodb_client[DB_NAME][COLLECTION_NAME]
-
-# NVD API Configuration
-NVD_API_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
-RESULTS_PER_PAGE = 2000  # Max allowed by NVD API
 
 # Initialize components
 session = requests.Session()
@@ -38,9 +49,6 @@ retry = Retry(
 )
 session.mount("https://", HTTPAdapter(max_retries=retry))
 
-# Initialize embedding model
-embedding_model = SentenceTransformer(EMBEDDING_MODEL)
-
 
 async def run_in_executor(func, *args):
     loop = asyncio.get_event_loop()
@@ -49,23 +57,33 @@ async def run_in_executor(func, *args):
 
 @asynccontextmanager
 async def cve_scheduler_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Async context manager for CVE scheduler lifespan management"""
+    """Async context manager for CVE scheduler lifespan management."""
     # Create vector search index if not exists
     await create_vector_index(mongodb_collection)
 
     # Initial full sync
-    await full_sync(mongodb_collection)
+    # await full_sync(mongodb_collection)
 
     # Initialize scheduler
     scheduler = AsyncIOScheduler()
+
+    # # Job to fetch all CVEs every hour
+    # scheduler.add_job(
+    #     fetch_and_store_cves,
+    #     "interval",
+    #     seconds=3600,  # Run every hour
+    #     args=[mongodb_collection],
+    # )
+
+    # Job to sync CVEs modified in the last week
     scheduler.add_job(
-        fetch_and_store_cves,
+        sync_recent_cve_changes,
         "interval",
-        seconds=300000000,
+        days=1,  # Run daily to fetch changes from the last week
         args=[mongodb_collection],
     )
-    scheduler.start()
 
+    scheduler.start()
     logger.info("CVE Scheduler initialized")
     yield
     scheduler.shutdown()
@@ -74,59 +92,58 @@ async def cve_scheduler_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 async def create_vector_index(collection):
-    """Create a standard text index if vector search is not supported"""
+    """Create a standard text index if vector search is not supported."""
     index_name = "cve_text_index"
     indexes = await collection.list_indexes().to_list(None)
 
     if not any(index["name"] == index_name for index in indexes):
-        await collection.create_index(
-            [("description", "text")], name=index_name  # Standard text index
-        )
+        await collection.create_index([("description", "text")], name=index_name)
         logger.info("Created text search index")
 
 
 async def full_sync(collection):
-    """Perform full synchronization of CVEs"""
+    """Perform full synchronization of CVEs."""
     logger.info("Starting full synchronization")
 
-    # Get all CVEs from NVD
-    cves = await fetch_latest_cves(collection)
+    # Define the date range
+    start_date = "2023-07-01"  # Mid-2023
+    end_date = datetime.now().strftime("%Y-%m-%d")  # Current date
 
-    logger.info(f"Completed full sync of {len(cves)} CVEs")
+    # Fetch all CVEs in chunks
+    await fetch_latest_cves_in_chunks(collection, start_date, end_date)
+
+    logger.info("Completed full sync")
 
 
-async def fetch_and_store_cves(collection):
-    """Job function to fetch and store CVEs in MongoDB"""
+async def fetch_latest_cves_in_chunks(
+    collection, start_date: str, end_date: str, interval_days: int = 90
+):
+    """
+    Fetch CVEs from the NVD API in chunks of the specified interval.
+
+    :param collection: MongoDB collection.
+    :param start_date: The start date in YYYY-MM-DD format.
+    :param end_date: The end date in YYYY-MM-DD format.
+    :param interval_days: The interval in days for splitting the date range.
+    """
     try:
-        logger.info("Starting CVE update job")
-
-        # Get existing CVE IDs
-        existing_ids = await collection.distinct("_id")
-
-        # Fetch latest CVEs and insert each response into the database
-        new_cves = await fetch_latest_cves(collection)
-
-        # Process new/updated CVEs (if needed)
-        to_process = [cve for cve in new_cves if cve["cve"]["id"] not in existing_ids]
-
-        if to_process:
-            logger.info(f"Processed {len(to_process)} new/updated CVEs")
-
-        logger.info("CVE update job completed")
-
-    except Exception as e:
-        logger.error(f"Error in CVE update job: {str(e)}", exc_info=True)
-        raise
-
-
-async def fetch_latest_cves(collection) -> List[Dict]:
-    """Fetch latest CVEs from NVD API with pagination and insert each response into the database"""
-    try:
+        start = datetime.strptime(start_date, "%Y-%m-%d")
+        end = datetime.strptime(end_date, "%Y-%m-%d")
+        current_start = start
         all_cves = []
-        start_index = 0
 
-        while True:
-            params = {"startIndex": start_index, "resultsPerPage": RESULTS_PER_PAGE}
+        while current_start < end:
+            current_end = min(current_start + timedelta(days=interval_days), end)
+            logger.info(
+                f"Fetching CVEs from {current_start.strftime('%Y-%m-%d')} to {current_end.strftime('%Y-%m-%d')}"
+            )
+
+            params = {
+                "pubStartDate": f"{current_start.strftime('%Y-%m-%d')}T00:00:00.000-05:00",
+                "pubEndDate": f"{current_end.strftime('%Y-%m-%d')}T23:59:59.999-05:00",
+                "resultsPerPage": RESULTS_PER_PAGE,
+            }
+
             response = session.get(NVD_API_URL, params=params, timeout=30)
             response.raise_for_status()
 
@@ -134,141 +151,145 @@ async def fetch_latest_cves(collection) -> List[Dict]:
             vulnerabilities = data.get("vulnerabilities", [])
             all_cves.extend(vulnerabilities)
 
-            # Process and insert the current page of CVEs into the database
+            # Process and store the fetched CVEs in MongoDB
             await process_cve_batch(collection, vulnerabilities)
 
-            # Break if all CVEs have been fetched
-            if start_index + RESULTS_PER_PAGE >= data["totalResults"]:
-                break
+            # Move to the next interval
+            current_start = current_end + timedelta(days=1)
 
-            # Increment start index for the next page
-            start_index += RESULTS_PER_PAGE
+        logger.info(f"Fetched a total of {len(all_cves)} CVEs")
 
-        return all_cves
     except Exception as e:
-        logger.error(f"Failed to fetch CVEs: {str(e)}")
-        return []
+        logger.error(f"Failed to fetch CVEs: {str(e)}", exc_info=True)
 
 
-async def process_cve_batch(collection, cves: List[Dict]):
-    """Process a batch of CVEs and store in MongoDB with embeddings (one by one)"""
+async def fetch_and_store_cves(collection):
+    """Job function to fetch and store CVEs in MongoDB."""
     try:
+        logger.info("Starting CVE update job")
+
+        # Define the date range
+        start_date = "2023-07-01"  # Mid-2023
+        end_date = datetime.now().strftime("%Y-%m-%d")  # Current date
+
+        # Fetch and process CVEs in chunks
+        await fetch_latest_cves_in_chunks(collection, start_date, end_date)
+
+        logger.info("CVE update job completed")
+
+    except Exception as e:
+        logger.error(f"Error in CVE update job: {str(e)}", exc_info=True)
+
+
+async def process_cve_batch(collection: AsyncIOMotorCollection, cves: List[Dict]):
+    """
+    Process a batch of CVEs and store them in MongoDB using Motor's bulk insert/update capabilities.
+    """
+    try:
+        operations = []
         for cve in cves:
             cve_id = cve["cve"]["id"]
             description = cve["cve"]["descriptions"][0]["value"]
 
-            # Generate embedding
-            embedding = await run_in_executor(embedding_model.encode, description)
-
-            # Prepare document
+            # Prepare the document
             document = {
                 "_id": cve_id,
                 "description": description,
-                "embedding": embedding.tolist(),
                 "published": cve["cve"]["published"],
                 "lastModified": cve["cve"]["lastModified"],
-                "metrics": cve["cve"].get("metrics", {}),
                 "raw_data": cve,
             }
 
-            # Insert or update the document in MongoDB
-            await collection.update_one(
-                {"_id": cve_id},
-                {"$set": document},
-                upsert=True,
+            # Add an upsert operation to the batch
+            operations.append(
+                UpdateOne(
+                    {"_id": cve_id},
+                    {"$set": document},
+                    upsert=True,
+                )
             )
-            logger.info(f"Processed CVE: {cve_id}")
+
+        if operations:
+            # Perform the bulk write operation
+            result = await collection.bulk_write(operations)
+            logger.info(
+                f"Bulk operation completed: {result.bulk_api_result}. Processed {len(cves)} CVEs."
+            )
+        else:
+            logger.info("No CVEs to process.")
 
     except Exception as e:
-        logger.error(f"Error processing CVE {cve_id}: {str(e)}")
-        raise
+        logger.error(f"Error processing CVE batch: {str(e)}", exc_info=True)
 
 
-async def vector_search(collection, query: str, limit: int = 5):
-    """Perform vector similarity search using MongoDB"""
-    # Generate embedding for query
-    query_embedding = await run_in_executor(embedding_model.encode, query)
+async def sync_recent_cve_changes(collection: AsyncIOMotorCollection):
+    """
+    Sync CVEs modified in the last 7 days.
+    """
+    try:
+        logger.info("Starting recent CVE changes sync job")
 
-    # MongoDB vector search pipeline
-    pipeline = [
-        {
-            "$vectorSearch": {
-                "index": "cve_vector_index",
-                "path": "embedding",
-                "queryVector": query_embedding.tolist(),
-                "numCandidates": 100,
-                "limit": limit,
-            }
-        },
-        {
-            "$project": {
-                "_id": 1,
-                "description": 1,
-                "score": {"$meta": "vectorSearchScore"},
-            }
-        },
-    ]
+        # Define the date range for the past week
+        now = datetime.now()
+        last_week = now - timedelta(days=7)
+        last_mod_start_date = last_week.strftime("%Y-%m-%dT00:00:00.000-05:00")
+        last_mod_end_date = now.strftime("%Y-%m-%dT23:59:59.999-05:00")
 
-    return await collection.aggregate(pipeline).to_list(limit)
+        logger.info(
+            f"Fetching CVEs modified between {last_mod_start_date} and {last_mod_end_date}"
+        )
 
+        # API parameters for modified CVEs
+        params = {
+            "lastModStartDate": last_mod_start_date,
+            "lastModEndDate": last_mod_end_date,
+            "resultsPerPage": RESULTS_PER_PAGE,
+        }
 
-# async def fetch_relevant_cve_context(query: str, limit: int = 5) -> str:
-#     """
-#     Fetch the top `limit` most relevant CVEs based on the query.
+        # Fetch data from NVD API
+        response = session.get(NVD_API_URL, params=params, timeout=30)
+        response.raise_for_status()
 
-#     :param query: The search query string.
-#     :param limit: The maximum number of results to fetch.
-#     :return: A string containing formatted CVE context.
-#     """
-#     try:
-#         # Log the query being processed
-#         logger.info(
-#             f"Performing vector search for query: '{query}' with limit: {limit}"
-#         )
+        data = response.json()
+        vulnerabilities = data.get("vulnerabilities", [])
 
-#         # Perform vector search to find relevant CVEs
-#         results = await vector_search(mongodb_collection, query, limit=limit)
+        # Process and store the fetched CVEs in MongoDB
+        await process_cve_batch(collection, vulnerabilities)
 
-#         if not results:
-#             logger.warning(f"No relevant CVEs found for query: '{query}'")
-#             return "No relevant CVEs found for the given query."
+        logger.info(
+            f"Completed recent CVE changes sync job. Fetched and processed {len(vulnerabilities)} CVEs."
+        )
 
-#         # Format the results into a human-readable context string
-#         context = "\n".join(
-#             [
-#                 f"- CVE ID: {res['_id']}, Description: {res['description']}"
-#                 for res in results
-#             ]
-#         )
-
-#         logger.info(
-#             f"Successfully fetched {len(results)} relevant CVEs for query: '{query}'"
-#         )
-#         return context
-#     except Exception as e:
-#         logger.error(
-#             f"Error fetching relevant CVE context for query '{query}': {str(e)}",
-#             exc_info=True,
-#         )
-#         return "Failed to fetch CVE context due to an internal error."
+    except Exception as e:
+        logger.error(f"Error syncing recent CVE changes: {str(e)}", exc_info=True)
 
 
 async def fetch_relevant_cve_context(query: str, limit: int = 5) -> str:
     """
     Fetch the top `limit` most relevant CVEs based on the query using text-based search.
+    If no results are found, or fewer results are found, include the latest 5 published CVEs.
 
     :param query: The search query string.
     :param limit: The maximum number of results to fetch.
     :return: A string containing formatted CVE context.
     """
     try:
-        # Log the query being processed
-        logger.info(f"Performing text search for query: '{query}' with limit: {limit}")
+        # Extract relevant keywords from the query
+        keywords = extract_relevant_keywords(query)
+        if not keywords:
+            logger.warning(f"No relevant keywords found in query: '{query}'")
+            return "No relevant keywords found in the query."
 
-        # Perform text search to find relevant CVEs and sort by published date first, then by score
-        results = (
+        # Join keywords for text search
+        search_query = " ".join(keywords)
+        logger.info(
+            f"Performing text search for keywords: '{search_query}' with limit: {limit}"
+        )
+
+        # Perform text search to find relevant CVEs
+        relevant_results = (
             await mongodb_collection.find(
-                {"$text": {"$search": query}},  # Use MongoDB text search
+                {"$text": {"$search": search_query}},  # Use MongoDB text search
                 {
                     "score": {"$meta": "textScore"},
                     "description": 1,
@@ -279,20 +300,47 @@ async def fetch_relevant_cve_context(query: str, limit: int = 5) -> str:
             )
             .sort(
                 [
-                    ("published", -1),  # Sort by the latest published date first
                     (
                         "score",
                         {"$meta": "textScore"},
-                    ),  # Then sort by text relevance score
+                    ),  # Prioritize by text relevance score
+                    ("published", -1),  # Then sort by the latest published date
                 ]
             )
             .limit(limit)
             .to_list(length=limit)
         )
 
-        if not results:
-            logger.warning(f"No relevant CVEs found for query: '{query}'")
-            return "No relevant CVEs found for the given query."
+        # Filter in Python
+        relevant_results = [
+            result for result in relevant_results if result["score"] > 5.0
+        ]
+
+        # Fetch the latest 5 published CVEs as a fallback
+        latest_results = (
+            await mongodb_collection.find(
+                {},  # No query filter to get the latest CVEs
+                {
+                    "description": 1,
+                    "_id": 1,
+                    "published": 1,
+                    "raw_data": 1,
+                },
+            )
+            .sort("published", -1)  # Sort by published date in descending order
+            .limit(5)
+            .to_list(length=5)
+        )
+
+        # Deduplicate using CVE IDs
+        all_results_dict = {}
+        for res in relevant_results + latest_results:
+            all_results_dict[res["_id"]] = (
+                res  # Overwrite duplicates based on the "_id"
+            )
+
+        # Extract combined results and ensure the limit is respected
+        combined_results = list(all_results_dict.values())
 
         # Format the results into a human-readable context string
         context = "\n".join(
@@ -301,18 +349,44 @@ async def fetch_relevant_cve_context(query: str, limit: int = 5) -> str:
                 f"  Description: {res.get('description', 'No description available.')}\n"
                 f"  Published Date: {res.get('published', 'Unknown')}\n"
                 f"  Raw Data: {res.get('raw_data', 'No raw data available.')}"
-                for res in results
+                for res in combined_results
             ]
         )
 
         logger.info(
-            f"Successfully fetched {len(results)} relevant CVEs for query: '{query}'"
+            f"Successfully fetched {len(combined_results)} CVEs for query: '{query}'"
         )
         return context
 
     except Exception as e:
         logger.error(
-            f"Error fetching relevant CVE context for query '{query}': {str(e)}",
+            f"Error fetching CVE context for query '{query}': {str(e)}",
             exc_info=True,
         )
         return "Failed to fetch CVE context due to an internal error."
+
+
+def extract_relevant_keywords(query: str) -> List[str]:
+    """
+    Extract relevant keywords from a query string for CVE matching.
+
+    :param query: The input query string.
+    :return: A list of relevant keywords.
+    """
+    # Tokenize the query
+    tokens = word_tokenize(query)
+
+    # Lowercase all tokens
+    tokens = [token.lower() for token in tokens]
+
+    # Load English stopwords
+    stop_words = set(stopwords.words("english"))
+
+    # Filter tokens: remove stopwords, punctuation, and short words
+    keywords = [
+        token
+        for token in tokens
+        if token.isalpha() and token not in stop_words and len(token) > 2
+    ]
+
+    return keywords

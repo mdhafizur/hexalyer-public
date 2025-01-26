@@ -52,9 +52,7 @@ class DeepSeekChatClient:
                 "stream": stream,
             }
         else:
-            prompt_content = (
-                AUTO_PROMPT if prompt_type == "auto" else MANUAL_PROMPT
-            )
+            prompt_content = AUTO_PROMPT if prompt_type == "auto" else MANUAL_PROMPT
             if cve_context:
                 prompt_content += f"\n\nContext about latest CVEs:\n{cve_context}"
 

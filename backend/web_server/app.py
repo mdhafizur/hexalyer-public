@@ -49,7 +49,7 @@ app = FastAPI(
     },
     docs_url="/docs",
     redoc_url="/redoc",
-    # lifespan=combined_lifespan,
+    lifespan=combined_lifespan,
 )
 
 # Add the authentication middleware
