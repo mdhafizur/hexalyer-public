@@ -1,11 +1,16 @@
 import { useCallback, useState } from "react";
 import { Message } from "@app/messages/types/message.types";
-import { Paper, Typography, Avatar, Box, Button, Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
+import { Paper, Typography, Avatar, Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, Collapse, IconButton } from "@mui/material";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import { formatDistanceToNow } from "date-fns";
 import ReactMarkdown from "react-markdown";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { materialDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { commandClient } from "@app/axios.client";
-import ReportProgressModal from './ReportProgressModal';
+import ReportProgressModal from "./ReportProgressModal";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import { materialLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 const extractJson = (content: string): string | null => {
     try {
@@ -29,10 +34,8 @@ const isJsonWithKeys = (content: string, requiredKeys: string[]): boolean => {
 export function AiMessage({ message, agentId }: { message: Message; agentId: string | null }) {
     const { report, task } = message;
     const reportId = report?._id;
-    // console.log("reportId", reportId)
 
     const [progressOpen, setProgressOpen] = useState(false);
-
     const handleProgressClose = useCallback(() => setProgressOpen(false), []);
 
     const requiredKeys = ["description", "type", "scenario"];
@@ -40,6 +43,7 @@ export function AiMessage({ message, agentId }: { message: Message; agentId: str
     const isValidJson = jsonContent ? isJsonWithKeys(jsonContent, requiredKeys) : false;
     const jsonData = isValidJson ? JSON.parse(jsonContent!) : null;
     const [isTaskModalOpen, setTaskModalOpen] = useState(false);
+    const [jsonPreviewOpen, setJsonPreviewOpen] = useState(false);
 
     const handleApiCall = async () => {
         if (jsonData) {
@@ -53,7 +57,30 @@ export function AiMessage({ message, agentId }: { message: Message; agentId: str
         }
     };
 
-    const renderContent = useCallback(() => <ReactMarkdown>{message.content}</ReactMarkdown>, [message.content]);
+    const renderContent = useCallback(() => <ReactMarkdown
+        components={{
+            code({ node, inline, className, children, ...props }) {
+                const match = /language-(\w+)/.exec(className || "");
+                return !inline && match ? (
+                    <SyntaxHighlighter
+                        style={materialDark}
+                        language={match[1]}
+                        PreTag="div"
+                        {...props}
+                    >
+                        {String(children).replace(/\n$/, "")}
+                    </SyntaxHighlighter>
+                ) : (
+                    <code className={className} {...props}>
+                        {children}
+                    </code>
+                );
+            },
+        }}
+    >
+        {message.content}
+    </ReactMarkdown>, [message.content]);
+
 
     return (
         <>
@@ -87,19 +114,41 @@ export function AiMessage({ message, agentId }: { message: Message; agentId: str
                             <Typography variant="subtitle2" color="primary">
                                 Valid JSON Detected:
                             </Typography>
-                            <Typography variant="body2">
-                                Description: {jsonData.description}
-                            </Typography>
-                            <Button
-                                variant="contained"
-                                color="primary"
-                                onClick={handleApiCall}
-                                sx={{ mt: 1 }}
-                            >
-                                Execute Scenario
-                            </Button>
+                            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 1 }}>
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    onClick={handleApiCall}
+                                    sx={{ mr: 2 }}
+                                >
+                                    Execute Scenario
+                                </Button>
+                                <IconButton
+                                    onClick={() => setJsonPreviewOpen(!jsonPreviewOpen)}
+                                    aria-label={jsonPreviewOpen ? "Collapse JSON preview" : "Expand JSON preview"}
+                                >
+                                    {jsonPreviewOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                                </IconButton>
+                            </Box>
+                            <Collapse in={jsonPreviewOpen}>
+                                <Box
+                                    sx={{
+                                        mt: 1,
+                                        p: 1,
+                                        border: "1px solid",
+                                        borderColor: "grey.400",
+                                        borderRadius: 1,
+                                        bgcolor: "grey.100",
+                                    }}
+                                >
+                                    <SyntaxHighlighter language="json" style={materialLight}>
+                                        {jsonContent}
+                                    </SyntaxHighlighter>
+                                </Box>
+                            </Collapse>
                         </Box>
                     )}
+
                     {task && (
                         <Box sx={{ mt: 1 }}>
                             <Typography
@@ -107,7 +156,7 @@ export function AiMessage({ message, agentId }: { message: Message; agentId: str
                                 sx={{
                                     mt: 1,
                                     display: "block",
-                                    color: "primary"
+                                    color: "primary",
                                 }}
                             >
                                 Status: {task.status}
@@ -187,13 +236,7 @@ export function AiMessage({ message, agentId }: { message: Message; agentId: str
                 </DialogActions>
             </Dialog>
             {message.type === "webhex" && reportId && (
-                <>
-                    <ReportProgressModal
-                        open={progressOpen}
-                        onClose={handleProgressClose}
-                        reportId={reportId}
-                    />
-                </>
+                <ReportProgressModal open={progressOpen} onClose={handleProgressClose} reportId={reportId} />
             )}
         </>
     );

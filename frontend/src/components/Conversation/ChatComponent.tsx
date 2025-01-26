@@ -27,6 +27,8 @@ import { Alert, Snackbar } from "@mui/material"; // Import these components
 import { useNavigate, useParams } from 'react-router-dom';
 import DownloadAgentModal from './DownloadAgentModal';
 import { getUserIdFromLocalStorage } from 'utils/cookieValidation';
+import MicIcon from "@mui/icons-material/Mic";
+import MicOffIcon from "@mui/icons-material/MicOff";
 
 interface ChatComponentProps {
     onConversationCreated?: (conversationId: string) => void;
@@ -59,6 +61,45 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
 
     const [isModalOpen, setIsModalOpen] = useState(false);
 
+    const [isListening, setIsListening] = useState(false); // Manage microphone listening state
+    const recognitionRef = useRef<SpeechRecognition | null>(null); // Reference for speech recognition
+
+    // Initialize Speech Recognition
+    useEffect(() => {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.lang = "en-US";
+            recognition.continuous = false;
+            recognition.interimResults = true;
+
+            recognition.onresult = (event: SpeechRecognitionEvent) => {
+                const transcript = Array.from(event.results)
+                    .map((result) => result[0].transcript)
+                    .join("");
+                setInputValue(transcript); // Update input value with speech transcript
+            };
+
+            recognition.onend = () => {
+                setIsListening(false); // Stop listening when recognition ends
+            };
+
+            recognitionRef.current = recognition;
+        }
+    }, []);
+
+
+    // Start or Stop Speech Recognition
+    const toggleListening = () => {
+        if (!recognitionRef.current) return;
+
+        if (isListening) {
+            recognitionRef.current.stop();
+        } else {
+            recognitionRef.current.start();
+        }
+        setIsListening(!isListening);
+    };
 
     const handleOpenModal = () => {
         setIsModalOpen(true);
@@ -486,6 +527,9 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
                             error={!!validationError}
                             helperText={validationError}
                         />
+                        <IconButton color="primary" onClick={toggleListening}>
+                            {isListening ? <MicOffIcon /> : <MicIcon />}
+                        </IconButton>
                         <IconButton
                             color="primary"
                             onClick={() => handleSendMessage(webHexInput || inputValue)}
