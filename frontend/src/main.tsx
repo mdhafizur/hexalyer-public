@@ -10,7 +10,7 @@ import DashboardPage from "@pages/DashboardPage";
 import NotFoundPage from "@pages/NotFoundPage";
 import ConversationListingPage from "@pages/ConversationListingPage";
 import AgentListing from "@pages/AgentListing";
-import MachinePage from "@pages/MachinePage";
+import TaskHistoryPage from "@pages/TaskHistoryPage";
 import RegisterPage from "@pages/RegisterPage";
 import RecoverPasswordPage from "@pages/RecoverPasswordPage";
 import UserProfilePage from "@pages/UserProfilePage";
@@ -75,7 +75,7 @@ const router = createBrowserRouter([
             path: ":agentId",
             element: (
               <ProtectedRoute>
-                <MachinePage />
+                <TaskHistoryPage />
               </ProtectedRoute>
             ),
           },

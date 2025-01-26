@@ -21,7 +21,7 @@ import TaskDetailsModal from "../components/Task/TaskDetailsModal";
 
 type Order = "asc" | "desc";
 
-const MachinePage: React.FC = () => {
+const TaskHistoryPage: React.FC = () => {
   const { agentId } = useParams<{ agentId: string }>();
   const { tasks, loading, error } = useTasks(agentId!);
   const [order, setOrder] = useState<Order>("asc");
@@ -278,4 +278,4 @@ const MachinePage: React.FC = () => {
   );
 };
 
-export default MachinePage;
+export default TaskHistoryPage;
