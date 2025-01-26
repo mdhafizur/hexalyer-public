@@ -26,7 +26,7 @@ const isJsonWithKeys = (content: string, requiredKeys: string[]): boolean => {
     }
 };
 
-export function AiMessage({ message, agentId }: { message: Message; agentId?: string }) {
+export function AiMessage({ message, agentId }: { message: Message; agentId: string | null }) {
     const { report, task } = message;
     const reportId = report?._id;
     // console.log("reportId", reportId)

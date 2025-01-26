@@ -13,8 +13,8 @@ export interface Message {
         report?: Record<string, unknown>;
     }; // Additional optional details about the message
     report?: Report; // Associated report object
-    created_at?: string; // ISO string for the creation timestamp
-    updated_at?: string; // ISO string for the last updated timestamp
+    created_at: string; // ISO string for the creation timestamp
+    updated_at: string; // ISO string for the last updated timestamp
     task?: Task;
 }
 

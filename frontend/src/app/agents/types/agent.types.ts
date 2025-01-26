@@ -24,6 +24,8 @@ export interface NetworkInterface {
   export interface Agent {
     _id: string;
     agent_id: string;
+    conversation_id: string;
+    status: string;
     client_info: ClientInfo;
   }
   
