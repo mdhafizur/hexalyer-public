@@ -70,6 +70,9 @@ Don't give any answers outside the cybersecurity context.
 Whatever answer you provide it should be confined in Cybersecurity domain.
 This system prompt ensures the agent operates in a focused, goal-oriented manner while maintaining user-centric communication.
 
+I will provide you some of the latest CVEs too and their details like CVE ID, Description, Published Date and Raw Data which has all the information about the CVE.
+If you think they are relevant to the query then consider it else leave it.
+
 
 """
 

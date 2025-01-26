@@ -15,7 +15,7 @@ message_repo = MessageRepository()
 logger = socket_listener_logger
 
 
-def handle_join_room(sio, sid, data):
+async def handle_join_room(sio, sid, data):
     """
     Handle a client joining a conversation room.
 
@@ -37,7 +37,7 @@ def handle_join_room(sio, sid, data):
     conversation_id = ObjectId(conversation_id)
 
     # Join the Socket.IO room
-    sio.enter_room(sid, str(conversation_id))
+    await sio.enter_room(sid, str(conversation_id))
     logger.info("SID %s joined room %s", sid, conversation_id)
 
     # Fetch paginated message history
@@ -81,18 +81,18 @@ def handle_join_room(sio, sid, data):
 
     except ValidationError as ve:
         logger.error("Validation error in messages: %s", str(ve))
-        sio.emit("error", {"error": "Message validation failed"}, to=sid)
+        await sio.emit("error", {"error": "Message validation failed"}, to=sid)
         return
     except Exception as e:
         logger.error("Error fetching messages: %s", str(e))
-        sio.emit("error", {"error": "Failed to fetch messages"}, to=sid)
+        await sio.emit("error", {"error": "Failed to fetch messages"}, to=sid)
         return
 
     # Emit paginated message history
-    sio.emit("message_history", {"page": page, "messages": messages}, to=sid)
+    await sio.emit("message_history", {"page": page, "messages": messages}, to=sid)
 
 
-def handle_leave_room(sio, sid, data):
+async def handle_leave_room(sio, sid, data):
     """
     Handle a client leaving a conversation room.
 
@@ -110,7 +110,7 @@ def handle_leave_room(sio, sid, data):
     logger.info("SID %s left room %s", sid, conversation_id)
 
 
-def handle_load_more_messages(sio, sid, data):
+async def handle_load_more_messages(sio, sid, data):
     """
     Handle client requests to load more messages for a conversation.
 
@@ -125,17 +125,17 @@ def handle_load_more_messages(sio, sid, data):
 
         if not conversation_id or not ObjectId.is_valid(conversation_id):
             logger.error("Invalid or missing conversation_id from SID %s", sid)
-            sio.emit("error", {"error": "Invalid or missing conversation_id"}, to=sid)
+            await sio.emit("error", {"error": "Invalid or missing conversation_id"}, to=sid)
             return
 
         if sort_by not in ["asc", "desc"]:
             logger.error("Invalid sort_by from SID %s: %s", sid, sort_by)
-            sio.emit("error", {"error": "Direction must be 'asc' or 'desc'"}, to=sid)
+            await sio.emit("error", {"error": "Direction must be 'asc' or 'desc'"}, to=sid)
             return
 
         if not created_at:
             logger.error("Missing created_at from SID %s", sid)
-            sio.emit("error", {"error": "Missing created_at"}, to=sid)
+            await sio.emit("error", {"error": "Missing created_at"}, to=sid)
             return
 
         conversation_id = ObjectId(conversation_id)
@@ -169,7 +169,7 @@ def handle_load_more_messages(sio, sid, data):
         ]
 
         # Emit the results back to the client
-        sio.emit(
+        await sio.emit(
             "more_messages",
             {"sort_by": sort_by, "messages": serialized_messages},
             to=sid,
@@ -177,12 +177,12 @@ def handle_load_more_messages(sio, sid, data):
 
     except ValidationError as e:
         logger.error("Message validation failed for SID %s: %s", sid, e)
-        sio.emit("error", {"error": "Invalid message format."}, to=sid)
+        await sio.emit("error", {"error": "Invalid message format."}, to=sid)
 
     except ValueError as e:
         logger.error("Invalid parameters from SID %s: %s", sid, e)
-        sio.emit("error", {"error": str(e)}, to=sid)
+        await sio.emit("error", {"error": str(e)}, to=sid)
 
     except Exception as e:
         logger.error("Error loading messages for SID %s: %s", sid, e, exc_info=True)
-        sio.emit("error", {"error": "An internal server error occurred."}, to=sid)
+        await sio.emit("error", {"error": "An internal server error occurred."}, to=sid)

@@ -82,21 +82,22 @@
         // 7) Run Socket.IO Server (Gevent) with Hot Reload
         {
             "name": "Run Socket.IO Server with Hot Reload",
-            "type": "debugpy",
+            "type": "python",
             "request": "launch",
-            // "program": "${workspaceFolder}/c2_server/c2_socket_server.py",
-            "module": "c2_server.c2_socket_server", // load as a module
+            "module": "uvicorn", // Use Uvicorn to run the ASGI app
             "console": "integratedTerminal",
+            "justMyCode": true,
             "envFile": "${workspaceFolder}/.env",
             "env": {
-                // Tells Python "logger" is a top-level package in the project root
                 "PYTHONPATH": "${workspaceFolder}"
             },
             "args": [
+                "c2_server.c2_socket_server:sio_app", // ASGI app to load
                 "--host",
                 "localhost",
                 "--port",
-                "5003"
+                "5003",
+                "--reload" // Enable hot reload
             ]
         }
     ],

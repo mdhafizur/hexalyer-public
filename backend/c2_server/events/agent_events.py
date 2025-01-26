@@ -33,12 +33,12 @@ message_repo = MessageRepository()
 connected_agents = {}
 
 
-def handle_client_connect(sid, environ):
+async def handle_client_connect(sid, environ):
     """Handle a new client connection."""
     logger.info("Client connected SID: %s and environ %s", sid, environ)
 
 
-def handle_client_disconnect(sio, sid):
+async def handle_client_disconnect(sio, sid):
     """
     Handle agent disconnection and update its status to 'offline'.
     """
@@ -59,7 +59,7 @@ def handle_client_disconnect(sio, sid):
                     "last_seen": current_utc_time().isoformat(),  # Update last seen timestamp
                 },
             )
-            sio.emit(
+            await sio.emit(
                 "handle_agent_to_conversation_connection",
                 {"agent_id": agent_id, "status": "offline"},
             )
@@ -72,7 +72,7 @@ def handle_client_disconnect(sio, sid):
     logger.info("Client disconnected: %s", sid)
 
 
-def handle_agent_registration(sio, sid, data):
+async def handle_agent_registration(sio, sid, data):
     """
     Register an agent by its agent_id and update its status to 'online'.
 
@@ -98,7 +98,7 @@ def handle_agent_registration(sio, sid, data):
         )
         # Store the agent_id and sid mapping
         connected_agents[agent_id] = sid
-        sio.emit(
+        await sio.emit(
             "handle_agent_to_conversation_connection",
             json.loads(validated_agent.json()),
         )
@@ -108,7 +108,7 @@ def handle_agent_registration(sio, sid, data):
     logger.info("Agent %s registered with SID %s", agent_id, sid)
 
 
-def handle_command_response(sio, sid: str, data: Dict[str, Any]):
+async def handle_command_response(sio, sid: str, data: Dict[str, Any]):
     """
     Handle responses from the agent for executed commands.
 
@@ -157,7 +157,7 @@ def handle_command_response(sio, sid: str, data: Dict[str, Any]):
         ai_message["task"]["conversation"] = ConversationModel(
             **ai_message["task"]["conversation"]
         ).dict(by_alias=True)
-        sio.emit(
+        await sio.emit(
             "ai_message_stream",
             ai_message,
             to=str(task_execution_message["conversation_id"]),

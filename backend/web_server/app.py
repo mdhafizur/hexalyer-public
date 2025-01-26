@@ -17,8 +17,20 @@ from logger.fastapi_logger import web_server_logger
 from fastapi.middleware.cors import CORSMiddleware
 from middleware.auth_middleware import AuthMiddleware
 
+from web_server.scheduler import cve_scheduler_lifespan
+from contextlib import asynccontextmanager
+
 
 logger = web_server_logger
+
+
+# Update the FastAPI initialization
+@asynccontextmanager
+async def combined_lifespan(fastapi_app: FastAPI):
+    # Combine existing lifespan (if any) with CVE scheduler lifespan
+    async with cve_scheduler_lifespan(fastapi_app):
+        yield
+
 
 # FastAPI app with Swagger customization
 app = FastAPI(
@@ -37,6 +49,7 @@ app = FastAPI(
     },
     docs_url="/docs",
     redoc_url="/redoc",
+    # lifespan=combined_lifespan,
 )
 
 # Add the authentication middleware

@@ -243,7 +243,7 @@ async def send_command(agent_id: str, request: CommandRequest):
             f"Sending command data to Agent '{agent_id}' (SID: {sid}): {request_data}"
         )
         # Emit the entire structured data to the WebSocket
-        sio.emit(
+        await sio.emit(
             "on_execute_command",
             request_data,
             to=sid,

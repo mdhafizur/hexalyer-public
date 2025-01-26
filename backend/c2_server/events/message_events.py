@@ -16,6 +16,7 @@ from services.webhex_services import ZAPService, ScanService
 import asyncio
 import json
 import gevent
+from web_server.scheduler.cve_scheduler import fetch_relevant_cve_context
 
 BASE_API_URL = os.getenv("WEBHEX_URL", "http://134.209.237.212:8090/JSON")
 API_KEY = os.getenv("WEBHEX_API_KEY", "hexashield")
@@ -37,7 +38,7 @@ scan_service = ScanService(
 )
 
 
-def handle_send_message(sio, sid, data):
+async def handle_send_message(sio, sid, data):
     """
     Handle a client sending a message to a conversation.
 
@@ -75,7 +76,7 @@ def handle_send_message(sio, sid, data):
         new_message = MessageModel(**saved_message).dict(by_alias=True)
 
         # Broadcast the new message to the conversation room
-        sio.emit("new_message", new_message, to=str(message.conversation_id))
+        await sio.emit("new_message", new_message, to=str(message.conversation_id))
 
         # # Generate AI response
         # ai_message_content = client.ask(message_data.get("content"))
@@ -118,18 +119,18 @@ def handle_send_message(sio, sid, data):
         ai_message = MessageModel(**ai_saved_message).dict(by_alias=True)
 
         # Broadcast the AI-generated message to the conversation room
-        sio.emit("ai_message", ai_message, to=str(message.conversation_id))
+        await sio.emit("ai_message", ai_message, to=str(message.conversation_id))
 
     except ValidationError as e:
         logger.error("Message validation error: %s", e)
-        sio.emit("error", {"error": "Invalid message format."}, to=sid)
+        await sio.emit("error", {"error": "Invalid message format."}, to=sid)
 
     except Exception as e:
         logger.exception("An error occurred while processing the message: %s", e)
-        sio.emit("error", {"error": "An internal server error occurred."}, to=sid)
+        await sio.emit("error", {"error": "An internal server error occurred."}, to=sid)
 
 
-def handle_stream_to_ai(sio, sid, data):
+async def handle_stream_to_ai(sio, sid, data):
     """
     Handle the streaming of an AI response for a conversation.
 
@@ -144,14 +145,14 @@ def handle_stream_to_ai(sio, sid, data):
     message_data = message.dict(by_alias=True)
 
     if message_data["type"] == "manual":
-        handle_stream_to_ai_manual(sio, sid, data)
+        await handle_stream_to_ai_manual(sio, sid, data)
     if message_data["type"] == "webhex":
-        handle_stream_to_ai_webhex(sio, sid, data)
+        await handle_stream_to_ai_webhex(sio, sid, data)
     if message_data["type"] == "auto":
-        handle_stream_to_ai_auto(sio, sid, data)
+        await handle_stream_to_ai_auto(sio, sid, data)
 
 
-def handle_stream_to_ai_manual(sio, sid, data):
+async def handle_stream_to_ai_manual(sio, sid, data):
     """
     Handle streaming of an AI response for a manual message type.
     """
@@ -213,20 +214,26 @@ def handle_stream_to_ai_manual(sio, sid, data):
             ].strip()  # Ignore messages with empty or whitespace-only content
         ]
 
+        # Fetch CVE context based on the user message
+        cve_context = await fetch_relevant_cve_context(message_data["content"])
+
         # Using the DeepSeekClient to stream the response
         for chunk in deepseek_client.ask(
-            saved_message.get("content"), stream=True, message_history=message_history
+            saved_message.get("content"),
+            stream=True,
+            message_history=message_history,
+            cve_context=cve_context,
         ):
             if chunk is not None:
                 complete_content += chunk
                 ai_message["content"] = chunk
-                sio.emit(
+                await sio.emit(
                     "ai_message_stream",
                     ai_message,
                     to=str(message_data["conversation_id"]),
                 )
                 # print(f"Chunk emitted: {chunk}")  # Logs after emit
-                gevent.sleep(0)
+                await asyncio.sleep(0)
 
         # for chunk in chatgpt_client.ask(
         #     saved_message.get("content"), stream=True, message_history=message_history
@@ -235,7 +242,7 @@ def handle_stream_to_ai_manual(sio, sid, data):
         #     if chunk is not None:
         #         complete_content += chunk
         #         ai_message["content"] = chunk
-        #         sio.emit(
+        #         await sio.emit(
         #             "ai_message_stream",
         #             ai_message,
         #             to=str(message_data["conversation_id"]),
@@ -255,10 +262,10 @@ def handle_stream_to_ai_manual(sio, sid, data):
 
     except Exception as e:
         logger.error("Error while streaming AI response: %s", str(e))
-        sio.emit("error", {"error": "Error while streaming AI response"}, to=sid)
+        await sio.emit("error", {"error": "Error while streaming AI response"}, to=sid)
 
 
-def handle_stream_to_ai_webhex(sio, sid, data):
+async def handle_stream_to_ai_webhex(sio, sid, data):
     """
     Handle streaming of an AI response for a webhex message type.
     """
@@ -329,7 +336,7 @@ def handle_stream_to_ai_webhex(sio, sid, data):
                 complete_content += chunk  # Accumulate the chunks
                 ai_message["content"] = chunk
                 # Emit the chunk of the response back to the client
-                sio.emit(
+                await sio.emit(
                     "ai_message_stream",
                     ai_message,
                     to=str(message_data["conversation_id"]),
@@ -349,7 +356,7 @@ def handle_stream_to_ai_webhex(sio, sid, data):
 
         except Exception as e:
             logger.error("Error while streaming AI response: %s", str(e))
-            sio.emit("error", {"error": "Error while streaming AI response"}, to=sid)
+            await sio.emit("error", {"error": "Error while streaming AI response"}, to=sid)
 
     message = MessageModel(**data)
     message_data = message.dict(by_alias=True)
@@ -377,16 +384,16 @@ def handle_stream_to_ai_webhex(sio, sid, data):
             ai_message["report"] = ReportModel(**ai_message["report"]).dict(
                 by_alias=True
             )
-            sio.emit(
+            await sio.emit(
                 "ai_message_stream",
                 ai_message,
                 to=str(initiated_data["conversation_id"]),
             )
         except Exception as e:
-            sio.emit("error", {"error": f"Failed to initiate scan: {str(e)}"}, to=sid)
+            await sio.emit("error", {"error": f"Failed to initiate scan: {str(e)}"}, to=sid)
 
 
-def handle_stream_to_ai_auto(sio, sid, data):
+async def handle_stream_to_ai_auto(sio, sid, data):
     """
     Handle streaming of an AI response for a manual message type.
     """
@@ -472,7 +479,7 @@ def handle_stream_to_ai_auto(sio, sid, data):
             complete_content += chunk  # Accumulate the chunks
             ai_message["content"] = chunk
             # Emit the chunk of the response back to the client
-            sio.emit(
+            await sio.emit(
                 "ai_message_stream",
                 ai_message,
                 to=str(message_data["conversation_id"]),
@@ -490,4 +497,4 @@ def handle_stream_to_ai_auto(sio, sid, data):
 
     except Exception as e:
         logger.error("Error while streaming AI response: %s", str(e))
-        sio.emit("error", {"error": "Error while streaming AI response"}, to=sid)
+        await sio.emit("error", {"error": "Error while streaming AI response"}, to=sid)

@@ -31,6 +31,7 @@ class DeepSeekChatClient:
         system_prompt=None,
         message_history=None,
         prompt_type="manual",
+        cve_context=None,
     ):
         """
         Sends a chat completion request to the X.AI API.
@@ -51,15 +52,14 @@ class DeepSeekChatClient:
                 "stream": stream,
             }
         else:
+            prompt_content = (
+                AUTO_PROMPT if prompt_type == "auto" else MANUAL_PROMPT
+            )
+            if cve_context:
+                prompt_content += f"\n\nContext about latest CVEs:\n{cve_context}"
+
             payload = {
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": (
-                            AUTO_PROMPT if prompt_type == "auto" else MANUAL_PROMPT
-                        ),
-                    }
-                ],
+                "messages": [{"role": "system", "content": prompt_content}],
                 "model": model,
                 "stream": stream,
             }
