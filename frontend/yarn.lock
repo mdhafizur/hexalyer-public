@@ -2184,12 +2184,30 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/react-syntax-highlighter@npm:^15":
+  version: 15.5.13
+  resolution: "@types/react-syntax-highlighter@npm:15.5.13"
+  dependencies:
+    "@types/react": "npm:*"
+  checksum: 10c0/e3bca325b27519fb063d3370de20d311c188ec16ffc01e5bc77bdf2d7320756725ee3d0246922cd5d38b75c5065a1bc43d0194e92ecf6556818714b4ffb0967a
+  languageName: node
+  linkType: hard
+
 "@types/react-transition-group@npm:^4.4.12":
   version: 4.4.12
   resolution: "@types/react-transition-group@npm:4.4.12"
   peerDependencies:
     "@types/react": "*"
   checksum: 10c0/0441b8b47c69312c89ec0760ba477ba1a0808a10ceef8dc1c64b1013ed78517332c30f18681b0ec0b53542731f1ed015169fed1d127cc91222638ed955478ec7
+  languageName: node
+  linkType: hard
+
+"@types/react@npm:*":
+  version: 19.0.8
+  resolution: "@types/react@npm:19.0.8"
+  dependencies:
+    csstype: "npm:^3.0.2"
+  checksum: 10c0/5fa7236356b1476de03519c66ef65d4fd904826956105619e2ad60cb0b55ae7b251dd5fff02234076225b5e15333d0d936bf9dbe1d461406f8a2ba01c197ddcd
   languageName: node
   linkType: hard
 
@@ -3747,6 +3765,7 @@ __metadata:
     "@types/lodash": "npm:^4.17.13"
     "@types/react": "npm:^18.2.21"
     "@types/react-dom": "npm:^18.2.7"
+    "@types/react-syntax-highlighter": "npm:^15"
     "@vitejs/plugin-react": "npm:^4.0.0"
     axios: "npm:^1.7.9"
     bson-objectid: "npm:^2.0.4"
@@ -3773,6 +3792,7 @@ __metadata:
     react-redux: "npm:^9.1.2"
     react-responsive-carousel: "npm:^3.2.23"
     react-router-dom: "npm:^7.0.2"
+    react-syntax-highlighter: "npm:^15.6.1"
     socket.io-client: "npm:^4.8.1"
     swr: "npm:^2.3.0"
     typescript: "npm:^5.2.2"
@@ -5745,7 +5765,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-syntax-highlighter@npm:^15.5.0":
+"react-syntax-highlighter@npm:^15.5.0, react-syntax-highlighter@npm:^15.6.1":
   version: 15.6.1
   resolution: "react-syntax-highlighter@npm:15.6.1"
   dependencies:
