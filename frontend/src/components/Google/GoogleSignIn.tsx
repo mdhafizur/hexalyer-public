@@ -25,8 +25,9 @@ const GoogleSignIn: React.FC = () => {
         if (!idToken) throw new Error("Failed to retrieve ID Token.");
 
         // Extract first and last name from _tokenResponse
-        const firstName = data._tokenResponse.firstName;
-        const lastName = data._tokenResponse.lastName;
+        const tokenResponse = (data as any)._tokenResponse;
+        const firstName = tokenResponse.firstName;
+        const lastName = tokenResponse.lastName;
 
 
 

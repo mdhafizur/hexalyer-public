@@ -4,7 +4,6 @@ import {
   Button,
   TextField,
   Typography,
-  Link,
   Grid,
 } from "@mui/material";
 import { Carousel } from "react-responsive-carousel";
@@ -20,7 +19,7 @@ import { privateClient } from "@app/axios.client";
 
 const RecoverPasswordPage: React.FC = () => {
   const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("");
+  const [message] = useState("");
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
