@@ -226,7 +226,7 @@ export default function ReportListingPage() {
         <TablePagination
           rowsPerPageOptions={[5, 10, 25, 100]}
           component="div"
-          count={reports?.length || 0}
+          count={reports.data.length || 0}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}

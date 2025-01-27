@@ -21,10 +21,6 @@ interface TaskDataState {
   noData: boolean; // Add a noData flag
 }
 
-// Create a singleton instance to store the cached data
-let cachedData: TaskDataState | null = null;
-let fetchPromise: Promise<Task[]> | null = null;
-
 export const useTaskData = () => {
   const [state, setState] = useState<TaskDataState>({
     tasks: [],
