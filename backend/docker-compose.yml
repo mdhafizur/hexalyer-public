@@ -6,9 +6,9 @@ services:
       context: .
     container_name: hexalayer-backend-container
     ports:
-      - "6000:6000"
-      - "6001:6001"
-      - "6003:6003"
+      - "5002:5000"
+      - "5001:5001"
+      - "5003:5003"
     env_file:
       - .env
     restart: unless-stopped

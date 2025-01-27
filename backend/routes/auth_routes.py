@@ -39,6 +39,12 @@ from dependencies.auth import get_current_user
 import jwt
 import logging
 
+# Load cookie settings from environment variables
+cookie_secure = (
+    os.getenv("COOKIE_SECURE", "false").lower() == "true"
+)  # Convert to boolean
+cookie_samesite = os.getenv("COOKIE_SAMESITE", "Lax")  # Default to "Lax"
+cookie_max_age = int(os.getenv("COOKIE_MAX_AGE", 30 * 60))  # Default to 30 minutes
 
 router = APIRouter()
 auth_repo = AuthRepository()
@@ -127,17 +133,17 @@ async def google_sign_in(
             key="access_token",
             value=access_token,
             httponly=True,
-            samesite="Lax",
-            secure=False,
-            max_age=30 * 60,  # 30 minutes in seconds
+            samesite=cookie_samesite,
+            secure=cookie_secure,
+            max_age=cookie_max_age,  # 30 minutes in seconds
         )
         response.set_cookie(
             key="refresh_token",
             value=refresh_token,
             httponly=True,
-            samesite="Lax",
-            secure=False,
-            max_age=30 * 60,  # 30 minutes in seconds
+            samesite=cookie_samesite,
+            secure=cookie_secure,
+            max_age=cookie_max_age,  # 30 minutes in seconds
         )
 
         return {"message": message}
@@ -264,16 +270,16 @@ async def register_user(
             key="access_token",
             value=access_token,
             httponly=True,
-            samesite="Lax",
-            secure=False,
+            samesite=cookie_samesite,
+            secure=cookie_secure,
             max_age=20 * 60,
         )
         response.set_cookie(
             key="refresh_token",
             value=refresh_token,
             httponly=True,
-            samesite="Lax",
-            secure=False,
+            samesite=cookie_samesite,
+            secure=cookie_secure,
             max_age=20 * 60,
         )
 
@@ -316,17 +322,17 @@ async def login_user(
             key="access_token",
             value=access_token,
             httponly=True,
-            samesite="Lax",
-            secure=False,
-            max_age=30 * 60,
+            samesite=cookie_samesite,
+            secure=cookie_secure,
+            max_age=cookie_max_age,
         )
         response.set_cookie(
             key="refresh_token",
             value=refresh_token,
             httponly=True,
-            samesite="Lax",
-            secure=False,
-            max_age=30 * 60,
+            samesite=cookie_samesite,
+            secure=cookie_secure,
+            max_age=cookie_max_age,
         )
         print(jwt.decode(access_token, SECRET_KEY, algorithms=["HS256"]))
 
@@ -369,17 +375,17 @@ async def refresh_token(request: Request, response: Response):
             key="access_token",
             value=access_token,
             httponly=True,
-            samesite="Lax",
-            secure=False,
-            max_age=30 * 60,
+            samesite=cookie_samesite,
+            secure=cookie_secure,
+            max_age=cookie_max_age,
         )
         response.set_cookie(
             key="refresh_token",
             value=new_refresh_token,
             httponly=True,
-            samesite="Lax",
-            secure=False,
-            max_age=30 * 60,
+            samesite=cookie_samesite,
+            secure=cookie_secure,
+            max_age=cookie_max_age,
         )
         return {
             "message": "success",
@@ -487,7 +493,7 @@ async def update_user(
             update_fields["password"] = auth_repo.hash_password(password)
         else:
             raise HTTPException(status_code=400, detail="Passwords do not match")
-    
+
     # Handle profile image
     if profile is not None:  # Ensure profile is an UploadFile
         try:
@@ -496,10 +502,14 @@ async def update_user(
             encoded_image = base64.b64encode(profile_content).decode("utf-8")
             update_fields["profile"] = encoded_image
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to process profile image: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Failed to process profile image: {str(e)}"
+            )
     elif profile is not None:
-        raise HTTPException(status_code=400, detail="Invalid file type for profile image")
-    
+        raise HTTPException(
+            status_code=400, detail="Invalid file type for profile image"
+        )
+
     # Update user in the database
     updated_count = user_repo.update_user(user_id, update_fields)
     if updated_count == 0:

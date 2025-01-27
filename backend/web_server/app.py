@@ -55,10 +55,16 @@ app = FastAPI(
 # Add the authentication middleware
 app.add_middleware(AuthMiddleware)
 
+# Get allowed origins from the environment variable and parse into a list
+allow_origins = os.getenv("ALLOW_ORIGINS", "").split(
+    ","
+)  # Default to an empty list if not set
+
+
 # Add CORS middleware to allow all origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Restrict in production
+    allow_origins=allow_origins,  # Restrict in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

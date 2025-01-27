@@ -39,33 +39,43 @@ build_agent_app:
 	. $(VENV_DIR)/bin/activate && pyinstaller --onefile --windowed agent/agent_ui_app.py && zip -r /dist/agent_ui_app.zip agent_ui_app.app
 
 
+
+
 # Variables
-PYLINT_TARGET ?= .          # Default to current directory if no target is provided
-PYLINT_RCFILE ?= .pylintrc  # Use a custom .pylintrc file if it exists
-PYLINT_REPORT ?= pylint-report.txt  # Save the pylint report to a file
+DOCKER_REGISTRY ?= registry.digitalocean.com
+IMAGE_NAME_BACKEND ?= registry.digitalocean.com/hexashield/backend
+IMAGE_TAG ?= latest
+DOCKER_BUILDX_PLATFORMS ?= linux/amd64
+DIGITALOCEAN_ACCESS_TOKEN ?= dop_v1_REDACTED
 
-# Run pylint
-pylint:
-	@echo "Running pylint on: $(PYLINT_TARGET)"
-	@if [ -f $(PYLINT_RCFILE) ]; then \
-		pylint --rcfile=$(PYLINT_RCFILE) $(PYLINT_TARGET) | tee $(PYLINT_REPORT); \
-	else \
-		pylint $(PYLINT_TARGET) | tee $(PYLINT_REPORT); \
-	fi
+# Targets
+.PHONY: login build push build_and_deploy
 
-# Clean pylint reports
-clean-pylint:
-	@echo "Cleaning pylint reports..."
-	@rm -f $(PYLINT_REPORT)
+# Login to Docker registry
+login:
+	@echo "Logging in to DigitalOcean Container Registry..."
+	@echo "$(DIGITALOCEAN_ACCESS_TOKEN)" | docker login --username=doctl --password-stdin $(DOCKER_REGISTRY)
 
-# Setup commit linter
-setup-commit-linter:
-	npm install --save-dev husky @commitlint/{cli,config-conventional}
-	npm run prepare
-	echo 'npx --no -- commitlint --edit "$$1"' > .husky/commit-msg
-	chmod +x .husky/commit-msg
+# Build the Docker image
+build:
+	@echo "Building Backend Docker image with BuildKit..."
+	@docker build --no-cache --platform="$(DOCKER_BUILDX_PLATFORMS)" -t "$(IMAGE_NAME_BACKEND):$(IMAGE_TAG)" -f Dockerfile .
 
-# Run commitlint manually
-commitlint:
-	@echo "Linting commit message..."
-	@commitlint --edit $(shell git rev-parse --git-dir)/COMMIT_EDITMSG || echo "Commit message does not follow conventional commit rules."
+# Push the Docker image
+push:
+	@echo "Pushing Backend Docker image to DigitalOcean Container Registry..."
+	@docker push "$(IMAGE_NAME_BACKEND):$(IMAGE_TAG)"
+
+# Run all steps in sequence
+build_and_deploy: login build push
+
+# Help
+help:
+	@echo "Usage: make [target]"
+	@echo ""
+	@echo "Targets:"
+	@echo "  login   - Log in to the Docker registry"
+	@echo "  build   - Build the Docker image"
+	@echo "  push    - Push the Docker image to the registry"
+	@echo "  build_and_deploy     - Run login, build, and push in sequence"
+	@echo "  help    - Show this help message"
