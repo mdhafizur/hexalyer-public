@@ -14,7 +14,7 @@ const AutoManualReportModal = ({
   reportType,
   reportData,
 }: {
-  reportType: string;
+  reportType: "auto" | "manual";
   reportData: {
     findings: string;
     description: string;

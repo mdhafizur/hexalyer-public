@@ -2,7 +2,14 @@ import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 import hexalayerLogo from "./logo.png";
 
-export const autoManualGeneratePDF = async (reportType, reportData) => {
+interface ReportData {
+  findings: string;
+  description: string;
+  solutions: string;
+  references: string;
+}
+
+export const autoManualGeneratePDF = async (reportType: "auto" | "manual", reportData: ReportData[]) => {
   const doc = new jsPDF();
   const currentDateTime = new Date().toLocaleString("de-DE");
   const sanitizedDateTime = currentDateTime.replace(/[:\s]/g, "_");
@@ -18,20 +25,18 @@ export const autoManualGeneratePDF = async (reportType, reportData) => {
   const effectivePageHeight = pageHeight - marginBottom;
 
   // Helper function to clean duplicate numbers in list items
-  const cleanDuplicateNumbers = (text) => {
+  const cleanDuplicateNumbers = (text: string): string => {
     const lines = text.split('\n');
     return lines.map(line => 
-      // Match patterns like "1. 1." or "2. 2." but keep the last number
       line.replace(/^(\d+\.\s*)+(\d+\.)/, '$2')
     ).join('\n');
   };
 
-  const addNewPageIfNeeded = (requiredSpace) => {
-    const currentY = doc.internal.getCurrentPageInfo().pageNumber === 1 
-      ? yPosition 
-      : yPosition - marginTop;
-    
-    if (currentY + requiredSpace > effectivePageHeight) {
+  // Keep track of current Y position
+  let yPosition = marginTop + 24;
+
+  const addNewPageIfNeeded = (requiredSpace: number): boolean => {
+    if (yPosition + requiredSpace > effectivePageHeight) {
       doc.addPage();
       yPosition = marginTop;
       return true;
@@ -39,7 +44,7 @@ export const autoManualGeneratePDF = async (reportType, reportData) => {
     return false;
   };
 
-  const calculateTextHeight = (text, fontSize, maxWidth) => {
+  const calculateTextHeight = (text: string, fontSize: number, maxWidth: number): number => {
     doc.setFontSize(fontSize);
     const lines = doc.splitTextToSize(text, maxWidth);
     return lines.length * fontSize * 0.3527777778; // Convert points to mm
@@ -67,8 +72,6 @@ export const autoManualGeneratePDF = async (reportType, reportData) => {
   doc.setTextColor(0, 0, 255);
   doc.setFont("helvetica", "bold");
   doc.text(`Total Findings: ${totalFindings}`, marginLeft, marginTop + 16);
-
-  let yPosition = marginTop + 24;
 
   // Iterate over report data
   reportData.forEach((item, index) => {
@@ -121,7 +124,9 @@ export const autoManualGeneratePDF = async (reportType, reportData) => {
     yPosition += descriptionLines.length * 6 + 6;
 
     // Check for page break before solutions
-    addNewPageIfNeeded(solutionsHeight + 20);
+    if (addNewPageIfNeeded(solutionsHeight + 20)) {
+      yPosition = marginTop;
+    }
 
     // Add solutions
     doc.setTextColor(0, 128, 0);
@@ -138,7 +143,9 @@ export const autoManualGeneratePDF = async (reportType, reportData) => {
     yPosition += solutionsLines.length * 6 + 6;
 
     // Check for page break before references
-    addNewPageIfNeeded(referencesHeight + 20);
+    if (addNewPageIfNeeded(referencesHeight + 20)) {
+      yPosition = marginTop;
+    }
 
     // Add standard references
     doc.setTextColor(0, 0, 128);

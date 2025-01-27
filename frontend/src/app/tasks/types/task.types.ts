@@ -1,7 +1,10 @@
+import { Conversation } from '@app/conversations/types/conversation.types';
+
 export interface Task {
   _id: string; // MongoDB ObjectId as a string
   agent_id: string; // ID of the agent that executed the task
   conversation_id: string; // MongoDB ObjectId as a string
+  conversation: Conversation; // MongoDB ObjectId as a string
   status: "success" | "failure"; // Task status
   outputs: TaskOutput[]; // Array of task output objects
   priority: "low" | "medium" | "high"; // Priority level of the task

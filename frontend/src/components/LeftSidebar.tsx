@@ -18,7 +18,6 @@ import {
   Settings,
   Logout,
 } from '@mui/icons-material';
-import { styled } from '@mui/system';
 import { useNavigate, useLocation } from 'react-router-dom';
 import HexaLayerImage from '../assests/images/HexaLayer.png';
 import MenuOpenIcon from '@mui/icons-material/MenuOpen';
@@ -65,12 +64,6 @@ const LeftSidebar: React.FC<{
 
 
   const isSelected = (path: string) => location.pathname.startsWith(path);
-
-  const handleLogout = () => {
-    logout();
-    if (isMobile) setSidebarOpen(false); // Close sidebar on mobile after logout
-  };
-
 
   return (
     <Drawer

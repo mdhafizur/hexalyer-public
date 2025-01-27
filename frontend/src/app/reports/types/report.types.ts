@@ -9,7 +9,12 @@ export interface Report {
         url?: string;
         alerts?: Record<string, unknown>;
     }; // Additional optional details about the report
-    data?: Record<string, unknown>; // Additional optional details about the report
+    data?: [{
+        findings: string;
+        description: string;
+        solutions: string;
+        references: string;
+    }]; // Additional optional details about the report
     created_at?: string; // ISO string for the creation timestamp
     updated_at?: string; // ISO string for the last updated timestamp
 }

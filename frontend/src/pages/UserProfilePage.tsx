@@ -75,7 +75,7 @@ export default function UserProfilePage() {
   function isBase64(str: string): boolean {
     try {
       return btoa(atob(str)) === str;
-    } catch (err) {
+    } catch {
       return false;
     }
   }
@@ -85,7 +85,7 @@ export default function UserProfilePage() {
       return;
     }
     // Validate password length
-    if (formData.password.length < 8 || formData.password.length > 16) {
+    if ((formData.password.length < 8 || formData.password.length > 16) && formData.password !== "") {
       alert("Password must be between 8 and 16 characters long");
       return ;
     }

@@ -28,7 +28,7 @@ export const useReports = () => {
 
     // Load reports if the reports array is empty or no reports are loaded
     useEffect(() => {
-        if (reports.length === 0) {
+        if (reports.data.length === 0) {
             queryReports({
                 page: 1,
                 page_size: 100,
@@ -36,7 +36,7 @@ export const useReports = () => {
                 sort_order: 'desc',       // Sort in descending order (latest first)
             });
         }
-    }, [reports.length, queryReports]);  // Only run when the length of reports changes
+    }, [reports.data.length, queryReports]);  // Only run when the length of reports changes
 
     return {
         reports,

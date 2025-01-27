@@ -9,9 +9,8 @@ export interface ReportQueryParams extends BaseQueryParams {
     type?: string;
 }
 
-
-// Query messages with filters and pagination
-export const queryReports = async (params: ReportQueryParams): Promise<Report[]> => {
+// Query reports with filters and pagination
+export const queryReports = async (params: ReportQueryParams): Promise<{ data: Report[] }> => {
     const response = await privateClient.get("/reports/query", { params });
     return response.data;
 };
