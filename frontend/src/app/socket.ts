@@ -3,7 +3,7 @@ import { io, Socket } from "socket.io-client";
 const SOCKET_URL = import.meta.env.VITE_SOCKET_API_URL as string;
 
 export const socket: Socket = io(SOCKET_URL, {
-    transports: ["websocket"], // Use WebSocket for real-time performance
+    transports: ["websocket", "polling"], // WebSocket first, fallback to polling
     autoConnect: true,
     reconnection: true,
     reconnectionAttempts: Infinity,
