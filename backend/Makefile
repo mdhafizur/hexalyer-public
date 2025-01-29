@@ -1,42 +1,53 @@
 # Define variables
 SCRIPT = agent/main.py
 OUTPUT_DIR = dist
+BUILD_DIR = build
 EXECUTABLE_NAME = agent
-VENV_DIR = .venv
-
-# Command to create a virtual environment and install dependencies
-setup: $(VENV_DIR)
-	. $(VENV_DIR)/bin/activate && pip install -r requirements.txt
-
-$(VENV_DIR):
-	python3 -m venv $(VENV_DIR)
-
-# Command to activate virtual environment
-activate:
-	. $(VENV_DIR)/bin/activate
+PYTHON_PATH = $(shell which python3)
 
 # Command to generate requirements.txt
-gen_req: activate
-	pip freeze > requirements.txt
+gen_req:
+	$(PYTHON_PATH) -m pip freeze > requirements.txt
 
-# Target to clean up previous builds
-build_clean:
-	rm -rf build/ $(OUTPUT_DIR)/ $(EXECUTABLE_NAME).spec
+# Target to clean up previous builds (only removes the specified agent file, .spec file, and build folder)
+build_clean_linux:
+	rm -rf $(BUILD_DIR)/$(EXECUTABLE_NAME)_linux $(OUTPUT_DIR)/$(EXECUTABLE_NAME)_linux $(EXECUTABLE_NAME)_linux.spec
 
-# Target to build the Mach-O executable for Linux
-build_agent_linux: build_clean setup
-	USER_ID=$(USER_ID) CONVERSATION_ID=$(CONVERSATION_ID) . $(VENV_DIR)/bin/activate && pyinstaller --onefile --name $(EXECUTABLE_NAME) $(SCRIPT)
+build_clean_darwin:
+	rm -rf $(BUILD_DIR)/$(EXECUTABLE_NAME)_darwin $(OUTPUT_DIR)/$(EXECUTABLE_NAME)_darwin $(EXECUTABLE_NAME)_darwin.spec
 
-# Target to build the Windows executable
-build_agent_windows: build_clean setup
-	USER_ID=$(USER_ID) CONVERSATION_ID=$(CONVERSATION_ID) . $(VENV_DIR)/bin/activate && pyinstaller --onefile --name $(EXECUTABLE_NAME).exe $(SCRIPT)
+build_clean_windows:
+	rm -rf $(BUILD_DIR)/$(EXECUTABLE_NAME)_windows $(OUTPUT_DIR)/$(EXECUTABLE_NAME)_windows.exe $(EXECUTABLE_NAME)_windows.spec
 
-# Target to run the executable
-run_agent: build
-	./$(OUTPUT_DIR)/$(EXECUTABLE_NAME)
+# Target to build the executable for Linux
+build_agent_linux: build_clean_linux
+	USER_ID=$(USER_ID) CONVERSATION_ID=$(CONVERSATION_ID) $(PYTHON_PATH) -m PyInstaller --onefile --name $(EXECUTABLE_NAME)_linux $(SCRIPT)
 
+# Target to build the executable for macOS (ARM/M1/M2)
+build_agent_darwin: build_clean_darwin
+	USER_ID=$(USER_ID) CONVERSATION_ID=$(CONVERSATION_ID) arch -arm64 $(PYTHON_PATH) -m PyInstaller --onefile --name $(EXECUTABLE_NAME)_darwin $(SCRIPT)
+
+# Target to build the executable for Windows
+build_agent_windows: build_clean_windows
+	USER_ID=$(USER_ID) CONVERSATION_ID=$(CONVERSATION_ID) $(PYTHON_PATH) -m PyInstaller --onefile --name $(EXECUTABLE_NAME)_windows.exe $(SCRIPT)
+
+# Target to run the Linux agent executable
+run_agent_linux:
+	./$(OUTPUT_DIR)/$(EXECUTABLE_NAME)_linux
+
+# Target to run the macOS agent executable
+run_agent_macos:
+	./$(OUTPUT_DIR)/$(EXECUTABLE_NAME)_darwin
+
+# Target to run the Windows agent executable (via Wine on Unix-like systems)
+run_agent_windows:
+	wine $(OUTPUT_DIR)/$(EXECUTABLE_NAME)_windows.exe
+
+# Target to build the UI application
 build_agent_app:
-	. $(VENV_DIR)/bin/activate && pyinstaller --onefile --windowed agent/agent_ui_app.py && zip -r /dist/agent_ui_app.zip agent_ui_app.app
+	$(PYTHON_PATH) -m PyInstaller --onefile --windowed agent/agent_ui_app.py && zip -r $(OUTPUT_DIR)/agent_ui_app.zip agent_ui_app.app
+
+
 
 
 

@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import signal
 from time import sleep
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -26,6 +27,24 @@ logging.basicConfig(
 
 # Initialize Socket.IO client
 sio = socketio.Client(reconnection=True, reconnection_attempts=5)
+
+# Global stop flag
+shutdown_flag = False
+
+
+# Handle Ctrl+C and SIGTERM
+def handle_exit(signum, frame):
+    global shutdown_flag
+    logging.info(
+        "Received exit signal (Ctrl+C or SIGTERM). Shutting down gracefully..."
+    )
+    shutdown_flag = True
+    sio.disconnect()
+
+
+# Register signal handlers
+signal.signal(signal.SIGINT, handle_exit)  # Handle Ctrl+C
+signal.signal(signal.SIGTERM, handle_exit)  # Handle Docker/Kubernetes termination
 
 
 class Agent:
@@ -210,13 +229,25 @@ if __name__ == "__main__":
     user_id = os.getenv("U_ID", "default_user_id")
     conversation_id = os.getenv("C_ID", "default_conversation_id")
 
-    while True:
+    while not shutdown_flag:
         try:
             logging.info("Starting agent...")
+            logging.info("C2_URL: %s", c2_url)
+            logging.info("SOCKET_URL: %s", socket_url)
+            logging.info("USER_ID: %s", user_id)
+            logging.info("CONVERSATION_ID: %s", conversation_id)
+
             agent = Agent(c2_url, socket_url, user_id, conversation_id)
             sio.connect(socket_url)
             sio.wait()
+
+        except KeyboardInterrupt:
+            logging.info("KeyboardInterrupt received. Exiting...")
+            break  # Exit the loop on Ctrl+C
+
         except Exception as e:
             logging.error("An error occurred: %s", e, exc_info=True)
             logging.info("Retrying connection in 5 seconds...")
             sleep(5)
+
+    logging.info("Agent has exited gracefully.")

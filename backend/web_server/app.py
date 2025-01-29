@@ -106,29 +106,31 @@ async def download_agent(agent_type: str, user_id: str, conversation_id: str):
     - 400: If the agent type is invalid.
     - 500: If the build process fails or the file is still missing after building.
     """
-    if agent_type not in ["linux", "windows"]:
+    if agent_type not in ["linux", "windows", "darwin"]:
         logger.error("Invalid agent type provided: %s", agent_type)
         raise HTTPException(
             status_code=400, detail="Invalid agent type. Choose 'linux' or 'windows'."
         )
 
     dist_folder = os.path.join(os.getcwd(), "dist")
-    agent_file = (
-        f"agent{'.exe' if agent_type == 'windows' else ''}"  # Append .exe for Windows
-    )
+    agent_file = f"agent_{agent_type}{'.exe' if agent_type == 'windows' else ''}"
     file_path = os.path.join(dist_folder, agent_file)
 
-    # Delete the existing file if it exists
+    # # Delete the existing file if it exists
     if os.path.exists(file_path):
-        try:
-            logger.info("Deleting existing agent file: %s", file_path)
-            os.remove(file_path)
-        except OSError as e:
-            logger.error("Failed to delete agent file: %s, error: %s", file_path, e)
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to delete existing agent file for {agent_type}",
-            ) from e
+        return FileResponse(
+            file_path, filename=agent_file, media_type="application/octet-stream"
+        )
+
+    #     try:
+    #         logger.info("Deleting existing agent file: %s", file_path)
+    #         os.remove(file_path)
+    #     except OSError as e:
+    #         logger.error("Failed to delete agent file: %s, error: %s", file_path, e)
+    #         raise HTTPException(
+    #             status_code=500,
+    #             detail=f"Failed to delete existing agent file for {agent_type}",
+    #         ) from e
 
     # Trigger the build process
     logger.info(
