@@ -321,6 +321,8 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
 
         return baseTitle;
     };
+
+
     useEffect(() => {
         // Split the URL into parts
         console.log("select convType", conversationType)
@@ -332,8 +334,11 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
     }, [conversationType, conversationId]);
 
     const handleSendMessage = async (customInputValue = inputValue) => {
+
+        console.log("customInputValue", customInputValue)
         if (!customInputValue.trim()) return;
         const convId: string = conversationId || "";
+        console.log("convId", convId)
         if (!convId) {
             return
         }

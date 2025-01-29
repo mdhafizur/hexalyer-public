@@ -30,7 +30,7 @@ import WebAssetIcon from '@mui/icons-material/WebAsset';
 
 
 export default function ConversationListingPage() {
-  const { fetchConversations, updateConversation, conversations, loading, error } = useConversations();
+  const { queryConversations, updateConversation, conversations, loading, error } = useConversations();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -92,7 +92,7 @@ export default function ConversationListingPage() {
       // Only proceed with update if the title has changed
       if (newTitle && newTitle !== currentTitle) {
         updateConversation(conversationId, { title: newTitle, created_by });
-        fetchConversations();
+        queryConversations({ created_by: created_by, page: 1, page_size: 100 });
       }
 
       setEditingConversationId(null);

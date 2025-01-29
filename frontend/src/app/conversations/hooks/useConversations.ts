@@ -1,7 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../../hook';
 import {
-    fetchConversationsThunk,
     createConversationThunk,
     updateConversationThunk,
     queryConversationsThunk,
@@ -9,6 +8,7 @@ import {
 } from '../slices/conversationsSlice';
 import { RootState } from '../../store';
 import { Conversation } from '../types/conversation.types';
+import { getUserIdFromLocalStorage } from 'utils/cookieValidation';
 
 export const useConversations = () => {
     const dispatch = useAppDispatch();
@@ -17,8 +17,8 @@ export const useConversations = () => {
     const { conversations, loading, error, generateReportLoading, generateReportError } = useAppSelector((state: RootState) => state.conversations);
 
     // Fetch all conversations
-    const fetchConversations = useCallback(() => {
-        dispatch(fetchConversationsThunk());
+    const fetchConversationsByQuery = useCallback(() => {
+        dispatch(queryConversationsThunk({ created_by: getUserIdFromLocalStorage(), page: 1, page_size: 100 }));
     }, [dispatch]);
 
     // Create a new conversation
@@ -33,7 +33,7 @@ export const useConversations = () => {
 
     // Query conversations with filters
     const queryConversations = useCallback(
-        (filters: { user_id?: string; created_by?: string; title?: string; page?: number; page_size?: number }) => {
+        (filters: { created_by?: string; title?: string; page?: number; page_size?: number }) => {
             return dispatch(queryConversationsThunk(filters));
         },
         [dispatch]
@@ -49,9 +49,9 @@ export const useConversations = () => {
     // Automatically fetch conversations on initialization
     useEffect(() => {
         if (!conversations.length) {
-            fetchConversations();
+            fetchConversationsByQuery();
         }
-    }, [fetchConversations, conversations.length]);
+    }, [fetchConversationsByQuery, conversations.length]);
 
     return {
         conversations,
@@ -59,7 +59,7 @@ export const useConversations = () => {
         error,
         generateReportLoading,
         generateReportError,
-        fetchConversations,
+        fetchConversationsByQuery,
         createConversation,
         updateConversation,
         queryConversations,

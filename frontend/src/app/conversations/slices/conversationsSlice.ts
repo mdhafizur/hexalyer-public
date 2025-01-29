@@ -85,7 +85,7 @@ export const updateConversationThunk = createAsyncThunk<
 // Thunk for querying conversations
 export const queryConversationsThunk = createAsyncThunk<
     Conversation[], // Success return type
-    { user_id?: string; created_by?: string; title?: string; page?: number; page_size?: number }, // Arguments
+    { created_by?: string; title?: string; page?: number; page_size?: number }, // Arguments
     { rejectValue: FetchError } // Error return type
 >(
     'conversations/queryConversations',

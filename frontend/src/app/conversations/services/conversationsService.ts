@@ -31,7 +31,7 @@ export const updateConversation = async (
 // Query conversations with filters and pagination
 export const queryConversations = async (params: ConversationQueryParams): Promise<Conversation[]> => {
   const response = await privateClient.get("/conversations/query", { params });
-  return response.data;
+  return response.data.data;
 };
 
 // Query conversations with filters and pagination

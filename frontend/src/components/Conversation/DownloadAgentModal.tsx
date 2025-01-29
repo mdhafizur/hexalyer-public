@@ -11,11 +11,17 @@ const DownloadAgentModal = ({ open, handleClose, conversationId }) => {
         setTabIndex(newValue);
     };
     const userId = getUserIdFromLocalStorage();
-    const linuxCode = `curl -o agent ${import.meta.env.VITE_WEB_API_URL}/download/agent/linux/${userId}/${conversationId}
+    const linuxCode = `curl -o agent_linux ${import.meta.env.VITE_WEB_API_URL}/download/agent/linux/${userId}/${conversationId}
 
-chmod +x agent
+chmod +x agent_linux
 
-U_ID=${userId} C_ID=${conversationId} ./agent`;
+U_ID=${userId} C_ID=${conversationId} ./agent_linux`;
+
+    const darwinCode = `curl -o agent_darwin ${import.meta.env.VITE_WEB_API_URL}/download/agent/darwin/${userId}/${conversationId}
+
+chmod +x agent_darwin
+
+U_ID=${userId} C_ID=${conversationId} ./agent_darwin`;
 
     const windowsCode = `Invoke-WebRequest -Uri ${import.meta.env.VITE_WEB_API_URL}/download/agent/windows/${userId}/${conversationId} -OutFile agent.exe
 
@@ -42,6 +48,7 @@ U_ID=${userId} C_ID=${conversationId} .\\agent.exe`;
                 </Typography>
                 <Tabs value={tabIndex} onChange={handleTabChange} sx={{ mb: 2 }}>
                     <Tab label="Linux" />
+                    <Tab label="Darwin" />
                     <Tab label="Windows" />
                 </Tabs>
 
@@ -57,6 +64,17 @@ U_ID=${userId} C_ID=${conversationId} .\\agent.exe`;
                 )}
 
                 {tabIndex === 1 && (
+                    <Box sx={{ width: '100%', overflowX: 'auto' }}>
+                        <Typography variant="body1" sx={{ mb: 1 }}>
+                            <b>Download and Run the Darwin Agent:</b>
+                        </Typography>
+                        <SyntaxHighlighter language="bash" style={materialDark}>
+                            {darwinCode}
+                        </SyntaxHighlighter>
+                    </Box>
+                )}
+
+                {tabIndex === 2 && (
                     <Box sx={{ width: '100%', overflowX: 'auto' }}>
                         <Typography variant="body1" sx={{ mb: 1 }}>
                             <b>Download and Run the Windows Agent:</b>

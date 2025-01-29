@@ -27,7 +27,11 @@ import ResetPassword from "@pages/ResetPassword";
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <App />,
+    element: (
+      <ProtectedRoute>
+        <App />
+      </ProtectedRoute>
+    ),
     children: [
       {
         path: "/dashboard",
