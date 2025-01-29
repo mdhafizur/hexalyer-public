@@ -55,63 +55,89 @@ class ScanService:
         self.message_repository = message_repository
         self.report_repository = report_repository
 
-    async def initiate_scan(self, url: str, conversation_id: str) -> dict:
+    async def initiate_scan(
+        self, url: str, conversation_id: str, scan_type: str = "passive"
+    ) -> dict:
         """
         Initiates a ZAP scan and updates the database.
 
         Args:
             url (str): The target URL to scan.
             conversation_id (str): The conversation ID associated with the scan.
+            scan_type (str): The type of scan to initiate ("passive" or "active").
 
         Returns:
             dict: Details of the initiated scan, including the scan ID and associated message data.
         """
         try:
-            # Step 1: Initiate spider scan
-            spider_response = await self.zap_service.make_request(
-                "spider/action/scan/", {"url": url, "recurse": True}
-            )
-            scan_id = spider_response.get("scan")
-            if not scan_id:
+            scan_id = None
+            active_scan_id = None
+
+            if scan_type == "passive":
+                # Step 1: Initiate spider scan
+                spider_response = await self.zap_service.make_request(
+                    "spider/action/scan/", {"url": url, "recurse": False}
+                )
+                scan_id = spider_response.get("scan")
+                if not scan_id:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Failed to obtain scan ID during spider registration.",
+                    )
+
+                # Step 2: Monitor spider scan progress
+                while True:
+                    spider_status = await self.zap_service.make_request(
+                        "spider/view/status/", {"scanId": scan_id}
+                    )
+                    if spider_status.get("status") == "100":
+                        break
+
+            elif scan_type == "active":
+                # Step 3: Initiate active scan
+                active_scan_response = await self.zap_service.make_request(
+                    "ascan/action/scan/",
+                    {"url": url, "recurse": True, "scanPolicyName": "Default Policy"},
+                )
+                active_scan_id = active_scan_response.get("scan")
+                if not active_scan_id:
+                    raise HTTPException(
+                        status_code=400, detail="Failed to retrieve active scan ID."
+                    )
+
+            else:
                 raise HTTPException(
                     status_code=400,
-                    detail="Failed to obtain scan ID during spider registration.",
+                    detail="Invalid scan type. Choose 'passive' or 'active'.",
                 )
 
-            # Step 2: Monitor spider scan progress
-            while True:
-                spider_status = await self.zap_service.make_request(
-                    "spider/view/status/", {"scanId": scan_id}
-                )
-                if spider_status.get("status") == "100":
-                    break
-
-            # Step 3: Initiate active scan
-            active_scan_response = await self.zap_service.make_request(
-                "ascan/action/scan/",
-                {"url": url, "recurse": True, "scanPolicyName": "Default Policy"},
-            )
-            active_scan_id = active_scan_response.get("scan")
-            if not active_scan_id:
-                raise HTTPException(
-                    status_code=400, detail="Failed to retrieve active scan ID."
-                )
-
+            # Generate unique IDs for the message and report
             msg_id = ObjectId()
             report_id = ObjectId()
 
+            # Retrieve conversation data
             conversation_data = conversation_repo.get_conversation_by_id(
                 conversation_id
             )
+            if not conversation_data:
+                raise HTTPException(status_code=404, detail="Conversation not found.")
+
+            # Prepare report data
             report_data = {
                 "_id": report_id,
                 "message_id": msg_id,
                 "type": "webhex",
-                "details": {"scan_id": active_scan_id, "url": url},
+                "details": {
+                    "scan_id": active_scan_id if scan_type == "active" else scan_id,
+                    "url": url,
+                    "scan_type": scan_type,
+                },
                 "created_at": current_utc_time().isoformat(),
                 "updated_at": current_utc_time().isoformat(),
                 "created_by": conversation_data.get("created_by"),
             }
+
+            # Save the report to the database
             self.report_repository.create_report(report_data)
 
             # Step 4: Save scan initiation details as a message
@@ -125,6 +151,8 @@ class ScanService:
                 "created_at": current_utc_time().isoformat(),
                 "updated_at": current_utc_time().isoformat(),
             }
+
+            # Save the message to the database
             self.message_repository.create_message(ai_message_data)
 
             return ai_message_data
@@ -170,6 +198,7 @@ class ScanService:
             details = report.get("details", {})
             scan_id = details.get("scan_id")
             url = details.get("url")
+            scan_type = details.get("scan_type")
 
             if not scan_id or not url:
                 logger.error(
@@ -181,11 +210,17 @@ class ScanService:
                 )
 
             logger.info(f"Scan ID: {scan_id}, URL: {url}")
-
-            # Fetch scan progress
-            progress_data = await self.zap_service.make_request(
-                "ascan/view/status/", {"scanId": scan_id}
-            )
+            progress_data = {}
+            if scan_type == "active":
+                # Fetch scan progress
+                progress_data = await self.zap_service.make_request(
+                    "ascan/view/status/", {"scanId": scan_id}
+                )
+            if scan_type == "passive":
+                # Fetch scan progress
+                progress_data = await self.zap_service.make_request(
+                    "spider/view/status/", {"scanId": scan_id}
+                )
             progress_percentage = progress_data.get("status")
 
             if progress_percentage is None:
@@ -194,11 +229,18 @@ class ScanService:
 
             logger.info(f"Scan progress: {progress_percentage}%")
 
-            # Fetch detailed scan progress
-            scan_progress_response = await self.zap_service.make_request(
-                "ascan/view/scanProgress/", {"scanId": scan_id}
-            )
-            scan_progress_data = scan_progress_response.get("scanProgress", [])
+            if scan_type == "active":
+                # Fetch detailed scan progress
+                scan_progress_response = await self.zap_service.make_request(
+                    "spider/view/scanProgress/", {"scanId": scan_id}
+                )
+                scan_progress_data = scan_progress_response.get("scanProgress", [])
+                return {
+                    "progress": int(progress_percentage),
+                    "scan_progress": (
+                        scan_progress_data[1] if len(scan_progress_data) > 1 else None
+                    ),
+                }
 
             # Handle scan completion
             if progress_percentage == "100":
