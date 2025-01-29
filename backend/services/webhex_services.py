@@ -6,7 +6,11 @@ from fastapi import HTTPException
 from c2_server.events.utils import current_utc_time
 from db.message_repository import MessageRepository
 from db.report_repository import ReportRepository
+from db.conversation_repository import ConversationRepository
 from models.report import ReportModel
+
+# Create an instance of ConversationRepository
+conversation_repo = ConversationRepository()
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +100,9 @@ class ScanService:
             msg_id = ObjectId()
             report_id = ObjectId()
 
+            conversation_data = conversation_repo.get_conversation_by_id(
+                conversation_id
+            )
             report_data = {
                 "_id": report_id,
                 "message_id": msg_id,
@@ -103,6 +110,7 @@ class ScanService:
                 "details": {"scan_id": active_scan_id, "url": url},
                 "created_at": current_utc_time().isoformat(),
                 "updated_at": current_utc_time().isoformat(),
+                "created_by": conversation_data.get("created_by"),
             }
             self.report_repository.create_report(report_data)
 

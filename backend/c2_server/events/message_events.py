@@ -217,13 +217,26 @@ async def handle_stream_to_ai_manual(sio, sid, data):
         # Fetch CVE context based on the user message
         cve_context = await fetch_relevant_cve_context(message_data["content"])
 
-        # Using the DeepSeekClient to stream the response
-        for chunk in deepseek_client.ask(
-            saved_message.get("content"),
-            stream=True,
-            message_history=message_history,
-            cve_context=cve_context,
-        ):
+        # # Using the DeepSeekClient to stream the response
+        # for chunk in deepseek_client.ask(
+        #     saved_message.get("content"),
+        #     stream=True,
+        #     message_history=message_history,
+        #     cve_context=cve_context,
+        # ):
+        #     if chunk is not None:
+        #         complete_content += chunk
+        #         ai_message["content"] = chunk
+        #         await sio.emit(
+        #             "ai_message_stream",
+        #             ai_message,
+        #             to=str(message_data["conversation_id"]),
+        #         )
+        #         # print(f"Chunk emitted: {chunk}")  # Logs after emit
+        #         await asyncio.sleep(0)
+
+        for chunk in chatgpt_client.ask(stream=True, message_history=message_history):
+            # print(f"Chunk received: {chunk}")  # Log each chunk
             if chunk is not None:
                 complete_content += chunk
                 ai_message["content"] = chunk
@@ -234,21 +247,6 @@ async def handle_stream_to_ai_manual(sio, sid, data):
                 )
                 # print(f"Chunk emitted: {chunk}")  # Logs after emit
                 await asyncio.sleep(0)
-
-        # for chunk in chatgpt_client.ask(
-        #     saved_message.get("content"), stream=True, message_history=message_history
-        # ):
-        #     # print(f"Chunk received: {chunk}")  # Log each chunk
-        #     if chunk is not None:
-        #         complete_content += chunk
-        #         ai_message["content"] = chunk
-        #         await sio.emit(
-        #             "ai_message_stream",
-        #             ai_message,
-        #             to=str(message_data["conversation_id"]),
-        #         )
-        #         # print(f"Chunk emitted: {chunk}")  # Logs after emit
-        #         gevent.sleep(0)
 
         # Once the streaming is complete, update the MongoDB message with the full content
         ai_message["content"] = complete_content  # Set the complete content
@@ -328,19 +326,34 @@ async def handle_stream_to_ai_webhex(sio, sid, data):
             #     ].strip()  # Ignore messages with empty or whitespace-only content
             # ]
 
-            # Using the XAIChatClient to stream the response
-            for chunk in deepseek_client.ask(
+            # # Using the XAIChatClient to stream the response
+            # for chunk in deepseek_client.ask(
+            #     message=saved_message.get("content"), stream=True
+            # ):
+            #     # Append the chunk to the existing content in memory
+            #     complete_content += chunk  # Accumulate the chunks
+            #     ai_message["content"] = chunk
+            #     # Emit the chunk of the response back to the client
+            #     await sio.emit(
+            #         "ai_message_stream",
+            #         ai_message,
+            #         to=str(message_data["conversation_id"]),
+            #     )
+
+            for chunk in chatgpt_client.ask(
                 message=saved_message.get("content"), stream=True
             ):
-                # Append the chunk to the existing content in memory
-                complete_content += chunk  # Accumulate the chunks
-                ai_message["content"] = chunk
-                # Emit the chunk of the response back to the client
-                await sio.emit(
-                    "ai_message_stream",
-                    ai_message,
-                    to=str(message_data["conversation_id"]),
-                )
+                # print(f"Chunk received: {chunk}")  # Log each chunk
+                if chunk is not None:
+                    complete_content += chunk
+                    ai_message["content"] = chunk
+                    await sio.emit(
+                        "ai_message_stream",
+                        ai_message,
+                        to=str(message_data["conversation_id"]),
+                    )
+                    # print(f"Chunk emitted: {chunk}")  # Logs after emit
+                    await asyncio.sleep(0)
 
             # Once the streaming is complete, update the MongoDB message with the full content
             ai_message["content"] = complete_content  # Set the complete content
@@ -356,7 +369,9 @@ async def handle_stream_to_ai_webhex(sio, sid, data):
 
         except Exception as e:
             logger.error("Error while streaming AI response: %s", str(e))
-            await sio.emit("error", {"error": "Error while streaming AI response"}, to=sid)
+            await sio.emit(
+                "error", {"error": "Error while streaming AI response"}, to=sid
+            )
 
     message = MessageModel(**data)
     message_data = message.dict(by_alias=True)
@@ -374,10 +389,8 @@ async def handle_stream_to_ai_webhex(sio, sid, data):
                 "updated_at": current_utc_time().isoformat(),
             }
             message_repo.create_message(user_webhex_message)
-            initiated_data = asyncio.run(
-                scan_service.initiate_scan(
-                    message_data["details"]["url"], message_data["conversation_id"]
-                )
+            initiated_data = await scan_service.initiate_scan(
+                message_data["details"]["url"], message_data["conversation_id"]
             )
             ai_message = MessageModel(**initiated_data).dict(by_alias=True)
 
@@ -390,7 +403,9 @@ async def handle_stream_to_ai_webhex(sio, sid, data):
                 to=str(initiated_data["conversation_id"]),
             )
         except Exception as e:
-            await sio.emit("error", {"error": f"Failed to initiate scan: {str(e)}"}, to=sid)
+            await sio.emit(
+                "error", {"error": f"Failed to initiate scan: {str(e)}"}, to=sid
+            )
 
 
 async def handle_stream_to_ai_auto(sio, sid, data):
@@ -471,19 +486,34 @@ async def handle_stream_to_ai_auto(sio, sid, data):
                 {"role": message["role"], "content": updated_content}
             )
 
-        # Using the XAIChatClient to stream the response
-        for chunk in deepseek_client.ask(
-            stream=True, message_history=message_history, prompt_type="auto"
+        # # Using the XAIChatClient to stream the response
+        # for chunk in deepseek_client.ask(
+        #     stream=True, message_history=message_history, prompt_type="auto"
+        # ):
+        #     # Append the chunk to the existing content in memory
+        #     complete_content += chunk  # Accumulate the chunks
+        #     ai_message["content"] = chunk
+        #     # Emit the chunk of the response back to the client
+        #     await sio.emit(
+        #         "ai_message_stream",
+        #         ai_message,
+        #         to=str(message_data["conversation_id"]),
+        #     )
+
+        for chunk in chatgpt_client.ask(
+            message_history=message_history, prompt_type="auto", stream=True
         ):
-            # Append the chunk to the existing content in memory
-            complete_content += chunk  # Accumulate the chunks
-            ai_message["content"] = chunk
-            # Emit the chunk of the response back to the client
-            await sio.emit(
-                "ai_message_stream",
-                ai_message,
-                to=str(message_data["conversation_id"]),
-            )
+            # print(f"Chunk received: {chunk}")  # Log each chunk
+            if chunk is not None:
+                complete_content += chunk
+                ai_message["content"] = chunk
+                await sio.emit(
+                    "ai_message_stream",
+                    ai_message,
+                    to=str(message_data["conversation_id"]),
+                )
+                # print(f"Chunk emitted: {chunk}")  # Logs after emit
+                await asyncio.sleep(0)
 
         # Once the streaming is complete, update the MongoDB message with the full content
         ai_message["content"] = complete_content  # Set the complete content

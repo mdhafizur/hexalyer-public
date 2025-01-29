@@ -41,6 +41,11 @@ class ReportModel(BaseModel):
         description="Detailed information about the report.",
         example={"scan_id": "0", "url": "https://jinx-team.vercel.app/", "report": {}},
     )
+    created_by: Optional[str] = Field(
+        None,
+        description="ID of the user who created the conversation",
+        example="64309628d1cd938d5163ad51",  # Example ObjectId as a string
+    )
     created_at: datetime = Field(
         default_factory=datetime.utcnow,
         description="Timestamp when the report was created.",

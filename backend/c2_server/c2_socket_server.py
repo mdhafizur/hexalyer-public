@@ -16,6 +16,7 @@ from c2_server.events.agent_events import (
     handle_agent_registration,
     handle_command_response,
 )
+from c2_server.events.agent_events import connected_agents
 
 # Initialize Socket.IO server
 sio = socketio.AsyncServer(
@@ -120,6 +121,63 @@ async def on_stream_message_to_ai(sid, data):
             {"error": "An internal error occurred while processing the AI stream."},
             to=sid,
         )
+
+
+@sio.on("send_command")
+async def send_command_to_agent(sid, data):
+    """
+    Event handler to send a structured command request to a specific agent.
+
+    Args:
+        sid (str): The session ID of the client sending the command.
+        data (dict): The command data, including "agent_id" and "commands".
+
+    Expected Payload Format:
+    {
+        "agent_id": "agent123",
+        "commands": ["echo Hello", "ls -la"],
+        "inputs": [{"name": "path", "value": "/var/log"}],
+        "preconditions": [{"description": "Check disk space", "test_cmd": "df -h"}],
+        "cleanups": ["rm -rf /tmp/temp_files"]
+    }
+
+    Emits:
+        - "on_execute_command" to the target agent.
+        - "command_error" to sender in case of failure.
+    """
+    try:
+        agent_id = data.get("agent_id")
+        if not agent_id:
+            logger.error("Missing 'agent_id' in command request.")
+            await sio.emit("command_error", {"error": "Missing 'agent_id'."}, to=sid)
+            return
+
+        # Check if the agent is connected
+        target_sid = connected_agents.get(agent_id)
+        if not target_sid:
+            logger.error(f"Agent '{agent_id}' is not connected.")
+            await sio.emit(
+                "command_error", {"error": f"Agent '{agent_id}' not connected."}, to=sid
+            )
+            return
+
+        logger.info(
+            f"Sending command to Agent '{agent_id}' (SID: {target_sid}): {data}"
+        )
+
+        # Emit command to the agent
+        await sio.emit("on_execute_command", data, to=target_sid)
+
+        logger.info(
+            f"Command successfully sent to Agent '{agent_id}' (SID: {target_sid})."
+        )
+        await sio.emit(
+            "command_success", {"message": "Command sent successfully."}, to=sid
+        )
+
+    except Exception as e:
+        logger.error(f"Error sending command: {str(e)}")
+        await sio.emit("command_error", {"error": "Failed to send command."}, to=sid)
 
 
 def run_socket_server(host="0.0.0.0", port=5003):

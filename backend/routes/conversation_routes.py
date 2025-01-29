@@ -1,6 +1,6 @@
 # routes/conversation_routes.py
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from typing import Optional, List, Dict, Any
 from db.conversation_repository import ConversationRepository
 from models.conversation import ConversationModel, ConversationPaginatedResponseModel
@@ -32,7 +32,7 @@ deepseek_client = DeepSeekChatClient()
     description="Fetch a paginated list of conversations, optionally filtered by user_id, created_by, and sorted by a specified field.",
 )
 async def query_conversations(
-    created_by: Optional[int] = Query(None, description="Filter by created_by"),
+    created_by: Optional[str] = Query(None, description="Filter by created_by"),
     page: int = Query(1, ge=1, description="Page number (default is 1)"),
     page_size: int = Query(
         10,
@@ -256,7 +256,7 @@ async def delete_conversation(conversation_id: str):
     summary="Generate a conversation report by ID",
     description="Fetch the details of a specific conversation using its ID and generate a report.",
 )
-async def generate_conversation_report(conversation_id: str):
+async def generate_conversation_report(request: Request, conversation_id: str):
     """
     Generate a conversation report by its ID.
 
@@ -278,7 +278,7 @@ async def generate_conversation_report(conversation_id: str):
     messages = message_repo.list_messages_with_pagination(
         filter_criteria={"conversation_id": ObjectId(conversation_id)},
         skip=0,
-        limit=50,
+        limit=10,
         sort=[("created_at", 1)],
     )
 
@@ -344,6 +344,7 @@ async def generate_conversation_report(conversation_id: str):
         "data": report_json,
         "created_at": current_utc_time().isoformat(),
         "updated_at": current_utc_time().isoformat(),
+        "created_by": request.state.user_id,
     }
 
     # Save the report in the repository

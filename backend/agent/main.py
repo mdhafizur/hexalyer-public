@@ -225,7 +225,7 @@ class Agent:
 
 if __name__ == "__main__":
     c2_url = os.getenv("C2_URL", "http://localhost:5001/c2/api/v1")
-    socket_url = os.getenv("SOCKET_URL", "http://localhost:5003")
+    socket_url = os.getenv("SOCKET_URL", "http://localhost:5001")
     user_id = os.getenv("U_ID", "default_user_id")
     conversation_id = os.getenv("C_ID", "default_conversation_id")
 

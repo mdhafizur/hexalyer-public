@@ -64,20 +64,14 @@
         },
         // 6) Run C2 Server (FastAPI/Uvicorn) with Hot Reload
         {
-            "name": "Run C2 Server with Hot Reload",
-            "type": "debugpy",
+            "name": "Run C2 Server (FastAPI & WebSocket) with Hot Reload",
+            "type": "python",
             "request": "launch",
-            "module": "uvicorn",
-            "args": [
-                "c2_server.app:app",
-                "--host",
-                "localhost",
-                "--port",
-                "5001",
-                "--reload"
-            ],
+            "module": "c2_server.app",
             "console": "integratedTerminal",
-            "envFile": "${workspaceFolder}/.env"
+            "justMyCode": true,
+            "envFile": "${workspaceFolder}/.env",
+            "args": []
         },
         // 7) Run Socket.IO Server (Gevent) with Hot Reload
         {
@@ -107,8 +101,7 @@
             "name": "Run All Servers (Hot Reload)",
             "configurations": [
                 "Run Web Server with Hot Reload",
-                "Run C2 Server with Hot Reload",
-                "Run Socket.IO Server with Hot Reload"
+                "Run C2 Server (FastAPI & WebSocket) with Hot Reload",
             ]
         }
     ]

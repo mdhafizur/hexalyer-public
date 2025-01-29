@@ -24,7 +24,7 @@ class ChatGPTClient:
 
     def ask(
         self,
-        message,
+        message=None,
         model=None,
         stream=True,
         temperature=0,
@@ -43,9 +43,6 @@ class ChatGPTClient:
         :param prompt_type: "manual" or "auto" for default system prompts.
         :return: The streamed response (if stream=True) or the full response text.
         """
-        if not message:
-            raise ValueError("A message is required to query the ChatGPT API.")
-
         try:
             # Use the provided model or default to the initialized model
             model = model or self.model

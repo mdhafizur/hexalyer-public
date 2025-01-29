@@ -1,15 +1,44 @@
 # c2_server/app.py
 
 import os
+import socketio
+import asyncio
+import uvicorn
 from typing import List, Optional
 from fastapi import FastAPI, HTTPException, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ValidationError, Field
-from c2_server.c2_socket_server import sio
 from c2_server.events.agent_events import connected_agents
 from logger.fastapi_logger import c2_server_logger
 from models.agent import AgentModel, AgentRegistrationRequest
 from db.agent_repository import AgentRepository
+
+
+from c2_server.events.conversation_events import (
+    handle_join_room,
+    handle_load_more_messages,
+    handle_leave_room,
+)
+from c2_server.events.message_events import handle_stream_to_ai, handle_send_message
+from c2_server.events.agent_events import (
+    handle_client_connect,
+    handle_client_disconnect,
+    handle_agent_registration,
+    handle_command_response,
+)
+
+from dotenv import load_dotenv  # Import dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Load API server configuration
+C2_SERVER_HOST = os.getenv("C2_SERVER_HOST", "0.0.0.0")
+C2_SERVER_PORT = int(os.getenv("C2_SERVER_PORT", 5002))
+
+# Load WebSocket server configuration
+SOCKET_HOST = os.getenv("SOCKET_HOST", "0.0.0.0")
+SOCKET_PORT = int(os.getenv("SOCKET_PORT", 5003))
 
 # Setup the logger
 logger = c2_server_logger
@@ -40,7 +69,6 @@ app = FastAPI(
     redoc_url="/redoc",  # ReDoc UI
 )
 
-
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -49,6 +77,29 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --------------- SOCKET.IO (Port 5003) ---------------
+
+# Initialize Socket.IO server
+sio = socketio.AsyncServer(
+    cors_allowed_origins="*",
+    async_mode="asgi",
+    ping_interval=10,  # Ping every 10 seconds
+    ping_timeout=60,  # Allow up to 60 seconds before considering the connection dead
+    logger=True,
+    engineio_logger=True,
+)
+
+
+# Wrap FastAPI app with Socket.IO **before** running Uvicorn
+sio_app = socketio.ASGIApp(sio, other_asgi_app=app)
+
+
+
+
+# app.mount("/ws", sio_app)
+
+
 
 # Routers
 agents_router = APIRouter(prefix="/agents", tags=["Agents"])
@@ -125,53 +176,6 @@ class CommandRequest(BaseModel):
         ],
         description="Optional list of cleanup steps to be executed after the commands.",
     )
-
-
-# Agent Endpoints
-@agents_router.post(
-    "/register",
-    response_model=dict,
-    summary="Register a new agent",
-    description="Registers a new agent with the C2 server and stores its information.",
-)
-async def register_agent(request: AgentRegistrationRequest):
-    """
-    Endpoint to handle agent registration.
-    """
-    try:
-        logger.info("Received registration request: %s", request.dict())
-
-        # Convert RegistrationRequest object to a mutable dictionary
-        request_data = request.dict()
-
-        # Extract agent_id from the request
-        agent_id = request.agent_id
-        if not agent_id:
-            raise HTTPException(
-                status_code=400, detail="Missing 'agent_id' in registration request"
-            )
-
-        # Validate agent data using the AgentModel
-        validated_agent = AgentModel(**request_data)
-
-        # Perform upsert using the agent_id and remaining data
-        upsert_result = agent_repo.upsert_agent(
-            agent_id, validated_agent.dict(by_alias=True)
-        )
-        logger.info("Agent upsert result: %s", upsert_result)
-
-        return {
-            "status": "success",
-            "message": "Agent registered successfully",
-            "agentId": agent_id,
-            "upsert_result": upsert_result,
-        }
-    except ValidationError as ve:
-        logger.error("Validation error: %s", ve)
-        raise HTTPException(status_code=400, detail=str(ve)) from ve
-    except Exception as e:
-        logger.error("Error handling registration: %s", e)
-        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @agents_router.post(
@@ -278,3 +282,117 @@ async def health_check():
 # Include Routers in the App
 app.include_router(agents_router)
 app.include_router(health_router)
+
+
+
+
+
+# ----------- SOCKET.IO EVENTS ------------
+
+
+@sio.on("connect")
+async def on_connect(sid, environ):
+    await handle_client_connect(sid, environ)
+
+
+@sio.on("disconnect")
+async def on_disconnect(sid):
+    await handle_client_disconnect(sio, sid)
+
+
+@sio.on("on_agent_registration")
+async def on_agent_registration(sid, data):
+    await handle_agent_registration(sio, sid, data)
+
+
+@sio.on("on_command_response")
+async def on_command_response(sid, data):
+    await handle_command_response(sio, sid, data)
+
+
+@sio.on("join_room")
+async def on_join_room(sid, data):
+    await handle_join_room(sio, sid, data)
+
+
+@sio.on("leave_room")
+async def on_leave_room(sid, data):
+    await handle_leave_room(sio, sid, data)
+
+
+@sio.on("load_more_messages")
+async def on_load_more_messages(sid, data):
+    await handle_load_more_messages(sio, sid, data)
+
+
+@sio.on("send_message")
+async def on_send_message(sid, data):
+    await handle_send_message(sio, sid, data)
+
+
+@sio.on("on_stream_message_to_ai")
+async def on_stream_message_to_ai(sid, data):
+    try:
+        logger.info(f"Received 'on_stream_message_to_ai' from {sid}: {data}")
+        await handle_stream_to_ai(sio, sid, data)
+    except Exception as e:
+        logger.error(f"Error in 'on_stream_message_to_ai': {e}", exc_info=True)
+        await sio.emit(
+            "error", {"error": "Internal AI stream processing error."}, to=sid
+        )
+
+
+@sio.on("send_command")
+async def send_command_to_agent(sid, data):
+    """
+    Send a structured command request to a specific agent.
+    """
+    try:
+        agent_id = data.get("agent_id")
+        if not agent_id:
+            logger.error("Missing 'agent_id' in command request.")
+            await sio.emit("command_error", {"error": "Missing 'agent_id'."}, to=sid)
+            return
+
+        target_sid = connected_agents.get(agent_id)
+        if not target_sid:
+            logger.error(f"Agent '{agent_id}' is not connected.")
+            await sio.emit(
+                "command_error", {"error": f"Agent '{agent_id}' not connected."}, to=sid
+            )
+            return
+
+        logger.info(
+            f"Sending command to Agent '{agent_id}' (SID: {target_sid}): {data}"
+        )
+        await sio.emit("on_execute_command", data, to=target_sid)
+        await sio.emit(
+            "command_success", {"message": "Command sent successfully."}, to=sid
+        )
+
+    except Exception as e:
+        logger.error(f"Error sending command: {str(e)}")
+        await sio.emit("command_error", {"error": "Failed to send command."}, to=sid)
+
+
+# --------------- RUN BOTH SERVERS (FastAPI on 5002, Socket.IO on 5003) ---------------
+async def run_servers():
+    """Runs both FastAPI and Socket.IO servers concurrently."""
+    config_api = uvicorn.Config(
+        app, host=C2_SERVER_HOST, port=C2_SERVER_PORT, log_level="debug"
+    )
+    config_socket = uvicorn.Config(
+        sio_app, host=SOCKET_HOST, port=SOCKET_PORT, log_level="debug"
+    )
+
+    server_api = uvicorn.Server(config_api)
+    server_socket = uvicorn.Server(config_socket)
+
+    await asyncio.gather(server_api.serve()
+    # , server_socket.serve()
+    )
+
+
+if __name__ == "__main__":
+    uvicorn.run(sio_app, host=C2_SERVER_HOST, port=C2_SERVER_PORT, log_level="debug")
+    # asyncio.run(run_servers())
