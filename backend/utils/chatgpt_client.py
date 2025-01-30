@@ -31,9 +31,11 @@ class ChatGPTClient:
         system_prompt=None,
         message_history=None,
         prompt_type="manual",
+        cve_context=None,
     ):
         """
         Query the ChatGPT API with a cybersecurity scenario.
+
         :param message: The user's message.
         :param model: The model to use (default: the initialized model).
         :param stream: Whether to stream the response (default: True).
@@ -41,27 +43,33 @@ class ChatGPTClient:
         :param system_prompt: A custom system prompt, if provided.
         :param message_history: List of prior messages for context.
         :param prompt_type: "manual" or "auto" for default system prompts.
+        :param cve_context: Additional cybersecurity context (e.g., latest CVEs).
         :return: The streamed response (if stream=True) or the full response text.
         """
         try:
-            # Use the provided model or default to the initialized model
+            # Use the provided model or fallback to the initialized model
             model = model or self.model
 
-            # Build the messages payload
-            messages = [
-                {
-                    "role": "system",
-                    "content": system_prompt
-                    or (AUTO_PROMPT if prompt_type == "auto" else MANUAL_PROMPT),
-                }
-            ]
-            if message_history:
-                messages.extend(message_history)
+            # Ensure message_history is a list (avoid NoneType errors)
+            message_history = message_history or []
 
+            # Determine system message content
+            if system_prompt:
+                system_message = {"role": "system", "content": system_prompt}
+            else:
+                prompt_content = AUTO_PROMPT if prompt_type == "auto" else MANUAL_PROMPT
+                if cve_context:
+                    prompt_content += f"\n\nContext about latest CVEs:\n{cve_context}"
+                system_message = {"role": "system", "content": prompt_content}
+
+            # Construct message list
+            messages = [system_message] + message_history
+
+            # Append the user's message
             if message:
                 messages.append({"role": "user", "content": message})
 
-            # Handle streaming responses
+            # Streaming response
             if stream:
                 response = self.client.chat.completions.create(
                     model=model,
@@ -70,19 +78,21 @@ class ChatGPTClient:
                     stream=True,
                 )
                 for chunk in response:
-                    if hasattr(chunk, "choices"):
+                    if hasattr(chunk, "choices") and chunk.choices:
                         for choice in chunk.choices:
-                            if hasattr(choice, "delta") and hasattr(choice.delta, "content"):
+                            if hasattr(choice, "delta") and hasattr(
+                                choice.delta, "content"
+                            ):
                                 yield choice.delta.content
 
-            # Handle non-streaming responses
+            # Non-streaming response
             else:
                 response = self.client.chat.completions.create(
                     model=model,
                     messages=messages,
                     temperature=temperature,
                 )
-                return response["choices"][0]["message"]["content"]
+                return response.choices[0].message.content  # Corrected attribute access
 
         except Exception as e:
             logging.error(f"Error communicating with ChatGPT: {e}")

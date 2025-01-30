@@ -235,7 +235,9 @@ async def handle_stream_to_ai_manual(sio, sid, data):
         #         # print(f"Chunk emitted: {chunk}")  # Logs after emit
         #         await asyncio.sleep(0)
 
-        for chunk in chatgpt_client.ask(stream=True, message_history=message_history):
+        for chunk in chatgpt_client.ask(
+            stream=True, message_history=message_history, cve_context=cve_context
+        ):
             # print(f"Chunk received: {chunk}")  # Log each chunk
             if chunk is not None:
                 complete_content += chunk

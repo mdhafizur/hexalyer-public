@@ -300,37 +300,39 @@ async def fetch_relevant_cve_context(query: str, limit: int = 5) -> str:
             )
             .sort(
                 [
+                    ("published", -1),  # Then sort by the latest published date
                     (
                         "score",
                         {"$meta": "textScore"},
                     ),  # Prioritize by text relevance score
-                    ("published", -1),  # Then sort by the latest published date
                 ]
             )
             .limit(limit)
             .to_list(length=limit)
         )
 
-        # Filter in Python
-        relevant_results = [
-            result for result in relevant_results if result["score"] > 5.0
-        ]
+        # # Filter in Python
+        # relevant_results = [
+        #     result for result in relevant_results if result["score"] > 2.0
+        # ]
 
-        # Fetch the latest 5 published CVEs as a fallback
-        latest_results = (
-            await mongodb_collection.find(
-                {},  # No query filter to get the latest CVEs
-                {
-                    "description": 1,
-                    "_id": 1,
-                    "published": 1,
-                    "raw_data": 1,
-                },
+        latest_results = []
+        if len(relevant_results) < 2:
+            # Fetch the latest 5 published CVEs as a fallback
+            latest_results = (
+                await mongodb_collection.find(
+                    {},  # No query filter to get the latest CVEs
+                    {
+                        "description": 1,
+                        "_id": 1,
+                        "published": 1,
+                        "raw_data": 1,
+                    },
+                )
+                .sort("published", -1)  # Sort by published date in descending order
+                .limit(5)
+                .to_list(length=5)
             )
-            .sort("published", -1)  # Sort by published date in descending order
-            .limit(5)
-            .to_list(length=5)
-        )
 
         # Deduplicate using CVE IDs
         all_results_dict = {}
