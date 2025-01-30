@@ -57,29 +57,43 @@ export function AiMessage({ message, agentId }: { message: Message; agentId: str
         }
     };
 
-    const renderContent = useCallback(() => <ReactMarkdown
-        components={{
-            code({ node, inline, className, children, ...props }) {
-                const match = /language-(\w+)/.exec(className || "");
-                return !inline && match ? (
-                    <SyntaxHighlighter
-                        style={materialDark}
-                        language={match[1]}
-                        PreTag="div"
-                        {...props}
-                    >
-                        {String(children).replace(/\n$/, "")}
-                    </SyntaxHighlighter>
-                ) : (
-                    <code className={className} {...props}>
-                        {children}
-                    </code>
-                );
-            },
-        }}
-    >
-        {message.content}
-    </ReactMarkdown>, [message.content]);
+    const renderContent = useCallback(() => (
+        <ReactMarkdown
+            components={{
+                code({ node, inline, className, children, ...props }) {
+                    const match = /language-(\w+)/.exec(className || "");
+                    return !inline && match ? (
+                        <SyntaxHighlighter
+                            style={materialDark}
+                            language={match[1]}
+                            PreTag="div"
+                            {...props}
+                        >
+                            {String(children).replace(/\n$/, "")}
+                        </SyntaxHighlighter>
+                    ) : (
+                        <code className={className} {...props}>
+                            {children}
+                        </code>
+                    );
+                },
+                ul({ children }) {
+                    return <ul style={{ paddingLeft: "1.5rem", marginTop: 0 }}>{children}</ul>;
+                },
+                ol({ children }) {
+                    return <ol style={{ paddingLeft: "1.5rem", marginTop: 0 }}>{children}</ol>;
+                },
+                li({ children }) {
+                    return <li style={{ marginBottom: "0.3rem" }}>{children}</li>;
+                },
+                p({ children }) {
+                    return <Typography variant="body1" sx={{ whiteSpace: "pre-wrap", mb: 1 }}>{children}</Typography>;
+                }
+            }}
+        >
+            {message.content}
+        </ReactMarkdown>
+    ), [message.content]);
 
 
     return (

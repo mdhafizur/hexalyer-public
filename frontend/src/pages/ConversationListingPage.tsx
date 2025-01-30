@@ -43,9 +43,21 @@ export default function ConversationListingPage() {
   const [conversationType, setConversationType] = useState<"auto" | "manual" | "webhex">("manual");
 
   const conversationTypes = [
-    { label: "Manual Chat", value: "manual", description: "A chat to provide customer support or handle queries." },
-    { label: "Webhex Chat", value: "webhex", description: "A conversation involving multiple participants in a group." },
-    { label: "Auto Chat", value: "auto", description: "A one-on-one chat between two individuals." },
+    {
+      label: "Manual Chat",
+      value: "manual",
+      description: "A chat to assist users in manual vulnerability assessment with step-by-step guidance and expert support via GorkAI."
+    },
+    {
+      label: "Webhex Chat",
+      value: "webhex",
+      description: "A dedicated chat for vulnerability detection in IPs and websites using active (full) and passive (partial) scanning methods."
+    },
+    {
+      label: "Auto Chat",
+      value: "auto",
+      description: "A one-on-one AI-driven chat for automated vulnerability assessment, leveraging lightweight agents for system scans and analysis."
+    }
   ];
 
   useEffect(() => {
