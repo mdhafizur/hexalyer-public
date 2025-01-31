@@ -3,24 +3,55 @@
 from bson.objectid import ObjectId
 from pymongo.collection import Collection
 from pymongo.errors import PyMongoError
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 from db import mongodb
 
 
 class AgentRepository:
     def __init__(self):
-        """Initialize the AgentRepository."""
+        """
+        Initialize the AgentRepository by connecting to the MongoDB collection.
+        Ensures a connection to the database before performing any operations.
+        """
         if mongodb.db is None:
             mongodb.connect()
         self.collection: Collection = mongodb.get_collection("agents")
 
+    def list_agents_with_pagination(
+        self,
+        filter_criteria: Optional[Dict[str, Any]],
+        skip: int,
+        limit: int,
+        sort: Optional[List[Tuple[str, int]]] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve a paginated list of agents with optional sorting.
+
+        :param filter_criteria: Dictionary containing filter conditions for the query.
+        :param skip: Number of records to skip (used for pagination).
+        :param limit: Maximum number of records to return (used for pagination).
+        :param sort: Optional list of sorting criteria (field, order) tuples.
+        :return: A list of matching agent documents.
+        :raises ValueError: If the query operation encounters an error.
+        """
+        try:
+            filter_criteria = filter_criteria or {}
+            query = self.collection.find(filter_criteria).skip(skip).limit(limit)
+
+            if sort:
+                query = query.sort(sort)
+
+            return list(query)
+        except PyMongoError as e:
+            raise ValueError(f"Failed to list agents with pagination: {e}")
+
     def create_agent(self, agent_data: Dict[str, Any]) -> str:
         """
-        Insert a new agent.
+        Insert a new agent into the database.
 
-        :param agent_data: Dictionary containing agent data.
-        :return: The inserted agent's ID as a string.
-        :raises ValueError: If the insert operation fails.
+        :param agent_data: Dictionary containing agent details.
+        :return: The newly created agent's ID as a string.
+        :raises ValueError: If the insertion fails.
         """
         try:
             result = self.collection.insert_one(agent_data)
@@ -30,11 +61,11 @@ class AgentRepository:
 
     def get_agent_by_id(self, agent_id: str) -> Optional[Dict[str, Any]]:
         """
-        Retrieve an agent by ID.
+        Retrieve an agent by its unique agent_id.
 
-        :param agent_id: The ObjectId of the agent as a string.
-        :return: The agent document as a dictionary or None if not found.
-        :raises ValueError: If the ID is invalid or retrieval fails.
+        :param agent_id: The unique identifier of the agent as a string.
+        :return: A dictionary containing the agent data or None if not found.
+        :raises ValueError: If retrieval encounters an error.
         """
         try:
             return self.collection.find_one({"agent_id": agent_id})
@@ -43,12 +74,12 @@ class AgentRepository:
 
     def update_agent(self, id: str, update_data: Any) -> int:
         """
-        Update an agent's data.
+        Update an existing agent's data.
 
-        :param agent_id: The ObjectId of the agent as a string.
-        :param update_data: Data to update (must support `dict()`).
-        :return: Number of modified documents (0 if no match).
-        :raises ValueError: If the update operation fails or the ID is invalid.
+        :param id: The MongoDB ObjectId of the agent as a string.
+        :param update_data: Dictionary containing fields to update.
+        :return: The number of documents modified (0 if no match is found).
+        :raises ValueError: If the update fails or the ID is invalid.
         """
         try:
             if not ObjectId.is_valid(id):
@@ -63,11 +94,11 @@ class AgentRepository:
 
     def delete_agent(self, agent_id: str) -> int:
         """
-        Delete an agent by ID.
+        Delete an agent from the database by its unique ID.
 
-        :param agent_id: The ObjectId of the agent as a string.
-        :return: Number of deleted documents (0 if no match).
-        :raises ValueError: If the delete operation fails or the ID is invalid.
+        :param agent_id: The MongoDB ObjectId of the agent as a string.
+        :return: The number of deleted documents (0 if no match is found).
+        :raises ValueError: If deletion fails or the ID is invalid.
         """
         try:
             if not ObjectId.is_valid(agent_id):
@@ -81,11 +112,11 @@ class AgentRepository:
         self, filter_criteria: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
         """
-        List all agents matching the criteria.
+        Retrieve all agents that match the provided filter criteria.
 
-        :param filter_criteria: Dictionary of filter criteria.
-        :return: List of matching agent documents.
-        :raises ValueError: If the list operation fails.
+        :param filter_criteria: Dictionary containing filter conditions (optional).
+        :return: A list of matching agent documents.
+        :raises ValueError: If retrieval fails.
         """
         try:
             filter_criteria = filter_criteria or {}
@@ -95,11 +126,12 @@ class AgentRepository:
 
     def upsert_agent(self, agent_id: str, agent_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Upsert an agent by agent_id.
+        Perform an upsert operation on an agent. If an agent with the given agent_id exists, update it;
+        otherwise, insert a new agent record.
 
         :param agent_id: The unique agent identifier.
-        :param agent_data: Dictionary containing agent data.
-        :return: Dictionary with `matched_count`, `modified_count`, and `upserted_id`.
+        :param agent_data: Dictionary containing agent details.
+        :return: A dictionary containing the number of matched, modified, and upserted records.
         :raises ValueError: If the upsert operation fails.
         """
         try:
@@ -107,9 +139,9 @@ class AgentRepository:
                 key: value for key, value in agent_data.items() if key != "_id"
             }
             result = self.collection.update_one(
-                {"agent_id": agent_id},  # Match criteria
-                {"$set": agent_data},  # Fields to update
-                upsert=True,  # Create a new document if no match is found
+                {"agent_id": agent_id},  # Match condition
+                {"$set": agent_data},  # Update fields
+                upsert=True,  # Insert a new document if no match is found
             )
             return {
                 "matched_count": result.matched_count,

@@ -31,6 +31,7 @@ router = APIRouter()
 )
 async def query_tasks(
     agent_id: Optional[str] = Query(None, description="Filter by agent_id"),
+    created_by: Optional[str] = Query(None, description="Filter by agent_id"),
     page: int = Query(1, ge=1, description="Page number (default is 1)"),
     page_size: int = Query(
         10,
@@ -63,6 +64,9 @@ async def query_tasks(
     filter_criteria = {}
     if agent_id:
         filter_criteria["agent_id"] = agent_id
+
+    if created_by:
+        filter_criteria["created_by"] = created_by
 
     skip = (page - 1) * page_size
     sort_criteria = [(sort_by, 1 if sort_order == "asc" else -1)]

@@ -13,21 +13,17 @@ from urllib3.util.retry import Retry
 from typing import AsyncGenerator, List, Dict
 from fastapi import FastAPI
 from pymongo import UpdateOne
-import nltk
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
+import yake
+import spacy
+
+# Load SpaCy NLP model for Named Entity Recognition (NER)
+nlp = spacy.load("en_core_web_sm")
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
-
-# Download stopwords if not already done
-nltk.download("punkt")
-nltk.download("punkt_tab")
-nltk.download("stopwords")
-
 
 # Configuration
 MONGO_URL = os.getenv("MONGO_URI", "mongodb://localhost:27017")
@@ -274,39 +270,38 @@ async def fetch_relevant_cve_context(query: str, limit: int = 5) -> str:
     :return: A string containing formatted CVE context.
     """
     try:
-        # Extract relevant keywords from the query
-        keywords = extract_relevant_keywords(query)
-        if not keywords:
-            logger.warning(f"No relevant keywords found in query: '{query}'")
-            return "No relevant keywords found in the query."
+        # Extract important keywords
+        important_keywords = extract_important_keywords(query)
 
-        # Join keywords for text search
-        search_query = " ".join(keywords)
+        if not important_keywords:
+            logger.warning(f"No important keywords found in query: '{query}'")
+            return "No relevant keywords found."
+
         logger.info(
-            f"Performing text search for keywords: '{search_query}' with limit: {limit}"
+            f"Performing MongoDB regex search with keywords: {important_keywords}"
         )
 
-        # Perform text search to find relevant CVEs
+        # Build MongoDB query using `$regex` for partial matches (case-insensitive)
+        regex_queries = [
+            {"description": {"$regex": kw, "$options": "i"}}
+            for kw in important_keywords
+        ]
+
+        # MongoDB query with `$or` for multi-keyword search
+        query_filter = {"$or": regex_queries}
+
+        # Perform MongoDB search
         relevant_results = (
             await mongodb_collection.find(
-                {"$text": {"$search": search_query}},  # Use MongoDB text search
+                query_filter,  # Partial match search
                 {
-                    "score": {"$meta": "textScore"},
-                    "description": 1,
                     "_id": 1,
-                    "published": 1,  # Include the publication date
-                    "raw_data": 1,  # Include the raw_data field
+                    "description": 1,
+                    "published": 1,
+                    "raw_data": 1,
                 },
             )
-            .sort(
-                [
-                    ("published", -1),  # Then sort by the latest published date
-                    (
-                        "score",
-                        {"$meta": "textScore"},
-                    ),  # Prioritize by text relevance score
-                ]
-            )
+            .sort("published", -1)  # Sort by newest CVEs first
             .limit(limit)
             .to_list(length=limit)
         )
@@ -368,27 +363,27 @@ async def fetch_relevant_cve_context(query: str, limit: int = 5) -> str:
         return "Failed to fetch CVE context due to an internal error."
 
 
-def extract_relevant_keywords(query: str) -> List[str]:
+def extract_important_keywords(query: str, max_keywords: int = 5) -> List[str]:
     """
-    Extract relevant keywords from a query string for CVE matching.
+    Extract only the most important keywords from a query for MongoDB search.
 
-    :param query: The input query string.
-    :return: A list of relevant keywords.
+    Uses:
+    - YAKE (to extract high-ranking key phrases)
+    - Named Entity Recognition (NER) with SpaCy to detect key entities
     """
-    # Tokenize the query
-    tokens = word_tokenize(query)
+    # Extract YAKE keywords
+    kw_extractor = yake.KeywordExtractor(lan="en", n=3, dedupLim=0.9, top=max_keywords)
+    yake_keywords = {kw[0] for kw in kw_extractor.extract_keywords(query)}
 
-    # Lowercase all tokens
-    tokens = [token.lower() for token in tokens]
+    # Extract Named Entities (NER)
+    doc = nlp(query)
+    named_entities = {
+        ent.text
+        for ent in doc.ents
+        if ent.label_ in {"ORG", "PRODUCT", "GPE", "PERSON"}
+    }
 
-    # Load English stopwords
-    stop_words = set(stopwords.words("english"))
+    # Merge YAKE + Named Entities
+    important_keywords = yake_keywords | named_entities  # Set union (avoids duplicates)
 
-    # Filter tokens: remove stopwords, punctuation, and short words
-    keywords = [
-        token
-        for token in tokens
-        if token.isalpha() and token not in stop_words and len(token) > 2
-    ]
-
-    return keywords
+    return list(important_keywords)

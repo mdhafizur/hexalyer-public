@@ -10,12 +10,12 @@ router = APIRouter()
 
 @router.get("/query", response_model=dict, status_code=200)
 async def query_reports(
-    user_id: Optional[str] = Query(None, description="Filter by user_id"),
+    created_by: Optional[str] = Query(None, description="Filter by user_id"),
     conversation_id: Optional[str] = Query(
         None, description="Filter by conversation_id"
     ),
     message_id: Optional[str] = Query(None, description="Filter by message_id"),
-    report_type: Optional[str] = Query(None, description="Filter by report type"),
+    type: Optional[str] = Query(None, description="Filter by report type"),
     page: int = Query(1, ge=1, description="Page number (default is 1)"),
     page_size: int = Query(
         10,
@@ -37,14 +37,14 @@ async def query_reports(
     """
     # Build filter criteria based on query parameters
     filter_criteria = {}
-    if user_id:
-        filter_criteria["user_id"] = user_id
+    if created_by:
+        filter_criteria["created_by"] = created_by
     if conversation_id:
         filter_criteria["conversation_id"] = conversation_id
     if message_id:
         filter_criteria["message_id"] = message_id
-    if report_type:
-        filter_criteria["type"] = report_type
+    if type:
+        filter_criteria["type"] = type
 
     # Calculate pagination skip value
     skip = (page - 1) * page_size

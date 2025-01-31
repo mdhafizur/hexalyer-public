@@ -5,6 +5,7 @@ from bson.objectid import ObjectId
 from c2_server.events.utils import current_utc_time
 from models.base import PyObjectId
 from zoneinfo import ZoneInfo  # Use `pytz` if Python < 3.9
+from models.base import PyObjectId, PaginatedResponseModel
 
 
 class AgentRegistrationRequest(BaseModel):
@@ -122,3 +123,11 @@ class AgentModel(BaseModel):
         for iface in data["client_info"]["netinterfaces"]:
             iface["ips"] = [str(ip) for ip in iface["ips"]]
         return data
+
+
+class AgentPaginatedResponseModel(PaginatedResponseModel[AgentModel]):
+    """
+    Paginated response model for agents.
+    """
+
+    pass

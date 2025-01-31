@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from db.agent_repository import AgentRepository
-from models.agent import AgentModel
+from models.agent import AgentModel, AgentPaginatedResponseModel
 
 # Initialize the router and repository
 router = APIRouter()
@@ -11,6 +11,7 @@ agent_repo = AgentRepository()
 
 class ErrorResponse(BaseModel):
     """Model for error responses."""
+
     detail: str = Field(..., description="Error message.")
 
 
@@ -203,5 +204,71 @@ async def list_agents(
 
         agents = agent_repo.list_agents(filter_criteria)
         return agents
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get(
+    "/query",
+    response_model=AgentPaginatedResponseModel,
+    summary="Query tasks with pagination and sorting",
+    description="Fetch a paginated list of tasks, optionally filtered by agent_id and sorted by a specified field.",
+)
+async def query_agents(
+    agent_id: Optional[str] = Query(None, description="Filter by agent_id"),
+    created_by: Optional[str] = Query(None, description="Filter by agent_id"),
+    page: int = Query(1, ge=1, description="Page number (default is 1)"),
+    page_size: int = Query(
+        10,
+        ge=1,
+        le=100,
+        description="Number of items per page (default is 10, max is 100)",
+    ),
+    sort_by: str = Query(
+        "created_at", description="Field to sort by (default is 'created_at')"
+    ),
+    sort_order: str = Query(
+        "asc",
+        regex="^(asc|desc)$",
+        description="Sort order: 'asc' for ascending, 'desc' for descending (default is 'asc')",
+    ),
+):
+    """
+    Query conversations with pagination and sorting.
+
+    - **agent_id**: Filter conversations by the associated user ID.
+    - **created_by**: Filter conversations by the creator's ID.
+    - **page**: The page number to retrieve.
+    - **page_size**: The number of items per page.
+    - **sort_by**: Field to sort by (default is 'created_at').
+    - **sort_order**: Sorting direction: 'asc' (ascending) or 'desc' (descending).
+
+    Returns:
+    - A paginated and sorted list of conversations matching the criteria.
+    """
+    filter_criteria = {}
+    if agent_id:
+        filter_criteria["agent_id"] = agent_id
+
+    if created_by:
+        filter_criteria["created_by"] = created_by
+
+    skip = (page - 1) * page_size
+    sort_criteria = [(sort_by, 1 if sort_order == "asc" else -1)]
+
+    try:
+        conversations = agent_repo.list_agents_with_pagination(
+            filter_criteria, skip=skip, limit=page_size, sort=sort_criteria
+        )
+        total_items = agent_repo.collection.count_documents(filter_criteria)
+        total_pages = (total_items + page_size - 1) // page_size
+
+        return {
+            "page": page,
+            "page_size": page_size,
+            "total_items": total_items,
+            "total_pages": total_pages,
+            "data": conversations,
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

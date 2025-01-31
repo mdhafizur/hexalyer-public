@@ -13,3 +13,6 @@
 3. Install dependencies: `pip install -r requirements.txt`
 4. Configure `.env` variables and copy code from `.env.example`.
 5. Run the application: `python main.py`
+
+
+python -m spacy download en_core_web_sm
