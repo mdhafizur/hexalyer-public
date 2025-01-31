@@ -1,17 +1,19 @@
-import { useCallback, useEffect } from 'react';
-import { useAppDispatch, useAppSelector } from '../../hook';
-import { fetchAgentsThunk } from '../slices/agentsSlice';
-import { RootState } from '../../store';
-import { useLocation } from 'react-router-dom';
+import { useCallback, useEffect } from "react";
+import { useAppDispatch, useAppSelector } from "../../hook";
+import { fetchAgentsThunk } from "../slices/agentsSlice";
+import { RootState } from "../../store";
+import { useLocation } from "react-router-dom";
+import { getUserIdFromLocalStorage } from "utils/cookieValidation";
 
 export const useAgents = () => {
   const dispatch = useAppDispatch();
-  const { agents, loading, error } = useAppSelector((state: RootState) => state.agents);
+  const { agents, loading, error } = useAppSelector(
+    (state: RootState) => state.agents
+  );
   const location = useLocation(); // Track navigation changes
 
-  // Memoized fetch function to avoid unnecessary re-creations
   const fetchAgents = useCallback(() => {
-    dispatch(fetchAgentsThunk());
+    dispatch(fetchAgentsThunk({ created_by: getUserIdFromLocalStorage() }));
   }, [dispatch]);
 
   // Automatically fetch agents on hook initialization and on tab visit

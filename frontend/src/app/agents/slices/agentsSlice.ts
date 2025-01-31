@@ -22,19 +22,21 @@ interface FetchError {
 // Thunk for fetching agents
 export const fetchAgentsThunk = createAsyncThunk<
     Agent[], // Success return type
-    void,    // Argument type (void since no arguments)
+    { created_by?: string; }, // Arguments,   
     { rejectValue: FetchError } // Error return type
 >(
     'agents/fetchAgents',
-    async (_, { rejectWithValue }) => {
+    async (queryParams, { rejectWithValue }) => {
         try {
-            const agents = await fetchAgents();
+            const agents = await fetchAgents(queryParams);
             return agents; // Expected to return an array of Agent objects
         } catch (error: any) {
             return rejectWithValue({ message: error.message || 'Unknown error occurred' });
         }
     }
 );
+
+
 
 const agentsSlice = createSlice({
     name: 'agents',

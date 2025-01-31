@@ -176,6 +176,7 @@ async def delete_agent(agent_id: str) -> Dict[str, str]:
     description="Retrieves a list of agents from the database. Optional filters can be applied.",
 )
 async def list_agents(
+    created_by: Optional[str] = Query(None, description="Filter by created_by"),
     filter_codename: Optional[str] = Query(
         None, description="Filter agents by codename."
     ),
@@ -197,6 +198,8 @@ async def list_agents(
     """
     try:
         filter_criteria = {}
+        if created_by:
+            filter_criteria["created_by"] = created_by
         if filter_codename:
             filter_criteria["client_info.codename"] = filter_codename
         if filter_hostname:
