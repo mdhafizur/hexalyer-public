@@ -375,24 +375,3 @@ async def send_command_to_agent(sid, data):
         await sio.emit("command_error", {"error": "Failed to send command."}, to=sid)
 
 
-# --------------- RUN BOTH SERVERS (FastAPI on 5002, Socket.IO on 5003) ---------------
-async def run_servers():
-    """Runs both FastAPI and Socket.IO servers concurrently."""
-    config_api = uvicorn.Config(
-        app, host=C2_SERVER_HOST, port=C2_SERVER_PORT, log_level="debug"
-    )
-    config_socket = uvicorn.Config(
-        sio_app, host=SOCKET_HOST, port=SOCKET_PORT, log_level="debug"
-    )
-
-    server_api = uvicorn.Server(config_api)
-    server_socket = uvicorn.Server(config_socket)
-
-    await asyncio.gather(server_api.serve()
-    # , server_socket.serve()
-    )
-
-
-if __name__ == "__main__":
-    uvicorn.run(sio_app, host=C2_SERVER_HOST, port=C2_SERVER_PORT, log_level="debug")
-    # asyncio.run(run_servers())

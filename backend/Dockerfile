@@ -6,26 +6,24 @@ FROM python:3.11-slim
 # Set the working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y build-essential && rm -rf /var/lib/apt/lists/*
-
-# Copy application files
+# Copy only requirements first to leverage Docker caching
 COPY requirements.txt .
-COPY . .
 
-# Install dependencies
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose the required ports (matches your server configurations)
-EXPOSE 5000 5001 5003
+# Copy the rest of the application files
+COPY . .
 
-# Create and set up start script
+# Expose required ports
+EXPOSE 5000 5001
+
+# Create and set up the start script
 RUN echo '#!/bin/bash\n\
     uvicorn web_server.app:app --host 0.0.0.0 --port 5000 --reload &\n\
-    uvicorn c2_server.app:app --host 0.0.0.0 --port 5001 --reload &\n\
-    uvicorn c2_server.c2_socket_server:sio_app --host 0.0.0.0 --port 5003 --reload &\n\
+    uvicorn c2_server.app:sio_app --host 0.0.0.0 --port 5001 --reload &\n\
     tail -f /dev/null' > start_servers.sh && \
     chmod +x start_servers.sh
 
-# Run the servers
+# Set entrypoint
 CMD ["./start_servers.sh"]
