@@ -1,16 +1,17 @@
 import { useCallback, useState } from "react";
 import { Message } from "@app/messages/types/message.types";
-import { Paper, Typography, Avatar, Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, Collapse, IconButton } from "@mui/material";
+import { Paper, Typography, Avatar, Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, Collapse, IconButton, Tooltip } from "@mui/material";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import { formatDistanceToNow } from "date-fns";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { materialDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { materialDark, materialLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { commandClient } from "@app/axios.client";
 import ReportProgressModal from "./ReportProgressModal";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import { materialLight } from "react-syntax-highlighter/dist/esm/styles/prism";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import CheckIcon from "@mui/icons-material/Check";
 
 const extractJson = (content: string): string | null => {
     try {
@@ -44,6 +45,14 @@ export function AiMessage({ message, agentId }: { message: Message; agentId: str
     const jsonData = isValidJson ? JSON.parse(jsonContent!) : null;
     const [isTaskModalOpen, setTaskModalOpen] = useState(false);
     const [jsonPreviewOpen, setJsonPreviewOpen] = useState(false);
+    const [copied, setCopied] = useState<{ [key: string]: boolean }>({});
+
+    const handleCopy = (text: string, id: string) => {
+        navigator.clipboard.writeText(text);
+        setCopied({ ...copied, [id]: true });
+        setTimeout(() => setCopied({ ...copied, [id]: false }), 2000);
+    };
+
 
     const handleApiCall = async () => {
         if (jsonData) {
@@ -62,15 +71,34 @@ export function AiMessage({ message, agentId }: { message: Message; agentId: str
             components={{
                 code({ node, inline, className, children, ...props }) {
                     const match = /language-(\w+)/.exec(className || "");
+                    const codeId = String(children).slice(0, 10); // Unique ID for tracking copy status
+
                     return !inline && match ? (
-                        <SyntaxHighlighter
-                            style={materialDark}
-                            language={match[1]}
-                            PreTag="div"
-                            {...props}
-                        >
-                            {String(children).replace(/\n$/, "")}
-                        </SyntaxHighlighter>
+                        <Box sx={{ position: "relative" }}>
+                            <Tooltip title={copied[codeId] ? "Copied!" : "Copy"} arrow>
+                                <IconButton
+                                    onClick={() => handleCopy(String(children).replace(/\n$/, ""), codeId)}
+                                    sx={{
+                                        position: "absolute",
+                                        top: 8,
+                                        right: 8,
+                                        zIndex: 1,
+                                        backgroundColor: "rgba(255,255,255,0.2)",
+                                        "&:hover": { backgroundColor: "rgba(255,255,255,0.3)" }
+                                    }}
+                                >
+                                    {copied[codeId] ? <CheckIcon color="success" /> : <ContentCopyIcon />}
+                                </IconButton>
+                            </Tooltip>
+                            <SyntaxHighlighter
+                                style={materialDark}
+                                language={match[1]}
+                                PreTag="div"
+                                {...props}
+                            >
+                                {String(children).replace(/\n$/, "")}
+                            </SyntaxHighlighter>
+                        </Box>
                     ) : (
                         <code className={className} {...props}>
                             {children}
@@ -93,7 +121,7 @@ export function AiMessage({ message, agentId }: { message: Message; agentId: str
         >
             {message.content}
         </ReactMarkdown>
-    ), [message.content]);
+    ), [message.content, copied]);
 
 
     return (
@@ -113,13 +141,17 @@ export function AiMessage({ message, agentId }: { message: Message; agentId: str
                 >
                     <SmartToyIcon />
                 </Avatar>
+
                 <Paper
                     elevation={3}
                     sx={{
                         p: 3,
                         maxWidth: "70%",
+                        width: "fit-content", // ✅ Prevents expanding beyond necessary width
                         bgcolor: "grey.200",
                         color: "primary.contrastText",
+                        wordBreak: "break-word", // ✅ Breaks long words
+                        overflowWrap: "break-word",
                     }}
                 >
                     {renderContent()}

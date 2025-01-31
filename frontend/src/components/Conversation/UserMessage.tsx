@@ -18,8 +18,11 @@ export function UserMessage({ message }: { message: Message }) {
                 sx={{
                     p: 1.5,
                     maxWidth: "70%",
+                    width: "fit-content",
                     bgcolor: "primary.light",
                     color: "primary.contrastText",
+                    wordBreak: "break-word",
+                    overflowWrap: "break-word",
                 }}
             >
                 <Typography variant="body2">{message.content}</Typography>

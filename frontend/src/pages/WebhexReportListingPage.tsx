@@ -20,36 +20,38 @@ import {
 import React, { useState } from "react";
 import ReportProgressModal from "@components/Conversation/ReportProgressModal";
 
-export default function ReportListingPage() {
-  const { reports, loading, error } = useReports(); // Custom hook to fetch reports
-  const tempData = reports?.data || []; // Access reports from 'data' if available
-  const reportData = tempData.filter(
-    (report: { type: string }) => report.type === "webhex"
-  );
-  const [page, setPage] = React.useState(0); // Page state for pagination
-  const [rowsPerPage, setRowsPerPage] = React.useState(10); // Rows per page state
-  const [order, setOrder] = React.useState<"asc" | "desc">("asc"); // Sorting order
-  const [orderBy, setOrderBy] = React.useState<string>("created_at"); // Default sort by "created_at"
+export default function WebhexReportListingPage() {
+  // State for pagination & sorting
+  const [page, setPage] = React.useState(1); // API uses 1-based index
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [order, setOrder] = React.useState<"asc" | "desc">("asc");
+  const [orderBy, setOrderBy] = React.useState<string>("created_at");
   const [open, setOpen] = useState(false);
   const [selectedReportId, setSelectedReportId] = useState<string>("");
 
-  const handleOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
+  // Fetch reports with pagination & sorting
+  const { reports, loading, error, queryReports } = useReports({
+    type: "webhex",
+    page,
+    page_size: rowsPerPage,
+    sort_by: orderBy,
+    sort_order: order,
+  });
 
-  // Handle page change
+  const reportData = reports?.data || [];
+  const totalItems = reports?.total_items || 0;
+
+  // Handlers for pagination
   const handleChangePage = (
-    event: React.MouseEvent<HTMLButtonElement> | null,
+    _: React.MouseEvent<HTMLButtonElement> | null,
     newPage: number
   ) => {
-    setPage(newPage);
+    setPage(newPage + 1); // Adjust to API's 1-based index
   };
 
-  // Handle rows per page change
-  const handleChangeRowsPerPage = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0); // Reset to the first page
+    setPage(1); // Reset to the first page when changing page size
   };
 
   // Handle sorting by column
@@ -62,7 +64,7 @@ export default function ReportListingPage() {
   function handleViewClick(id: string) {
     console.log("report id", id);
     setSelectedReportId(id);
-    handleOpen();
+    setOpen(true);
   }
 
   function handleDownloadClick(report: Report) {
@@ -84,22 +86,6 @@ export default function ReportListingPage() {
 
     generatePDF(report.details.alerts, riskSummary, alertSummary);
   }
-
-  // Sort reports based on the selected column and order
-  const sortedReports = React.useMemo(() => {
-    return [...reportData].sort((a, b) => {
-      const aValue = a[orderBy as keyof Report];
-      const bValue = b[orderBy as keyof Report];
-
-      if (aValue < bValue) {
-        return order === "asc" ? -1 : 1;
-      }
-      if (aValue > bValue) {
-        return order === "asc" ? 1 : -1;
-      }
-      return 0;
-    });
-  }, [reportData, order, orderBy]);
 
   return (
     <Box
@@ -126,7 +112,7 @@ export default function ReportListingPage() {
             bgcolor: "background.paper",
           }}
         >
-          <Typography variant="h6">Reports</Typography>
+          <Typography variant="h6">WebHex Reports</Typography>
         </Box>
 
         {/* Table */}
@@ -134,7 +120,15 @@ export default function ReportListingPage() {
           <Table stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell>URL</TableCell>
+                <TableCell>
+                  <TableSortLabel
+                    active={orderBy === "details.url"}
+                    direction={orderBy === "details.url" ? order : "asc"}
+                    onClick={() => handleRequestSort("details.url")}
+                  >
+                    URL
+                  </TableSortLabel>
+                </TableCell>
                 <TableCell>
                   <TableSortLabel
                     active={orderBy === "created_at"}
@@ -144,7 +138,6 @@ export default function ReportListingPage() {
                     Created At
                   </TableSortLabel>
                 </TableCell>
-
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -168,55 +161,40 @@ export default function ReportListingPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedReports
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((report: Report) => (
-                    <TableRow key={report._id}>
-                      <TableCell>
-                        <Typography variant="body2">
-                          <a
-                            href={report.details?.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ color: "white" }}
-                          >
-                            {report.details?.url}
-                          </a>
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        {new Date(report?.created_at || "").toLocaleString(
-                          "de-DE",
-                          {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            second: "2-digit",
-                          }
-                        )}
-                      </TableCell>
-                      <TableCell sx={{ display: "flex", gap: 2 }}>
-                        <Button
-                          variant="contained"
-                          color="secondary"
-                          aria-label="View Item"
-                          onClick={() => handleViewClick(report._id)}
+                reportData.map((report: Report) => (
+                  <TableRow key={report._id}>
+                    <TableCell>
+                      <Typography variant="body2">
+                        <a
+                          href={report.details?.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: "white" }}
                         >
-                          View
-                        </Button>
-                        <Button
-                          variant="contained"
-                          color="secondary"
-                          aria-label="Download Item"
-                          onClick={() => handleDownloadClick(report)}
-                        >
-                          Download
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                          {report.details?.url}
+                        </a>
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(report?.created_at || "").toLocaleString("de-DE", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                      })}
+                    </TableCell>
+                    <TableCell sx={{ display: "flex", gap: 2 }}>
+                      <Button variant="contained" color="secondary" onClick={() => handleViewClick(report._id)}>
+                        View
+                      </Button>
+                      <Button variant="contained" color="secondary" onClick={() => handleDownloadClick(report)}>
+                        Download
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
             </TableBody>
           </Table>
@@ -226,19 +204,15 @@ export default function ReportListingPage() {
         <TablePagination
           rowsPerPageOptions={[5, 10, 25, 100]}
           component="div"
-          count={reports.data.length || 0}
+          count={totalItems}
           rowsPerPage={rowsPerPage}
-          page={page}
+          page={page - 1} // Adjust for zero-based pagination in MUI
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
         />
       </Paper>
 
-      <ReportProgressModal
-        open={open}
-        onClose={handleClose}
-        reportId={selectedReportId}
-      />
+      <ReportProgressModal open={open} onClose={() => setOpen(false)} reportId={selectedReportId} />
     </Box>
   );
 }

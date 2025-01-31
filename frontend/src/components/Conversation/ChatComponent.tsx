@@ -1,3 +1,5 @@
+// src/components/Conversations/ChatComponent.tsx
+
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
     Box,
@@ -11,6 +13,7 @@ import {
     Button,
     Fab,
     Stack,
+    Tooltip,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import { useAppDispatch, useAppSelector } from "@app/hook";
@@ -29,6 +32,8 @@ import DownloadAgentModal from './DownloadAgentModal';
 import { getUserIdFromLocalStorage } from 'utils/cookieValidation';
 import MicIcon from "@mui/icons-material/Mic";
 import MicOffIcon from "@mui/icons-material/MicOff";
+import FullscreenIcon from "@mui/icons-material/Fullscreen";
+import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
 
 interface ChatComponentProps {
     onConversationCreated?: (conversationId: string) => void;
@@ -58,11 +63,29 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
     const [agentId, setAgentId] = useState<string | null>(null);
     const chatContainerRef = useRef<HTMLDivElement | null>(null);
     const [isWebhexComplete, setIsWebhexComplete] = useState(false);
-
     const [isModalOpen, setIsModalOpen] = useState(false);
-
     const [isListening, setIsListening] = useState(false); // Manage microphone listening state
     const recognitionRef = useRef<SpeechRecognition | null>(null); // Reference for speech recognition
+    const [isFullScreen, setIsFullScreen] = useState(false);
+
+
+
+    const toggleFullScreen = () => {
+        setIsFullScreen(!isFullScreen);
+    };
+
+    // Close full screen on "Escape" key press
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape" && isFullScreen) {
+                setIsFullScreen(false);
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [isFullScreen]);
 
     // Initialize Speech Recognition
     useEffect(() => {
@@ -373,50 +396,204 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
 
     // Render
     return (
-        <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-            {conversationType != "webhex" && (
-                <>
-                    <Fab
-                        color="primary"
-                        aria-label="generate-report"
-                        onClick={handleGenerateReport}
-                        disabled={generateReportLoading} // Disable button while generateReportLoading
-                        sx={{ position: "absolute", top: 16, right: 16, zIndex: 1000 }}
-                    >
-                        {generateReportLoading ? <CircularProgress sx={{ color: "white" }} size={24} /> : <ReportIcon />}
-                    </Fab>
-                    <Snackbar
-                        open={successAlert}
-                        autoHideDuration={3000} // Automatically close after 3 seconds
-                        onClose={() => setSuccessAlert(false)}
-                        anchorOrigin={{ vertical: "top", horizontal: "right" }} // Adjust position if needed
-                    >
-                        <Alert onClose={() => setSuccessAlert(false)} severity="success" sx={{ width: "100%" }}>
-                            Report has been generated successfully! You can access it in {conversationType} report section
-                        </Alert>
-                    </Snackbar>
-                </>
-            )}
 
-            <Box ref={chatContainerRef} sx={{ flexGrow: 1, overflowY: "auto" }}>
-                {conversationLoading ? (
-                    <CircularProgress />
-                ) : (
-                    messages.length === 0 && <Typography>No messages yet.</Typography>
+
+
+
+        <Box sx={{
+            position: isFullScreen ? "fixed" : "relative",
+            top: 0, left: 0,
+            width: isFullScreen ? "100vw" : "100%",
+            height: isFullScreen ? "100vh" : "100%",
+            bgcolor: "background.paper",
+            zIndex: isFullScreen ? 2000 : "auto",
+            display: "flex",
+            flexDirection: "column",
+            p: 2
+        }}>
+
+            {/* Fullscreen Toggle Button */}
+            <Tooltip title={isFullScreen ? "Exit Full-Screen" : "Enter Full-Screen"} arrow>
+                <IconButton
+                    sx={{
+                        position: "absolute",
+                        top: 10,
+                        right: 40,
+                        zIndex: 10,
+                        color: "white", // Set icon color to white
+                        bgcolor: "rgba(0, 0, 0, 0.3)", // Optional: Adds a subtle dark background for contrast
+                        "&:hover": {
+                            bgcolor: "rgba(0, 0, 0, 0.5)", // Darker background on hover
+                        },
+                        p: 1.5 // Increase padding for better clickability
+                    }}
+                    onClick={toggleFullScreen}
+                >
+                    {isFullScreen ? (
+                        <FullscreenExitIcon sx={{ fontSize: 40 }} /> // Bigger icon
+                    ) : (
+                        <FullscreenIcon sx={{ fontSize: 40 }} /> // Bigger icon
+                    )}
+                </IconButton>
+            </Tooltip>
+
+
+
+            <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                {conversationType != "webhex" && (
+                    <>
+                        <Tooltip title="Generate Report" arrow>
+                            <Fab
+                                aria-label="generate-report"
+                                onClick={handleGenerateReport}
+                                disabled={generateReportLoading} // Disable button while generating report
+                                sx={{
+                                    position: "absolute",
+                                    top: 75,
+                                    right: 45,
+                                    zIndex: 1000,
+                                    bgcolor: "rgba(0, 0, 0, 0.3)", // Subtle dark background
+                                    color: "white", // White icon color
+                                    "&:hover": {
+                                        bgcolor: "rgba(0, 0, 0, 0.5)", // Darker background on hover
+                                    },
+                                    p: 2, // Increase padding for better clickability
+                                }}
+                            >
+                                {generateReportLoading ? (
+                                    <CircularProgress sx={{ color: "white", width: 32, height: 32 }} /> // Bigger loader
+                                ) : (
+                                    <ReportIcon sx={{ fontSize: 40 }} /> // Bigger icon
+                                )}
+                            </Fab>
+                        </Tooltip>
+
+                        <Snackbar
+                            open={successAlert}
+                            autoHideDuration={3000} // Automatically close after 3 seconds
+                            onClose={() => setSuccessAlert(false)}
+                            anchorOrigin={{ vertical: "top", horizontal: "right" }} // Adjust position if needed
+                        >
+                            <Alert onClose={() => setSuccessAlert(false)} severity="success" sx={{ width: "100%" }}>
+                                Report has been generated successfully! You can access it in {conversationType} report section
+                            </Alert>
+                        </Snackbar>
+                    </>
                 )}
-                {messages.map((msg) => (
-                    <Grow in key={msg._id} timeout={500}>
-                        <ListItem sx={{ justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}>
-                            {msg.role === "assistant" ? <AiMessage message={msg} agentId={agentId} /> : <UserMessage message={msg} />}
-                        </ListItem>
-                    </Grow>
-                ))}
-            </Box>
+
+                <Box
+                    ref={chatContainerRef}
+                    sx={{
+                        flexGrow: 1,
+                        overflowY: "auto",
+                        overflowX: "hidden", // ✅ Prevents horizontal scroll
+                        maxWidth: "100%", // ✅ Ensures content doesn't exceed container width
+                        display: "flex",
+                        flexDirection: "column",
+                        pb: 2, // Padding at bottom for input field spacing
+                    }}
+                >
+                    {conversationLoading ? (
+                        <CircularProgress />
+                    ) : (
+                        messages.length === 0 && <Typography>No messages yet.</Typography>
+                    )}
+                    {messages.map((msg) => (
+                        <Grow in key={msg._id} timeout={500}>
+                            <ListItem
+                                sx={{
+                                    justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
+                                    width: "100%", // ✅ Ensures messages don’t overflow
+                                    maxWidth: "100%",
+                                    overflowWrap: "break-word", // ✅ Breaks long words inside messages
+                                    wordBreak: "break-word",
+                                }}
+                            >
+                                {msg.role === "assistant" ? <AiMessage message={msg} agentId={agentId} /> : <UserMessage message={msg} />}
+                            </ListItem>
+                        </Grow>
+                    ))}
+                </Box>
 
 
 
-            {conversationType === "auto" && !connectedAgent && (
-                <>
+                {conversationType === "auto" && !connectedAgent && (
+                    <>
+                        <Paper
+                            elevation={3}
+                            sx={{
+                                p: 2,
+                                mt: 2,
+                                textAlign: "center",
+                                width: "100%",
+                                maxWidth: 600,
+                                margin: "0 auto",
+                                borderRadius: 2,
+                            }}
+                        >
+                            <Typography variant="h6" sx={{ mb: 1 }}>
+                                Download the Agent
+                            </Typography>
+                            <Typography variant="body2" sx={{ mb: 2 }}>
+                                To get started, download and run the agent on your device.
+                            </Typography>
+                            <Stack direction="column" spacing={2} alignItems="center">
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    onClick={async () => {
+                                        try {
+                                            let targetConversationId = conversationId;
+                                            const userId = getUserIdFromLocalStorage();
+
+                                            if (conversationId === "new" && conversationType) {
+                                                const resultAction = await dispatch(
+                                                    createConversationThunk({
+                                                        id: ObjectId().toHexString(),
+                                                        title: "Agent Conversation",
+                                                        created_by: userId,
+                                                        type: "auto", // Assuming "auto" for agent-related conversations
+                                                    })
+                                                );
+
+                                                if (createConversationThunk.fulfilled.match(resultAction)) {
+                                                    const newConversation = resultAction.payload;
+                                                    onConversationCreated?.(newConversation._id);
+                                                    navigate(`/conversations/${newConversation._id}/${newConversation.type}`);
+                                                    targetConversationId = newConversation._id;
+                                                } else {
+                                                    console.error("Failed to create conversation");
+                                                    return; // Exit if the conversation creation fails
+                                                }
+                                            }
+
+                                            // Trigger the download
+                                            const downloadUrl = `http://localhost:5000/web/api/v1/download/agent_ui_app/${targetConversationId}`;
+                                            window.open(downloadUrl, "_blank");
+                                        } catch (error) {
+                                            console.error("Error creating conversation or initiating download:", error);
+                                        }
+                                    }}
+                                >
+                                    Download Agent App
+                                </Button>
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    onClick={handleOpenModal}
+                                >
+                                    Download Agent Binary
+                                </Button>
+                            </Stack>
+
+                        </Paper>
+                        <DownloadAgentModal open={isModalOpen} handleClose={handleCloseModal} conversationId={conversationId}></DownloadAgentModal>
+                    </>
+                )}
+
+
+
+                {connectedAgent && conversationType === "auto" && (
                     <Paper
                         elevation={3}
                         sx={{
@@ -424,135 +601,64 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
                             mt: 2,
                             textAlign: "center",
                             width: "100%",
-                            maxWidth: 600,
+                            maxWidth: 400,
                             margin: "0 auto",
                             borderRadius: 2,
                         }}
                     >
                         <Typography variant="h6" sx={{ mb: 1 }}>
-                            Download the Agent
+                            Agent Connected
                         </Typography>
                         <Typography variant="body2" sx={{ mb: 2 }}>
-                            To get started, download and run the agent on your device.
+                            The agent <strong>{connectedAgent}</strong> is connected to this conversation.
                         </Typography>
-                        <Stack direction="column" spacing={2} alignItems="center">
-                            <Button
-                                variant="contained"
-                                color="primary"
-                                onClick={async () => {
-                                    try {
-                                        let targetConversationId = conversationId;
-                                        const userId = getUserIdFromLocalStorage();
-
-                                        if (conversationId === "new" && conversationType) {
-                                            const resultAction = await dispatch(
-                                                createConversationThunk({
-                                                    id: ObjectId().toHexString(),
-                                                    title: "Agent Conversation",
-                                                    created_by: userId,
-                                                    type: "auto", // Assuming "auto" for agent-related conversations
-                                                })
-                                            );
-
-                                            if (createConversationThunk.fulfilled.match(resultAction)) {
-                                                const newConversation = resultAction.payload;
-                                                onConversationCreated?.(newConversation._id);
-                                                navigate(`/conversations/${newConversation._id}/${newConversation.type}`);
-                                                targetConversationId = newConversation._id;
-                                            } else {
-                                                console.error("Failed to create conversation");
-                                                return; // Exit if the conversation creation fails
-                                            }
-                                        }
-
-                                        // Trigger the download
-                                        const downloadUrl = `http://localhost:5000/web/api/v1/download/agent_ui_app/${targetConversationId}`;
-                                        window.open(downloadUrl, "_blank");
-                                    } catch (error) {
-                                        console.error("Error creating conversation or initiating download:", error);
-                                    }
-                                }}
-                            >
-                                Download Agent App
-                            </Button>
-                            <Button
-                                variant="contained"
-                                color="primary"
-                                onClick={handleOpenModal}
-                            >
-                                Download Agent Binary
-                            </Button>
-                        </Stack>
-
                     </Paper>
-                    <DownloadAgentModal open={isModalOpen} handleClose={handleCloseModal} conversationId={conversationId}></DownloadAgentModal>
-                </>
-            )}
-
-
-
-            {connectedAgent && conversationType === "auto" && (
-                <Paper
-                    elevation={3}
-                    sx={{
-                        p: 2,
-                        mt: 2,
-                        textAlign: "center",
-                        width: "100%",
-                        maxWidth: 400,
-                        margin: "0 auto",
-                        borderRadius: 2,
-                    }}
-                >
-                    <Typography variant="h6" sx={{ mb: 1 }}>
-                        Agent Connected
-                    </Typography>
-                    <Typography variant="body2" sx={{ mb: 2 }}>
-                        The agent <strong>{connectedAgent}</strong> is connected to this conversation.
-                    </Typography>
-                </Paper>
-            )}
+                )}
 
 
 
 
-            {((conversationType === "auto" && connectedAgent) || conversationType === "manual" || conversationType === "webhex") && (
-                <Paper sx={{ display: "flex", flexDirection: "column", p: 2 }}>
-                    <Box sx={{ display: "flex", alignItems: "center" }}>
-                        <TextField
-                            fullWidth
-                            placeholder={conversationType === "webhex" && isWebhexComplete === false ? "Enter Website IP or Domain. e.g. www.google.com" : "Type a message..."}
-                            value={conversationType === "webhex" && isWebhexComplete === false ? webHexInput : inputValue}
-                            onChange={(e) =>
-                                conversationType === "webhex" && isWebhexComplete == false
-                                    ? handleWebHexInputChange(e.target.value)
-                                    : setInputValue(e.target.value)
-                            }
-                            onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-                            error={!!validationError}
-                            helperText={validationError}
-                        />
-                        <IconButton color="primary" onClick={toggleListening}>
-                            {isListening ? <MicOffIcon /> : <MicIcon />}
-                        </IconButton>
-                        <IconButton
-                            color="primary"
-                            onClick={() => handleSendMessage(webHexInput || inputValue)}
-                            disabled={
-                                conversationLoading ||
-                                (conversationType === "webhex" && isWebhexComplete == false
-                                    ? isUrlChecking || !isWebhexUrlValid
-                                    : !(inputValue.trim() || webHexInput.trim()))
-                            }
-                        >
-                            {isUrlChecking ? <CircularProgress size={24} /> : <SendIcon />}
-                        </IconButton>
-                    </Box>
-                </Paper>
-            )}
+                {((conversationType === "auto" && connectedAgent) || conversationType === "manual" || conversationType === "webhex") && (
+                    <Paper sx={{ display: "flex", flexDirection: "column", p: 2 }}>
+                        <Box sx={{ display: "flex", alignItems: "center" }}>
+                            <TextField
+                                fullWidth
+                                placeholder={conversationType === "webhex" && isWebhexComplete === false ? "Enter Website IP or Domain. e.g. www.google.com" : "Type a message..."}
+                                value={conversationType === "webhex" && isWebhexComplete === false ? webHexInput : inputValue}
+                                onChange={(e) =>
+                                    conversationType === "webhex" && isWebhexComplete == false
+                                        ? handleWebHexInputChange(e.target.value)
+                                        : setInputValue(e.target.value)
+                                }
+                                onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                                error={!!validationError}
+                                helperText={validationError}
+                            />
+                            <IconButton color="primary" onClick={toggleListening}>
+                                {isListening ? <MicOffIcon /> : <MicIcon />}
+                            </IconButton>
+                            <IconButton
+                                color="primary"
+                                onClick={() => handleSendMessage(webHexInput || inputValue)}
+                                disabled={
+                                    conversationLoading ||
+                                    (conversationType === "webhex" && isWebhexComplete == false
+                                        ? isUrlChecking || !isWebhexUrlValid
+                                        : !(inputValue.trim() || webHexInput.trim()))
+                                }
+                            >
+                                {isUrlChecking ? <CircularProgress size={24} /> : <SendIcon />}
+                            </IconButton>
+                        </Box>
+                    </Paper>
+                )}
 
+
+
+            </Box>
 
 
         </Box>
+
     );
 }

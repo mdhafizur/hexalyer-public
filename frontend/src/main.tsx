@@ -15,7 +15,7 @@ import RegisterPage from "@pages/RegisterPage";
 import RecoverPasswordPage from "@pages/RecoverPasswordPage";
 import UserProfilePage from "@pages/UserProfilePage";
 import { SocketProvider } from "context/SocketContext";
-import ReportListingPage from '@pages/ReportListingPage';
+import WebhexReportListingPage from '@pages/WebhexReportListingPage';
 import AutoReportListingPage from '@pages/AutoReportListingPage';
 import ManualReportListingPage from '@pages/ManualReportListingPage';
 import LoginPage from "@pages/LoginPage";
@@ -89,7 +89,7 @@ const router = createBrowserRouter([
         path: "/webhex-reports",
         element: (
           <ProtectedRoute>
-            <ReportListingPage />
+            <WebhexReportListingPage />
           </ProtectedRoute>
         ),
       },

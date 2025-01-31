@@ -23,33 +23,37 @@ import React, { useState } from "react";
 import CloseIcon from "@mui/icons-material/Close";
 
 export default function AutoReportListingPage() {
-  const { reports, loading, error } = useReports(); // Custom hook to fetch reports
-  const reportData = reports?.data || []; // Access reports from 'data' if available
-  const autoData = reportData.filter((report: { type: string; }) => report.type === "auto");
-  const [page, setPage] = React.useState(0); // Page state for pagination
+  // State for pagination & sorting
+  const [page, setPage] = React.useState(1); // Page state for pagination (starts from 1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10); // Rows per page state
   const [order, setOrder] = React.useState<"asc" | "desc">("asc"); // Sorting order
-  const [orderBy, setOrderBy] = React.useState<string>("updated_at"); // Default sort by "updated_at"
+  const [orderBy, setOrderBy] = React.useState<string>("created_at"); // Default sort by "created_at"
   const [open, setOpen] = useState(false);
-  const [selectedReport, setselectedReport] = useState<Report | null>(null);
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 
-  const handleOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
+  // Fetch reports with pagination & sorting
+  const { reports, loading, error, queryReports } = useReports({
+    type: "auto",
+    page,
+    page_size: rowsPerPage,
+    sort_by: orderBy,
+    sort_order: order,
+  });
 
-  // Handle page change
+  const reportData = reports?.data || []; // Access reports from 'data' if available
+  const totalItems = reports?.total_items || 0; // Total reports count
+
+  // Handlers for pagination
   const handleChangePage = (
     event: React.MouseEvent<HTMLButtonElement> | null,
     newPage: number
   ) => {
-    setPage(newPage);
+    setPage(newPage + 1); // Adjust to API-based pagination (1-based index)
   };
 
-  // Handle rows per page change
-  const handleChangeRowsPerPage = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0); // Reset to the first page
+    setPage(1); // Reset to the first page when changing page size
   };
 
   // Handle sorting by column
@@ -64,28 +68,9 @@ export default function AutoReportListingPage() {
   }
 
   function handleViewClick(data: Report) {
-    setselectedReport(data);
-    handleOpen();
+    setSelectedReport(data);
+    setOpen(true);
   }
-  // Sort reports based on the selected column and order
-  const sortedReports = React.useMemo(() => {
-      return [...autoData].sort((a, b) => {
-        const aValue = a[orderBy as keyof Report];
-        const bValue = b[orderBy as keyof Report];
-    
-        // Ensure values are not undefined before comparison
-        if (aValue === undefined) return order === "asc" ? -1 : 1;
-        if (bValue === undefined) return order === "asc" ? 1 : -1;
-    
-        if (aValue < bValue) {
-          return order === "asc" ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return order === "asc" ? 1 : -1;
-        }
-        return 0;
-      });
-    }, [autoData, order, orderBy]);
 
   return (
     <Box
@@ -123,14 +108,13 @@ export default function AutoReportListingPage() {
                 <TableCell>Conversation</TableCell>
                 <TableCell>
                   <TableSortLabel
-                    active={orderBy === "updated_at"}
-                    direction={orderBy === "updated_at" ? order : "asc"}
-                    onClick={() => handleRequestSort("updated_at")}
+                    active={orderBy === "created_at"}
+                    direction={orderBy === "created_at" ? order : "asc"}
+                    onClick={() => handleRequestSort("created_at")}
                   >
-                    Updated At
+                    Created At
                   </TableSortLabel>
                 </TableCell>
-
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -154,46 +138,37 @@ export default function AutoReportListingPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedReports
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((report: Report) => (
-                    <TableRow key={report._id}>
-                      <TableCell>{report.conversation_name}</TableCell>
-                      <TableCell> 
-                        {new Date(report?.updated_at || "").toLocaleString(
-                          "de-DE",
-                          {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            second: "2-digit",
-                          }
-                        )}
-                      </TableCell>
-                      <TableCell sx={{ display: "flex", gap: 2 }}>
-                        <Button
-                          variant="contained"
-                          color="secondary"
-                          aria-label="View Item"
-                          onClick={() =>
-                            handleViewClick(report)
-                          }
-                        >
-                          View
-                        </Button>
-                        <Button
-                          variant="contained"
-                          color="secondary"
-                          aria-label="Download Item"
-                          onClick={() => handleDownloadClick(report)}
-                        >
-                          Download
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                reportData.map((report: Report) => (
+                  <TableRow key={report._id}>
+                    <TableCell>{report.conversation_name}</TableCell>
+                    <TableCell>
+                      {new Date(report?.created_at || "").toLocaleString("de-DE", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                      })}
+                    </TableCell>
+                    <TableCell sx={{ display: "flex", gap: 2 }}>
+                      <Button
+                        variant="contained"
+                        color="secondary"
+                        onClick={() => handleViewClick(report)}
+                      >
+                        View
+                      </Button>
+                      <Button
+                        variant="contained"
+                        color="secondary"
+                        onClick={() => handleDownloadClick(report)}
+                      >
+                        Download
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
             </TableBody>
           </Table>
@@ -203,16 +178,18 @@ export default function AutoReportListingPage() {
         <TablePagination
           rowsPerPageOptions={[5, 10, 25, 100]}
           component="div"
-          count={reports?.data.length || 0}
+          count={totalItems}
           rowsPerPage={rowsPerPage}
-          page={page}
+          page={page - 1} // Adjust for zero-based pagination in MUI
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
         />
       </Paper>
+
+      {/* Report Modal */}
       <Modal
         open={open}
-        onClose={handleClose}
+        onClose={() => setOpen(false)}
         aria-labelledby="modal-title"
         aria-describedby="modal-description"
       >
@@ -222,46 +199,36 @@ export default function AutoReportListingPage() {
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-            width: "90%", // Adjust for responsiveness
-            maxWidth: 1000, // Restrict maximum width
-            maxHeight: "80vh", // Limit the height to 80% of the viewport
-            overflowY: "auto", // Enable vertical scrolling if content overflows
+            width: "90%",
+            maxWidth: 1000,
+            maxHeight: "80vh",
+            overflowY: "auto",
             bgcolor: "background.paper",
             boxShadow: 24,
             borderRadius: 2,
-            p: 3, // Padding around the content
+            p: 3,
           }}
         >
-          {/* Header Section */}
+          {/* Header */}
           <Box
             sx={{
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              borderBottom: "1px solid #ddd", // Separator line
-              pb: 2, // Padding below the header
-              mb: 3, // Margin below the header
+              borderBottom: "1px solid #ddd",
+              pb: 2,
+              mb: 3,
             }}
           >
-            <Typography id="modal-title" variant="h4" component="h2">
+            <Typography id="modal-title" variant="h4">
               HexaShield Report
             </Typography>
-            <IconButton
-              onClick={handleClose}
-              aria-label="Close"
-              size="small"
-              sx={{
-                color: "text.secondary", // Consistent color with theme
-                "&:hover": {
-                  color: "error.main", // Red hover effect
-                },
-              }}
-            >
+            <IconButton onClick={() => setOpen(false)} size="small">
               <CloseIcon />
             </IconButton>
           </Box>
 
-          {/* Content Section */}
+          {/* Content */}
           <Box id="modal-description">
             <AutoManualReportModal
               reportType="manual"

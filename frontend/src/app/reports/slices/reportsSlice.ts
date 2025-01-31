@@ -1,23 +1,27 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Report } from '@app/reports/types/report.types';
-import {
-    queryReports,
-} from '@app/reports/services/reportService';
-
-
+import { queryReports } from '@app/reports/services/reportService';
 
 interface ReportState {
     reports: {
-        data: Report[]
-    }; // List of reports
+        data: Report[];
+        page: number;
+        page_size: number;
+        total_items: number;
+        total_pages: number;
+    }; // List of reports with pagination metadata
     loading: boolean; // Loading state for API calls
     error: string | null; // Error message, if any
-    selectedReportId: string | null; // ID of the currently selected conversation
+    selectedReportId: string | null; // ID of the currently selected report
 }
 
 const initialState: ReportState = {
     reports: {
-        data: []
+        data: [],
+        page: 1,
+        page_size: 10,
+        total_items: 0,
+        total_pages: 0,
     },
     loading: false,
     error: null,
@@ -31,8 +35,8 @@ interface FetchError {
 
 // Thunk for querying reports
 export const queryReportsThunk = createAsyncThunk<
-    { data: Report[] }, // Success return type
-    { user_id?: string; coversation_id?: string; message_id?: string; type?: string; created_by?: string; updated_by?: string; page?: number; page_size?: number }, // Arguments
+    { data: Report[]; page: number; page_size: number; total_items: number; total_pages: number }, // Success return type
+    { conversation_id?: string; message_id?: string; type?: string; created_by?: string; page?: number; page_size?: number }, // Arguments
     { rejectValue: FetchError } // Error return type
 >(
     'reports/queryReports',
@@ -42,10 +46,8 @@ export const queryReportsThunk = createAsyncThunk<
             return reports;
         } catch (error) {
             if (error instanceof Error) {
-                // Explicitly check if the error is an instance of Error
                 return rejectWithValue({ message: error.message });
             }
-            // Handle unexpected error shape
             return rejectWithValue({ message: 'Unknown error occurred' });
         }
     }
@@ -58,7 +60,7 @@ const reportsSlice = createSlice({
         selectReport(state, action: PayloadAction<string | null>) {
             state.selectedReportId = action.payload;
         },
-        resetMessagesState() {
+        resetReportsState() {
             return initialState;
         },
     },
@@ -69,10 +71,19 @@ const reportsSlice = createSlice({
                 state.loading = true;
                 state.error = null;
             })
-            .addCase(queryReportsThunk.fulfilled, (state, action: PayloadAction<{ data: Report[] }>) => {
-                state.loading = false;
-                state.reports.data = action.payload.data;
-            })
+            .addCase(
+                queryReportsThunk.fulfilled,
+                (state, action: PayloadAction<{ data: Report[]; page: number; page_size: number; total_items: number; total_pages: number }>) => {
+                    state.loading = false;
+                    state.reports = {
+                        data: action.payload.data,
+                        page: action.payload.page,
+                        page_size: action.payload.page_size,
+                        total_items: action.payload.total_items,
+                        total_pages: action.payload.total_pages,
+                    };
+                }
+            )
             .addCase(queryReportsThunk.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload?.message || 'Failed to query reports';
@@ -80,9 +91,6 @@ const reportsSlice = createSlice({
     },
 });
 
-export const {
-    selectReport,
-    resetMessagesState,
-} = reportsSlice.actions;
+export const { selectReport, resetReportsState } = reportsSlice.actions;
 
 export default reportsSlice.reducer;
