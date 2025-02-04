@@ -24,6 +24,11 @@ class ConversationModel(BaseModel):
         description="Type of the conversation",
         example="manual, webhex, auto",
     )
+    standard: Optional[str] = Field(
+        default=None,
+        description="Standard of the conversation",
+        example="OWASP, PCIDSS, NIST CSF, ISO27001-A, GDPR, HIPAA",
+    )
     created_by: str = Field(
         ...,
         description="ID of the user who created the conversation",

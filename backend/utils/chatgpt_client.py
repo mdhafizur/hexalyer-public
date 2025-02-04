@@ -8,7 +8,7 @@ load_dotenv()
 
 
 class ChatGPTClient:
-    def __init__(self, api_key=None, model="gpt-4-turbo"):
+    def __init__(self, api_key=None, model="gpt-4o-mini"):
         """
         Initialize the OpenAI client with an API key and model.
         :param api_key: OpenAI API key (default: uses environment variable `OPENAI_API_KEY`).
@@ -31,7 +31,9 @@ class ChatGPTClient:
         system_prompt=None,
         message_history=None,
         prompt_type="manual",
+        standard_context=None,
         cve_context=None,
+        agent_context=None,
     ):
         """
         Query the ChatGPT API with a cybersecurity scenario.
@@ -58,8 +60,17 @@ class ChatGPTClient:
                 system_message = {"role": "system", "content": system_prompt}
             else:
                 prompt_content = AUTO_PROMPT if prompt_type == "auto" else MANUAL_PROMPT
+                if standard_context:
+                    # prompt_content += (
+                    #     f"\n\nThis conversation following the compliance standard:\n{standard_context}"
+                    # )
+                    prompt_content = prompt_content.replace(
+                        "{COMPLIANCE_STANDARD}", standard_context
+                    )
                 if cve_context:
                     prompt_content += f"\n\nContext about latest CVEs:\n{cve_context}"
+                if agent_context:
+                    prompt_content += f"\n\nContext about the agent:\n{agent_context}"
                 system_message = {"role": "system", "content": prompt_content}
 
             # Construct message list

@@ -10,6 +10,9 @@ from typing import List, Dict
 import requests
 import socketio
 
+# Add the parent directory of the `agent` package to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from agent.helper import (
     get_agent_id,
     get_client_info,
@@ -110,47 +113,41 @@ class Agent:
             solve_cmd = precondition.get("solve_cmd")
 
             if test_cmd:
-                test_output = run_command_in_script_mode(test_cmd)
-                test_status = (
-                    "failure" if "failure" in test_output.lower() else "success"
-                )
+                cmd_success, cmd_output = run_command_in_script_mode(test_cmd)
+                command_status = "success" if cmd_success else "failure"
                 all_outputs.append(
                     {
                         "type": "precondition_test",
                         "command": test_cmd,
-                        "output": test_output,
-                        "status": test_status,
+                        "output": cmd_output,
+                        "status": command_status,
                     }
                 )
 
-                if test_status == "failure" and solve_cmd:
-                    solve_output = run_command_in_script_mode(solve_cmd)
-                    solve_status = (
-                        "success" if "success" in solve_output.lower() else "failure"
-                    )
+                if command_status == "failure" and solve_cmd:
+                    cmd_success, cmd_output = run_command_in_script_mode(solve_cmd)
+                    command_status = "success" if cmd_success else "failure"
                     all_outputs.append(
                         {
                             "type": "precondition_solve",
                             "command": solve_cmd,
-                            "output": solve_output,
-                            "status": solve_status,
+                            "output": cmd_output,
+                            "status": command_status,
                         }
                     )
-                    if solve_status == "failure":
+                    if command_status == "failure":
                         overall_status = "failure"
                         break
 
         if overall_status == "success":
             for command in commands:
-                command_output = run_command_in_script_mode(command)
-                command_status = (
-                    "failure" if "failure" in command_output.lower() else "success"
-                )
+                cmd_success, cmd_output = run_command_in_script_mode(command)
+                command_status = "success" if cmd_success else "failure"
                 all_outputs.append(
                     {
                         "type": "command",
                         "command": command,
-                        "output": command_output,
+                        "output": cmd_output,
                         "status": command_status,
                     }
                 )
@@ -158,19 +155,17 @@ class Agent:
                     overall_status = "failure"
 
         for cleanup_command in cleanups:
-            cleanup_output = run_command_in_script_mode(cleanup_command)
-            cleanup_status = (
-                "failure" if "failure" in cleanup_output.lower() else "success"
-            )
+            cmd_success, cmd_output = run_command_in_script_mode(cleanup_command)
+            command_status = "success" if cmd_success else "failure"
             all_outputs.append(
                 {
                     "type": "cleanup",
                     "command": cleanup_command,
-                    "output": cleanup_output,
-                    "status": cleanup_status,
+                    "output": cmd_output,
+                    "status": command_status,
                 }
             )
-            if cleanup_status == "failure":
+            if command_status == "failure":
                 overall_status = "failure"
 
         # Calculate execution time
@@ -226,8 +221,8 @@ class Agent:
 if __name__ == "__main__":
     c2_url = os.getenv("C2_URL", "http://localhost:5001/c2/api/v1")
     socket_url = os.getenv("SOCKET_URL", "http://localhost:5001")
-    user_id = os.getenv("U_ID", "default_user_id")
-    conversation_id = os.getenv("C_ID", "default_conversation_id")
+    user_id = os.getenv("U_ID", "6784dddbed134e0c447cdb18")
+    conversation_id = os.getenv("C_ID", "67a0746ba9504387881723dd")
 
     while not shutdown_flag:
         try:

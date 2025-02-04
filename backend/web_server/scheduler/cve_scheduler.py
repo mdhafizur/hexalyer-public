@@ -63,21 +63,21 @@ async def cve_scheduler_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Initialize scheduler
     scheduler = AsyncIOScheduler()
 
-    # # Job to fetch all CVEs every hour
-    # scheduler.add_job(
-    #     fetch_and_store_cves,
-    #     "interval",
-    #     seconds=3600,  # Run every hour
-    #     args=[mongodb_collection],
-    # )
-
-    # Job to sync CVEs modified in the last week
+    # Job to fetch all CVEs every hour
     scheduler.add_job(
-        sync_recent_cve_changes,
+        fetch_and_store_cves,
         "interval",
-        days=1,  # Run daily to fetch changes from the last week
+        seconds=3600,  # Run every hour
         args=[mongodb_collection],
     )
+
+    # # Job to sync CVEs modified in the last week
+    # scheduler.add_job(
+    #     sync_recent_cve_changes,
+    #     "interval",
+    #     days=1,  # Run daily to fetch changes from the last week
+    #     args=[mongodb_collection],
+    # )
 
     scheduler.start()
     logger.info("CVE Scheduler initialized")

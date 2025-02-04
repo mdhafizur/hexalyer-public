@@ -188,33 +188,31 @@ def run_command(command):
         return {"status": "error", "error": e.stderr.strip()}
 
 
-def run_command_in_script_mode(command: str) -> str:
+def run_command_in_script_mode(command: str) -> (bool, str):
     """
-    Run a given command in script mode and return its output.
+    Run a given command in script mode and return its success status and output.
 
-    Args:
-        command (str): The command to execute.
     Returns:
-        str: The command's output if successful; error details if it fails.
+        (bool, str): Tuple of (is_success, output_string)
+                     - is_success: True if the command ran with exit code 0, else False.
+                     - output_string: stdout if success, or stderr if failure.
     """
     try:
-        # Run the command in script mode
         result = subprocess.run(
             command,
             shell=True,
             text=True,
             capture_output=True,
-            check=True,  # Raise an error if the command fails
+            check=True,  # Raises CalledProcessError for non-zero exit codes
         )
-        logging.info("Command executed successfully: %s", command)
-        return result.stdout.strip()
+        # If we reach here, return code is 0
+        return (True, result.stdout.strip())
     except subprocess.CalledProcessError as e:
-        # Handle command execution errors
-        logging.error(
-            "Command failed with return code %d: %s", e.returncode, e.stderr.strip()
-        )
-        return e.stderr.strip()
+        # Non-zero exit code (e.g., command not found or other error)
+        if e.stderr.strip():
+            return (False, e.stderr.strip())
+        else:
+            return (False, "command could not be executed")
     except Exception as e:
-        # Handle unexpected exceptions
-        logging.error("Unexpected error executing command: %s", e)
-        return str(e)
+        # Any other unexpected error
+        return (False, str(e))

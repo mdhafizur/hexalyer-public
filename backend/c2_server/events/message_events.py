@@ -3,11 +3,16 @@ from bson.objectid import ObjectId
 from logger.fastapi_logger import socket_listener_logger
 from db.message_repository import MessageRepository
 from db.report_repository import ReportRepository
+from db.agent_repository import AgentRepository
 from models.message import MessageModel
 from models.task import TaskModel
 from models.report import ReportModel
 from pydantic import ValidationError
-from c2_server.events.utils import current_utc_time
+from c2_server.events.utils import (
+    current_utc_time,
+    get_agent_id_by_sid,
+    format_agent_client_info,
+)
 from models.report import ReportModel
 from utils.chatgpt_client import ChatGPTClient
 from utils.grok_client import XAIChatClient
@@ -26,6 +31,7 @@ logger = socket_listener_logger
 # Initialize MessageRepository, ChatGPTClient
 message_repo = MessageRepository()
 report_repository = ReportRepository()
+agent_repository = AgentRepository()
 chatgpt_client = ChatGPTClient()
 x_ai_client = XAIChatClient()
 deepseek_client = DeepSeekChatClient()
@@ -156,6 +162,8 @@ async def handle_stream_to_ai_manual(sio, sid, data):
     """
     Handle streaming of an AI response for a manual message type.
     """
+    compliance_context = data.pop("standard", None)
+
     message_data = MessageModel(**data).dict(by_alias=True)
 
     # Convert `_id` and `conversation_id` to ObjectId if necessary
@@ -236,7 +244,10 @@ async def handle_stream_to_ai_manual(sio, sid, data):
         #         await asyncio.sleep(0)
 
         for chunk in chatgpt_client.ask(
-            stream=True, message_history=message_history, cve_context=cve_context
+            stream=True,
+            message_history=message_history,
+            cve_context=cve_context,
+            standard_context=compliance_context,
         ):
             # print(f"Chunk received: {chunk}")  # Log each chunk
             if chunk is not None:
@@ -270,6 +281,7 @@ async def handle_stream_to_ai_webhex(sio, sid, data):
     Handle streaming of an AI response for a webhex message type.
     """
     webhex_complete = data.pop("isWebhexComplete", None)
+
     if webhex_complete:
         message_data = MessageModel(**data).dict(by_alias=True)
         # Convert `_id` and `conversation_id` to ObjectId if necessary
@@ -343,7 +355,8 @@ async def handle_stream_to_ai_webhex(sio, sid, data):
             #     )
 
             for chunk in chatgpt_client.ask(
-                message=saved_message.get("content"), stream=True
+                message=saved_message.get("content"),
+                stream=True,
             ):
                 # print(f"Chunk received: {chunk}")  # Log each chunk
                 if chunk is not None:
@@ -414,6 +427,8 @@ async def handle_stream_to_ai_auto(sio, sid, data):
     """
     Handle streaming of an AI response for a manual message type.
     """
+    agent_id = data.pop("agentId", None)
+
     message_data = MessageModel(**data).dict(by_alias=True)
 
     # Convert `_id` and `conversation_id` to ObjectId if necessary
@@ -460,7 +475,7 @@ async def handle_stream_to_ai_auto(sio, sid, data):
                 "conversation_id": ObjectId(message_data["conversation_id"])
             },
             skip=0,
-            limit=20,
+            limit=200,
             sort=[("created_at", 1)],
         )
 
@@ -501,9 +516,15 @@ async def handle_stream_to_ai_auto(sio, sid, data):
         #         ai_message,
         #         to=str(message_data["conversation_id"]),
         #     )
+        agent_data = agent_repository.get_agent_by_id(agent_id=agent_id)
+
+        agent_context = format_agent_client_info(agent_data)
 
         for chunk in chatgpt_client.ask(
-            message_history=message_history, prompt_type="auto", stream=True
+            message_history=message_history,
+            prompt_type="auto",
+            stream=True,
+            agent_context=agent_context,
         ):
             # print(f"Chunk received: {chunk}")  # Log each chunk
             if chunk is not None:

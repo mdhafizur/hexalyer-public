@@ -1,7 +1,6 @@
 {
     "version": "0.2.0",
     "configurations": [
-        // 1) Run Agent
         {
             "name": "Run Agent",
             "type": "debugpy",
@@ -14,7 +13,6 @@
             ],
             "envFile": "${workspaceFolder}/.env"
         },
-        // 2) Run Agent App
         {
             "name": "Run Agent App",
             "type": "debugpy",
@@ -27,7 +25,6 @@
             ],
             "envFile": "${workspaceFolder}/.env"
         },
-        // 3) Run ChatGPT Shell
         {
             "name": "Run ChatGPT Shell",
             "type": "debugpy",
@@ -36,7 +33,6 @@
             "console": "integratedTerminal",
             "envFile": "${workspaceFolder}/.env"
         },
-        // 4) Run Grok Shell
         {
             "name": "Run Grok Shell",
             "type": "debugpy",
@@ -45,7 +41,6 @@
             "console": "integratedTerminal",
             "envFile": "${workspaceFolder}/.env"
         },
-        // 5) Run Web Server (FastAPI/Uvicorn) with Hot Reload
         {
             "name": "Run Web Server with Hot Reload",
             "type": "debugpy",
@@ -62,7 +57,6 @@
             "console": "integratedTerminal",
             "envFile": "${workspaceFolder}/.env"
         },
-        // 6) Run C2 Server (FastAPI/Uvicorn) with Hot Reload
         {
             "name": "Run C2 Server (FastAPI & WebSocket) with Hot Reload",
             "type": "debugpy",
@@ -79,12 +73,11 @@
             "console": "integratedTerminal",
             "envFile": "${workspaceFolder}/.env"
         },
-        // 7) Run Socket.IO Server (Gevent) with Hot Reload
         {
             "name": "Run Socket.IO Server with Hot Reload",
             "type": "python",
             "request": "launch",
-            "module": "uvicorn", // Use Uvicorn to run the ASGI app
+            "module": "uvicorn",
             "console": "integratedTerminal",
             "justMyCode": true,
             "envFile": "${workspaceFolder}/.env",
@@ -92,22 +85,29 @@
                 "PYTHONPATH": "${workspaceFolder}"
             },
             "args": [
-                "c2_server.c2_socket_server:sio_app", // ASGI app to load
+                "c2_server.c2_socket_server:sio_app",
                 "--host",
                 "localhost",
                 "--port",
                 "5003",
-                "--reload" // Enable hot reload
+                "--reload"
             ]
         }
     ],
     "compounds": [
-        // Run all three servers at once, each in its own process:
         {
             "name": "Run All Servers (Hot Reload)",
             "configurations": [
                 "Run Web Server with Hot Reload",
+                "Run C2 Server (FastAPI & WebSocket) with Hot Reload"
+            ]
+        },
+        {
+            "name": "Run Agent with Delay",
+            "configurations": [
+                "Run Web Server with Hot Reload",
                 "Run C2 Server (FastAPI & WebSocket) with Hot Reload",
+                "Run Agent"
             ]
         }
     ]
