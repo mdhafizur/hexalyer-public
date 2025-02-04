@@ -25,9 +25,9 @@ U_ID=${userId} C_ID=${conversationId} ./agent_darwin`;
 
     const windowsCode = `Invoke-WebRequest -Uri ${import.meta.env.VITE_WEB_API_URL}/download/agent/windows/${userId}/${conversationId} -OutFile agent.exe
 
-$env:U_ID=${userId}
+$env:U_ID = "${userId}"
 
-$env:C_ID=${conversationId}
+$env:C_ID = "${conversationId}"
 
 .\\agent.exe`;
 
