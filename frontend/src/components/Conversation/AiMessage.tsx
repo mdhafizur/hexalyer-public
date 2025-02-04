@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { Message } from "@app/messages/types/message.types";
-import { Paper, Typography, Avatar, Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, Collapse, IconButton, Tooltip, TextField } from "@mui/material";
+import { Paper, Typography, Avatar, Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, Collapse, IconButton, Tooltip, TextField, CircularProgress } from "@mui/material";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import { formatDistanceToNow } from "date-fns";
 import ReactMarkdown from "react-markdown";
@@ -51,13 +51,16 @@ export function AiMessage({ message, agentId }: { message: Message; agentId: str
 
     const [inputValues, setInputValues] = useState<Record<string, string>>(
         jsonData?.scenario?.inputs?.reduce((acc, input) => {
-            acc[input.name] = input.value;
+            acc[input.name] = input.value; // set default value initially
             return acc;
         }, {} as Record<string, string>) || {}
     );
 
     const handleInputChange = (name: string, value: string) => {
-        setInputValues((prev) => ({ ...prev, [name]: value }));
+        setInputValues((prev) => ({
+            ...prev,
+            [name]: value === "" ? jsonData?.scenario?.inputs?.find((input) => input.name === name)?.value || "" : value,
+        }));
     };
 
     const handleCopy = (text: string, id: string) => {
@@ -73,7 +76,8 @@ export function AiMessage({ message, agentId }: { message: Message; agentId: str
                 ...jsonData.scenario,
                 inputs: jsonData.scenario.inputs.map((input) => ({
                     ...input,
-                    value: inputValues[input.name] || input.value, // Use updated value or fallback to default
+                    // Use default only if inputValues[input.name] is undefined, not if it's an empty string.
+                    value: inputValues[input.name] === undefined ? input.value : inputValues[input.name],
                 })),
             };
 

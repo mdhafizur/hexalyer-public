@@ -48,10 +48,9 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
     const { agents } = useAppSelector((state: RootState) => state.agents);
     const { generateConversationReport, generateReportLoading, generateReportError } = useConversations();
 
-
-
     // Inside the component
     const [successAlert, setSuccessAlert] = useState(false);
+
     // State Management
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState("");
@@ -133,13 +132,13 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
     };
 
     const handleGenerateReport = async () => {
-        if (generateReportLoading) return; // Prevent duplicate triggers
+        if (generateReportLoading || !conversationId) return; // Prevent duplicate triggers
         try {
             console.log("Generate report triggered!");
             await generateConversationReport(conversationId);
             setSuccessAlert(true); // Show success alert
         } catch (err) {
-            console.error("Error generating report:", generateReportError);
+            console.error("Error generating report:", generateReportError, err);
         }
     };
 
@@ -317,16 +316,25 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
     const createConversation = async (conversationTitle: string, conversationStandard: string) => {
         if (conversationId && conversationType) {
             const userId = getUserIdFromLocalStorage();
+            isCreatingConversation.current = true;
             const resultAction = await dispatch(
-                createConversationThunk({ id: ObjectId().toHexString(), title: conversationTitle, created_by: userId, type: conversationType, standard: conversationStandard })
+                createConversationThunk({
+                    id: ObjectId().toHexString(),
+                    title: conversationTitle,
+                    created_by: userId,
+                    type: conversationType,
+                    standard: conversationStandard
+                })
             );
+
             if (createConversationThunk.fulfilled.match(resultAction)) {
                 const newConversation = resultAction.payload;
                 onConversationCreated?.(newConversation._id);
                 navigate(`/conversations/${newConversation._id}/${newConversation.type}/${newConversation.standard}`);
             }
+            isCreatingConversation.current = false;
         }
-    }
+    };
 
     const generateConversationTitle = (
         type: string | undefined,
@@ -345,17 +353,20 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
         return baseTitle;
     };
 
+    const isCreatingConversation = useRef(false);
 
     useEffect(() => {
-        // Split the URL into parts
-        console.log("select convType", conversationType)
-        console.log("select convId", conversationId)
-        console.log("select standard", conversationStandard)
-        if (conversationId == "new") {
+        console.log("select convType", conversationType);
+        console.log("select convId", conversationId);
+        console.log("select standard", conversationStandard);
+        if (conversationId === "new" && conversationStandard && !isCreatingConversation.current) {
+            isCreatingConversation.current = true;
             const title = generateConversationTitle(conversationType, connectedAgent);
-            createConversation(title, conversationStandard)
+            if (!title) return;
+            createConversation(title, conversationStandard);
         }
-    }, [conversationType, conversationId]);
+    }, [conversationId, conversationStandard]);
+
 
     const handleSendMessage = async (customInputValue = inputValue) => {
 
@@ -561,6 +572,7 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
                                                         id: ObjectId().toHexString(),
                                                         title: "Agent Conversation",
                                                         created_by: userId,
+                                                        standard: "ISO27001-A",
                                                         type: "auto", // Assuming "auto" for agent-related conversations
                                                     })
                                                 );
@@ -568,7 +580,7 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
                                                 if (createConversationThunk.fulfilled.match(resultAction)) {
                                                     const newConversation = resultAction.payload;
                                                     onConversationCreated?.(newConversation._id);
-                                                    navigate(`/conversations/${newConversation._id}/${newConversation.type}`);
+                                                    navigate(`/conversations/${newConversation._id}/${newConversation.type}/${newConversation.standard}`);
                                                     targetConversationId = newConversation._id;
                                                 } else {
                                                     console.error("Failed to create conversation");
