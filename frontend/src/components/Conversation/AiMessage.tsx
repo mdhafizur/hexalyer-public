@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { Message } from "@app/messages/types/message.types";
-import { Paper, Typography, Avatar, Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, Collapse, IconButton, Tooltip } from "@mui/material";
+import { Paper, Typography, Avatar, Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, Collapse, IconButton, Tooltip, TextField } from "@mui/material";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import { formatDistanceToNow } from "date-fns";
 import ReactMarkdown from "react-markdown";
@@ -15,15 +15,17 @@ import CheckIcon from "@mui/icons-material/Check";
 
 const extractJson = (content: string): string | null => {
     try {
-        const parsed = JSON.parse(content);
-        return JSON.stringify(parsed, null, 2);
+        // If already a valid JSON, return formatted version
+        return JSON.stringify(JSON.parse(content), null, 2);
     } catch {
+        // Otherwise, attempt to extract JSON from Markdown
         const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/);
         return jsonMatch ? jsonMatch[1] : null;
     }
 };
 
-const isJsonWithKeys = (content: string, requiredKeys: string[]): boolean => {
+const isJsonWithKeys = (content: string | null, requiredKeys: string[]): boolean => {
+    if (!content) return false; // Prevents parsing empty content
     try {
         const parsed = JSON.parse(content);
         return requiredKeys.every((key) => key in parsed);
@@ -47,6 +49,17 @@ export function AiMessage({ message, agentId }: { message: Message; agentId: str
     const [jsonPreviewOpen, setJsonPreviewOpen] = useState(false);
     const [copied, setCopied] = useState<{ [key: string]: boolean }>({});
 
+    const [inputValues, setInputValues] = useState<Record<string, string>>(
+        jsonData?.scenario?.inputs?.reduce((acc, input) => {
+            acc[input.name] = input.value;
+            return acc;
+        }, {} as Record<string, string>) || {}
+    );
+
+    const handleInputChange = (name: string, value: string) => {
+        setInputValues((prev) => ({ ...prev, [name]: value }));
+    };
+
     const handleCopy = (text: string, id: string) => {
         navigator.clipboard.writeText(text);
         setCopied({ ...copied, [id]: true });
@@ -56,72 +69,141 @@ export function AiMessage({ message, agentId }: { message: Message; agentId: str
 
     const handleApiCall = async () => {
         if (jsonData) {
+            const updatedScenario = {
+                ...jsonData.scenario,
+                inputs: jsonData.scenario.inputs.map((input) => ({
+                    ...input,
+                    value: inputValues[input.name] || input.value, // Use updated value or fallback to default
+                })),
+            };
+
             try {
-                const response = await commandClient.post(`/agents/${agentId}/commands`, jsonData.scenario);
-                const result = await response.data;
-                console.log("API Response:", result);
+                const response = await commandClient.post(`/agents/${agentId}/commands`, updatedScenario);
+                console.log("API Response:", response.data);
             } catch (error) {
                 console.error("API Call Error:", error);
             }
         }
     };
 
-    const renderContent = useCallback(() => (
-        <ReactMarkdown
-            components={{
-                code({ node, inline, className, children, ...props }) {
-                    const match = /language-(\w+)/.exec(className || "");
-                    const codeId = String(children).slice(0, 10); // Unique ID for tracking copy status
+    const renderContent = useCallback(() => {
+        let parsedContent;
 
-                    return !inline && match ? (
-                        <Box sx={{ position: "relative" }}>
-                            <Tooltip title={copied[codeId] ? "Copied!" : "Copy"} arrow>
-                                <IconButton
-                                    onClick={() => handleCopy(String(children).replace(/\n$/, ""), codeId)}
-                                    sx={{
-                                        position: "absolute",
-                                        top: 8,
-                                        right: 8,
-                                        zIndex: 1,
-                                        backgroundColor: "rgba(255,255,255,0.2)",
-                                        "&:hover": { backgroundColor: "rgba(255,255,255,0.3)" }
-                                    }}
-                                >
-                                    {copied[codeId] ? <CheckIcon color="success" /> : <ContentCopyIcon />}
-                                </IconButton>
-                            </Tooltip>
-                            <SyntaxHighlighter
-                                style={materialDark}
-                                language={match[1]}
-                                PreTag="div"
-                                {...props}
-                            >
-                                {String(children).replace(/\n$/, "")}
-                            </SyntaxHighlighter>
+        // Try parsing the content as JSON
+        try {
+            parsedContent = JSON.parse(message.content);
+        } catch (e) {
+            parsedContent = null;
+        }
+
+        // If valid JSON and contains `description` & `scenario`, render them
+        if (parsedContent && parsedContent.description && parsedContent.scenario) {
+            return (
+                <Box sx={{ p: 2, backgroundColor: "#f5f5f5", borderRadius: "5px" }}>
+                    <Typography variant="h6" sx={{ fontWeight: "bold", mb: 1 }}>
+                        Description
+                    </Typography>
+                    <Typography variant="body1" sx={{ whiteSpace: "pre-wrap", mb: 2 }}>
+                        {parsedContent.description}
+                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: "bold", mb: 1 }}>
+                        Vulnerability
+                    </Typography>
+                    <Typography variant="body1" sx={{ whiteSpace: "pre-wrap", mb: 2 }}>
+                        Name: {parsedContent.detection.vulnerability}
+                    </Typography>
+                    <Typography variant="body1" sx={{ whiteSpace: "pre-wrap", mb: 2 }}>
+                        Level: {parsedContent.detection.severity}
+                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: "bold", mb: 1 }}>
+                        Notes
+                    </Typography>
+                    <Typography variant="body1" sx={{ whiteSpace: "pre-wrap", mb: 2 }}>
+                        {parsedContent.notes}
+                    </Typography>
+                    {/* Inputs Section */}
+                    {parsedContent.scenario.inputs && parsedContent.scenario.inputs.length > 0 && (
+                        <Box sx={{ mb: 2 }}>
+                            <Typography variant="h6" sx={{ fontWeight: "bold", mb: 1 }}>
+                                Inputs
+                            </Typography>
+                            {parsedContent.scenario.inputs.map((input) => (
+                                <TextField
+                                    key={input.name}
+                                    label={input.description}
+                                    value={inputValues[input.name] || ""}
+                                    placeholder={input.value}
+                                    onChange={(e) => handleInputChange(input.name, e.target.value)}
+                                    fullWidth
+                                    sx={{ mb: 2 }}
+                                />
+                            ))}
                         </Box>
-                    ) : (
-                        <code className={className} {...props}>
-                            {children}
-                        </code>
-                    );
-                },
-                ul({ children }) {
-                    return <ul style={{ paddingLeft: "1.5rem", marginTop: 0 }}>{children}</ul>;
-                },
-                ol({ children }) {
-                    return <ol style={{ paddingLeft: "1.5rem", marginTop: 0 }}>{children}</ol>;
-                },
-                li({ children }) {
-                    return <li style={{ marginBottom: "0.3rem" }}>{children}</li>;
-                },
-                p({ children }) {
-                    return <Typography variant="body1" sx={{ whiteSpace: "pre-wrap", mb: 1 }}>{children}</Typography>;
-                }
-            }}
-        >
-            {message.content}
-        </ReactMarkdown>
-    ), [message.content, copied]);
+                    )}
+
+                    <Typography variant="h6" sx={{ fontWeight: "bold", mb: 1 }}>
+                        Scenario
+                    </Typography>
+                    <SyntaxHighlighter language="json" style={materialDark}>
+                        {JSON.stringify(parsedContent.scenario, null, 2)}
+                    </SyntaxHighlighter>
+                </Box>
+            );
+        }
+
+        // If not JSON or missing fields, render Markdown
+        return (
+            <ReactMarkdown
+                components={{
+                    code({ node, inline, className, children, ...props }) {
+                        const match = /language-(\w+)/.exec(className || "");
+                        const codeId = String(children).slice(0, 10); // Unique ID for copy tracking
+
+                        return !inline && match ? (
+                            <Box sx={{ position: "relative" }}>
+                                <Tooltip title={copied[codeId] ? "Copied!" : "Copy"} arrow>
+                                    <IconButton
+                                        onClick={() => handleCopy(String(children).replace(/\n$/, ""), codeId)}
+                                        sx={{
+                                            position: "absolute",
+                                            top: 8,
+                                            right: 8,
+                                            zIndex: 1,
+                                            backgroundColor: "rgba(255,255,255,0.2)",
+                                            "&:hover": { backgroundColor: "rgba(255,255,255,0.3)" }
+                                        }}
+                                    >
+                                        {copied[codeId] ? <CheckIcon color="success" /> : <ContentCopyIcon />}
+                                    </IconButton>
+                                </Tooltip>
+                                <SyntaxHighlighter style={materialDark} language={match[1]} PreTag="div" {...props}>
+                                    {String(children).replace(/\n$/, "")}
+                                </SyntaxHighlighter>
+                            </Box>
+                        ) : (
+                            <code className={className} {...props}>
+                                {children}
+                            </code>
+                        );
+                    },
+                    ul({ children }) {
+                        return <ul style={{ paddingLeft: "1.5rem", marginTop: 0 }}>{children}</ul>;
+                    },
+                    ol({ children }) {
+                        return <ol style={{ paddingLeft: "1.5rem", marginTop: 0 }}>{children}</ol>;
+                    },
+                    li({ children }) {
+                        return <li style={{ marginBottom: "0.3rem" }}>{children}</li>;
+                    },
+                    p({ children }) {
+                        return <Typography variant="body1" sx={{ whiteSpace: "pre-wrap", mb: 1 }}>{children}</Typography>;
+                    }
+                }}
+            >
+                {message.content}
+            </ReactMarkdown>
+        );
+    }, [message.content, copied]);
 
 
     return (
@@ -157,9 +239,9 @@ export function AiMessage({ message, agentId }: { message: Message; agentId: str
                     {renderContent()}
                     {isValidJson && (
                         <Box sx={{ mt: 1 }}>
-                            <Typography variant="subtitle2" color="primary">
+                            {/* <Typography variant="subtitle2" color="primary">
                                 Valid JSON Detected:
-                            </Typography>
+                            </Typography> */}
                             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 1 }}>
                                 <Button
                                     variant="contained"

@@ -26,7 +26,7 @@ export default function AutoReportListingPage() {
   // State for pagination & sorting
   const [page, setPage] = React.useState(1); // Page state for pagination (starts from 1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10); // Rows per page state
-  const [order, setOrder] = React.useState<"asc" | "desc">("asc"); // Sorting order
+  const [order, setOrder] = React.useState<"asc" | "desc">("desc"); // Sorting order
   const [orderBy, setOrderBy] = React.useState<string>("created_at"); // Default sort by "created_at"
   const [open, setOpen] = useState(false);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);

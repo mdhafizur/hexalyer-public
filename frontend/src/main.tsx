@@ -50,21 +50,13 @@ const router = createBrowserRouter([
         ),
         children: [
           {
-            path: "new",
+            path: ":conversationId/:conversationType/:conversationStandard",
             element: (
               <ProtectedRoute>
                 <ConversationListingPage />
               </ProtectedRoute>
             ),
-          },
-          {
-            path: ":conversationId/:conversationType",
-            element: (
-              <ProtectedRoute>
-                <ConversationListingPage />
-              </ProtectedRoute>
-            ),
-          },
+          }
         ],
       },
       {

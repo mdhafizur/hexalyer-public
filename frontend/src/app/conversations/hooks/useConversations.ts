@@ -27,8 +27,8 @@ export const useConversations = () => {
 
     // Create a new conversation
     const createConversation = useCallback(
-        (id: string, title: string, created_by: string, type: string) => {
-            return dispatch(createConversationThunk({ id: id, title: title, created_by: created_by, type: type }));
+        (id: string, title: string, created_by: string, type: string, standard: string) => {
+            return dispatch(createConversationThunk({ id: id, title: title, created_by: created_by, type: type, standard: standard }));
         },
         [dispatch]
     );
@@ -58,9 +58,9 @@ export const useConversations = () => {
 
     // Automatically fetch conversations when the tab is visited
     useEffect(() => {
-        if (location.pathname.endsWith("conversations")) {
-            fetchConversationsByQuery();
-        }
+
+        fetchConversationsByQuery();
+
     }, [fetchConversationsByQuery]); // Runs on navigation changes
 
     return {

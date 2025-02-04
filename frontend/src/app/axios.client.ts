@@ -20,7 +20,7 @@ export const commandClient: AxiosInstance = axios.create({
 
 export const privateClient: AxiosInstance = axios.create({
     baseURL: import.meta.env.VITE_WEB_API_URL as string, // Replace with your public API base URL
-    timeout: 30000,
+    timeout: 60000,
     // headers: {
     //     "Content-Type": "application/json",
     //     Accept: "application/json",

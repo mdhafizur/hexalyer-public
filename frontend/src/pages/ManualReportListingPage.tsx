@@ -26,7 +26,7 @@ export default function ManualReportListingPage() {
   // State for pagination & sorting
   const [page, setPage] = React.useState(1); // API uses 1-based index
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
-  const [order, setOrder] = React.useState<"asc" | "desc">("asc");
+  const [order, setOrder] = React.useState<"asc" | "desc">("desc");
   const [orderBy, setOrderBy] = React.useState<string>("created_at");
   const [open, setOpen] = useState(false);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);

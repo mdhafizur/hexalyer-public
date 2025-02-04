@@ -42,7 +42,7 @@ interface ChatComponentProps {
 export default function ChatComponent({ onConversationCreated }: ChatComponentProps) {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
-    const { conversationId, conversationType } = useParams();
+    const { conversationId, conversationType, conversationStandard } = useParams();
 
     const { loading: conversationLoading } = useAppSelector((state: RootState) => state.conversations);
     const { agents } = useAppSelector((state: RootState) => state.agents);
@@ -285,7 +285,7 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
         console.log("matchingAgent", matchingAgent)
         if (matchingAgent && matchingAgent?.status == "online") {
             console.log("ConversationAgent exists in agents.");
-            setAgentId(matchingAgent._id)
+            setAgentId(matchingAgent.agent_id)
             setConnectedAgent(matchingAgent.client_info.hostname)
         } else {
             console.log("ConversationAgent does not exist in agents.");
@@ -314,16 +314,16 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
 
 
 
-    const createConversation = async (conversationTitle: string) => {
+    const createConversation = async (conversationTitle: string, conversationStandard: string) => {
         if (conversationId && conversationType) {
             const userId = getUserIdFromLocalStorage();
             const resultAction = await dispatch(
-                createConversationThunk({ id: ObjectId().toHexString(), title: conversationTitle, created_by: userId, type: conversationType })
+                createConversationThunk({ id: ObjectId().toHexString(), title: conversationTitle, created_by: userId, type: conversationType, standard: conversationStandard })
             );
             if (createConversationThunk.fulfilled.match(resultAction)) {
                 const newConversation = resultAction.payload;
                 onConversationCreated?.(newConversation._id);
-                navigate(`/conversations/${newConversation._id}/${newConversation.type}`);
+                navigate(`/conversations/${newConversation._id}/${newConversation.type}/${newConversation.standard}`);
             }
         }
     }
@@ -350,9 +350,10 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
         // Split the URL into parts
         console.log("select convType", conversationType)
         console.log("select convId", conversationId)
+        console.log("select standard", conversationStandard)
         if (conversationId == "new") {
             const title = generateConversationTitle(conversationType, connectedAgent);
-            createConversation(title)
+            createConversation(title, conversationStandard)
         }
     }, [conversationType, conversationId]);
 
@@ -381,6 +382,14 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
             let tempMessage: any = message;
             if (isWebhexComplete) {
                 tempMessage['isWebhexComplete'] = true
+            }
+
+            if (agentId) {
+                tempMessage['agentId'] = agentId
+            }
+
+            if (conversationStandard) {
+                tempMessage['standard'] = conversationStandard
             }
 
             // console.log("isWebhexComplete", isWebhexComplete)

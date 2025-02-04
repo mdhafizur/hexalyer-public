@@ -19,6 +19,10 @@ import {
   TextField,
   useMediaQuery,
   Theme,
+  FormControl,
+  MenuItem,
+  Select,
+  InputLabel,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import ChatComponent from "@components/Conversation/ChatComponent";
@@ -27,10 +31,12 @@ import DoneAllIcon from "@mui/icons-material/DoneAll";
 import AutoModeIcon from '@mui/icons-material/AutoMode';
 import SummarizeIcon from '@mui/icons-material/Summarize';
 import WebAssetIcon from '@mui/icons-material/WebAsset';
+import { useAgents } from '@app/agents/hooks/useAgents';
 
 
 export default function ConversationListingPage() {
   const { queryConversations, updateConversation, conversations, loading, error } = useConversations();
+  const { agents } = useAgents();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -39,6 +45,10 @@ export default function ConversationListingPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingConversationId, setEditingConversationId] = useState<string | null>(null);
   const [editedTitles, setEditedTitles] = useState<Record<string, string>>({});
+
+  const [subModalOpen, setSubModalOpen] = useState(false);
+  const [selectedStandard, setSelectedStandard] = useState<string>("ISO27001-A");
+
 
   const [conversationType, setConversationType] = useState<"auto" | "manual" | "webhex">("manual");
 
@@ -60,6 +70,23 @@ export default function ConversationListingPage() {
     }
   ];
 
+  const manualChatStandards = [
+    { label: "OWASP", value: "OWASP" },
+    { label: "NIST CSF", value: "NIST CSF" },
+    { label: "ISO27001-A", value: "ISO27001-A" },
+    { label: "GDPR", value: "GDPR" },
+  ];
+
+  const handleStartManualChat = () => {
+    if (selectedStandard) {
+      setSubModalOpen(false);
+      setModalOpen(false);
+      navigate(`/conversations/new/${conversationType}/${selectedStandard}`);
+    }
+  };
+
+
+
   useEffect(() => {
     // Split the URL into parts
     const pathParts = location.pathname.split("/");
@@ -77,18 +104,27 @@ export default function ConversationListingPage() {
   };
 
   const handleSelectConversationType = (conversationType: string) => {
-    setSelectedConversation("new");
-    navigate(`/conversations/new/${conversationType}`);
     setConversationType(conversationType as "auto" | "manual" | "webhex");
-    setModalOpen(false);
+    if (conversationType === "manual") {
+      setSubModalOpen(true); // Open sub-modal for manual selection
+    } else if (conversationType === "webhex") {
+      navigate(`/conversations/new/${conversationType}/OWASP`);
+      setModalOpen(false);
+    } else {
+      // Handle other conversation types normally
+      navigate(`/conversations/new/${conversationType}/${selectedStandard}`);
+      setModalOpen(false);
+    }
   };
 
-  const handleSelectConversation = (conversationId: string, conversationType: string) => {
+
+  const handleSelectConversation = (conversationId: string, conversationType: string, conversationStandard: string) => {
     setSelectedConversation(conversationId);
     setConversationType(conversationType as "auto" | "manual" | "webhex");
-    navigate(`/conversations/${conversationId}/${conversationType}`);
+    navigate(`/conversations/${conversationId}/${conversationType}/${conversationStandard}`);
     console.log("conversationType", conversationType)
     console.log("conversationId", conversationId)
+    console.log("conversationStandard", conversationStandard)
   };
 
   const handleStartEditing = (conversationId: string, currentTitle: string) => {
@@ -164,7 +200,7 @@ export default function ConversationListingPage() {
         <Box
           sx={{
             flexGrow: 1,
-            overflowY: "auto",
+            overflowY: "auto", // Makes the conversation list scrollable
             p: 2,
             "&::-webkit-scrollbar": {
               width: "8px",
@@ -195,7 +231,7 @@ export default function ConversationListingPage() {
                 .map((conversation) => (
                   <ListItemButton
                     key={conversation._id}
-                    onClick={() => handleSelectConversation(conversation._id, conversation.type)}
+                    onClick={() => handleSelectConversation(conversation._id, conversation.type, conversation.standard)}
                     selected={selectedConversation === conversation._id}
                     sx={(theme) => ({
                       "&.Mui-selected": {
@@ -315,6 +351,36 @@ export default function ConversationListingPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Sub-Modal for Manual Chat Selection */}
+      <Dialog open={subModalOpen} onClose={() => setSubModalOpen(false)}>
+        <DialogTitle>Select Manual Chat Standard</DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel>Select Standard</InputLabel>
+            <Select
+              value={selectedStandard}
+              onChange={(e) => setSelectedStandard(e.target.value)}
+              label="Select Standard"
+            >
+              {manualChatStandards.map((standard) => (
+                <MenuItem key={standard.value} value={standard.value}>
+                  {standard.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSubModalOpen(false)} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleStartManualChat} color="primary" disabled={!selectedStandard}>
+            Start Chat
+          </Button>
+        </DialogActions>
+      </Dialog>
+
     </Box>
   );
 }
