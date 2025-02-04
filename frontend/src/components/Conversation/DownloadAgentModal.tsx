@@ -25,7 +25,11 @@ U_ID=${userId} C_ID=${conversationId} ./agent_darwin`;
 
     const windowsCode = `Invoke-WebRequest -Uri ${import.meta.env.VITE_WEB_API_URL}/download/agent/windows/${userId}/${conversationId} -OutFile agent.exe
 
-U_ID=${userId} C_ID=${conversationId} .\\agent.exe`;
+$env:U_ID=${userId}
+
+$env:C_ID=${conversationId}
+
+.\\agent.exe`;
 
     return (
         <Modal open={open} onClose={handleClose}>
@@ -77,7 +81,7 @@ U_ID=${userId} C_ID=${conversationId} .\\agent.exe`;
                 {tabIndex === 2 && (
                     <Box sx={{ width: '100%', overflowX: 'auto' }}>
                         <Typography variant="body1" sx={{ mb: 1 }}>
-                            <b>Download and Run the Windows Agent:</b>
+                            <b>Download and Run the Windows Agent on PowerShell:</b>
                         </Typography>
                         <SyntaxHighlighter language="powershell" style={materialDark}>
                             {windowsCode}

@@ -558,7 +558,7 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
                                 To get started, download and run the agent on your device.
                             </Typography>
                             <Stack direction="column" spacing={2} alignItems="center">
-                                <Button
+                                {/* <Button
                                     variant="contained"
                                     color="primary"
                                     onClick={async () => {
@@ -597,7 +597,7 @@ export default function ChatComponent({ onConversationCreated }: ChatComponentPr
                                     }}
                                 >
                                     Download Agent App
-                                </Button>
+                                </Button> */}
                                 <Button
                                     variant="contained"
                                     color="primary"
