@@ -15,6 +15,7 @@ from fastapi import FastAPI
 from pymongo import UpdateOne
 import yake
 import spacy
+# import aiohttp
 
 # Load SpaCy NLP model for Named Entity Recognition (NER)
 nlp = spacy.load("en_core_web_sm")
@@ -283,7 +284,7 @@ async def fetch_relevant_cve_context(query: str, limit: int = 5) -> str:
 
         # Build MongoDB query using `$regex` for partial matches (case-insensitive)
         regex_queries = [
-            {"description": {"$regex": kw, "$options": "i"}}
+            {"cve.description.description_data.value": {"$regex": kw, "$options": "i"}}
             for kw in important_keywords
         ]
 
@@ -295,21 +296,17 @@ async def fetch_relevant_cve_context(query: str, limit: int = 5) -> str:
             await mongodb_collection.find(
                 query_filter,  # Partial match search
                 {
-                    "_id": 1,
-                    "description": 1,
-                    "published": 1,
-                    "raw_data": 1,
+                    "_id": 0,
+                    "cve.CVE_data_meta.ID": 1,
+                    "cve.description.description_data.value": 1,
+                    "publishedDate": 1,
+                    "cve.references.reference_data": 1,
                 },
             )
-            .sort("published", -1)  # Sort by newest CVEs first
+            .sort("publishedDate", -1)  # Sort by newest CVEs first
             .limit(limit)
             .to_list(length=limit)
         )
-
-        # # Filter in Python
-        # relevant_results = [
-        #     result for result in relevant_results if result["score"] > 2.0
-        # ]
 
         latest_results = []
         if len(relevant_results) < 2:
@@ -318,13 +315,14 @@ async def fetch_relevant_cve_context(query: str, limit: int = 5) -> str:
                 await mongodb_collection.find(
                     {},  # No query filter to get the latest CVEs
                     {
-                        "description": 1,
-                        "_id": 1,
-                        "published": 1,
-                        "raw_data": 1,
+                        "_id": 0,
+                        "cve.CVE_data_meta.ID": 1,
+                        "cve.description.description_data.value": 1,
+                        "publishedDate": 1,
+                        "cve.references.reference_data": 1,
                     },
                 )
-                .sort("published", -1)  # Sort by published date in descending order
+                .sort("publishedDate", -1)  # Sort by published date in descending order
                 .limit(5)
                 .to_list(length=5)
             )
@@ -332,9 +330,8 @@ async def fetch_relevant_cve_context(query: str, limit: int = 5) -> str:
         # Deduplicate using CVE IDs
         all_results_dict = {}
         for res in relevant_results + latest_results:
-            all_results_dict[res["_id"]] = (
-                res  # Overwrite duplicates based on the "_id"
-            )
+            cve_id = res["cve"]["CVE_data_meta"]["ID"]
+            all_results_dict[cve_id] = res  # Overwrite duplicates based on CVE ID
 
         # Extract combined results and ensure the limit is respected
         combined_results = list(all_results_dict.values())
@@ -342,10 +339,10 @@ async def fetch_relevant_cve_context(query: str, limit: int = 5) -> str:
         # Format the results into a human-readable context string
         context = "\n".join(
             [
-                f"- CVE ID: {res['_id']}\n"
-                f"  Description: {res.get('description', 'No description available.')}\n"
-                f"  Published Date: {res.get('published', 'Unknown')}\n"
-                f"  Raw Data: {res.get('raw_data', 'No raw data available.')}"
+                f"- CVE ID: {res['cve']['CVE_data_meta']['ID']}\n"
+                f"  Description: {res['cve']['description']['description_data'][0].get('value', 'No description available.')}\n"
+                f"  Published Date: {res.get('publishedDate', 'Unknown')}\n"
+                f"  References: {', '.join([ref['url'] for ref in res['cve']['references']['reference_data']]) if 'references' in res['cve'] else 'No references available.'}"
                 for res in combined_results
             ]
         )
@@ -357,8 +354,7 @@ async def fetch_relevant_cve_context(query: str, limit: int = 5) -> str:
 
     except Exception as e:
         logger.error(
-            f"Error fetching CVE context for query '{query}': {str(e)}",
-            exc_info=True,
+            f"Error fetching CVE context for query '{query}': {str(e)}", exc_info=True
         )
         return "Failed to fetch CVE context due to an internal error."
 
@@ -387,3 +383,26 @@ def extract_important_keywords(query: str, max_keywords: int = 5) -> List[str]:
     important_keywords = yake_keywords | named_entities  # Set union (avoids duplicates)
 
     return list(important_keywords)
+
+
+# async def fetch_cves_from_api(keyword: str) -> dict:
+#     """
+#     Fetch CVEs from the NVD API using a keyword search.
+
+#     :param keyword: The keyword to search for CVEs.
+#     :return: A dictionary containing the CVE results.
+#     """
+#     url = f"https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch={keyword}"
+    
+#     try:
+#         async with aiohttp.ClientSession() as session:
+#             async with session.get(url) as response:
+#                 if response.status == 200:
+#                     data = await response.json()
+#                     return data.get("vulnerabilities", [])
+#                 else:
+#                     logger.error(f"Failed to fetch CVEs from API. Status Code: {response.status}")
+#                     return []
+#     except Exception as e:
+#         logger.error(f"Error fetching CVEs from NVD API: {str(e)}", exc_info=True)
+#         return []
