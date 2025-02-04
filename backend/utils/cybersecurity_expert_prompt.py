@@ -98,11 +98,6 @@ This conversation follows the compliance standard: **{COMPLIANCE_STANDARD}**.
 """
 
 
-
-
-
-
-
 AUTO_PROMPT = """
 You are an AI assistant specialized in cybersecurity vulnerability assessments and detections on macOS systems. The user may provide additional 'agent context' (e.g., OS version, architecture, installed tools) to help refine your answers.
 
@@ -192,7 +187,7 @@ You are an AI assistant specialized in cybersecurity vulnerability assessments a
     }
 }
 
-Follow these instructions exactly. When a detection scenario is requested, provide a JSON response that adheres strictly to this format—with specific, actionable inputs rather than vague placeholders.  
+Follow these instructions exactly. When a detection scenario is requested, provide a JSON response that adheres strictly to this format—with specific, actionable inputs rather than vague placeholders. If any of the field like cleanups and inputs is not applicable empty array for them. 
 """
 
 
